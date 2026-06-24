@@ -23,19 +23,19 @@ CREATE TABLE category_attributes (
   sort_order    INT NOT NULL DEFAULT 0
 );
 
--- Global products (one entry per barcode)
+-- Global products (multiple entries per barcode allowed - conflicts exist in the real world)
 CREATE TABLE products (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  barcode         TEXT NOT NULL UNIQUE,
+  barcode         TEXT NOT NULL,
   name            TEXT NOT NULL,
   brand           TEXT NOT NULL DEFAULT '',
   description     TEXT NOT NULL DEFAULT '',
   category_id     UUID REFERENCES categories(id),
   image_url       TEXT NOT NULL DEFAULT '',
-  unit            TEXT NOT NULL DEFAULT 'unidad', -- unidad, kg, l, m
-  attributes      JSONB NOT NULL DEFAULT '{}',   -- category-specific attributes
-  status          TEXT NOT NULL DEFAULT 'pending', -- pending | verified | rejected
-  verification_score INT NOT NULL DEFAULT 0,     -- 3+ = verified
+  unit            TEXT NOT NULL DEFAULT 'unidad',
+  attributes      JSONB NOT NULL DEFAULT '{}',
+  status          TEXT NOT NULL DEFAULT 'pending',
+  verification_score INT NOT NULL DEFAULT 0,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );

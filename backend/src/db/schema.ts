@@ -21,7 +21,7 @@ export const categoryAttributes = pgTable('category_attributes', {
 
 export const products = pgTable('products', {
   id: uuid('id').defaultRandom().primaryKey(),
-  barcode: text('barcode').notNull().unique(),
+  barcode: text('barcode').notNull(),
   name: text('name').notNull(),
   brand: text('brand').default('').notNull(),
   description: text('description').default('').notNull(),

@@ -8,12 +8,13 @@ export const productsRouter = new Hono();
 
 productsRouter.get('/:barcode', async (c) => {
   const { barcode } = c.req.param();
-  const product = await db.query.products.findFirst({
+  const results = await db.query.products.findMany({
     where: eq(schema.products.barcode, barcode),
+    orderBy: (p, { desc }) => desc(p.verificationScore),
     with: { category: true, variants: true },
   });
-  if (!product) return c.json({ error: 'not_found' }, 404);
-  return c.json(product);
+  if (results.length === 0) return c.json({ error: 'not_found' }, 404);
+  return c.json({ products: results, conflict: results.length > 1 });
 });
 
 const createProductSchema = z.object({
