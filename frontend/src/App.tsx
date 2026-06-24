@@ -5,6 +5,7 @@ import { ProductDetail } from './pages/ProductDetail';
 import { ScanPage } from './pages/ScanPage';
 import { AddProduct } from './pages/AddProduct';
 import { ImportPage } from './pages/ImportPage';
+import { POSPage } from './pages/POSPage';
 
 export default function App() {
   return (
@@ -16,6 +17,7 @@ export default function App() {
             <Link to="/search" className="hover:text-white">Buscar</Link>
             <Link to="/scan" className="hover:text-white">Escanear</Link>
             <Link to="/import" className="hover:text-white">Importar</Link>
+            <Link to="/pos" className="hover:text-white">POS</Link>
           </div>
         </div>
       </nav>
@@ -27,6 +29,7 @@ export default function App() {
           <Route path="/scan" element={<ScanPage />} />
           <Route path="/add" element={<AddProduct />} />
           <Route path="/import" element={<ImportPage />} />
+          <Route path="/pos" element={<POSPage />} />
         </Routes>
       </main>
     </div>

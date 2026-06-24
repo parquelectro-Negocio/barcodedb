@@ -7,6 +7,7 @@ import { businessesRouter } from './routes/businesses';
 import { searchRouter } from './routes/search';
 import { categoriesRouter } from './routes/categories';
 import { votesRouter } from './routes/votes';
+import { salesRouter } from './routes/sales';
 import { userMiddleware } from './middleware/user';
 
 const app = new Hono();
@@ -20,6 +21,7 @@ app.route('/api/businesses', businessesRouter);
 app.route('/api/search', searchRouter);
 app.route('/api/categories', categoriesRouter);
 app.route('/api/votes', votesRouter);
+app.route('/api/sales', salesRouter);
 
 const port = parseInt(process.env.PORT ?? '3001');
 
