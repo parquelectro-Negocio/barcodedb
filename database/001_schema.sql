@@ -3,7 +3,7 @@
 -- =============================================
 
 -- Categories tree (flexible, self-referencing)
-CREATE TABLE categories (
+CREATE TABLE IF NOT EXISTS categories (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name        TEXT NOT NULL,
   slug        TEXT NOT NULL UNIQUE,
@@ -12,7 +12,7 @@ CREATE TABLE categories (
 );
 
 -- Attributes template per category (e.g. "Electrónica" -> voltaje, conectividad)
-CREATE TABLE category_attributes (
+CREATE TABLE IF NOT EXISTS category_attributes (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   category_id   UUID NOT NULL REFERENCES categories(id),
   name          TEXT NOT NULL,      -- e.g. "voltage", "connectivity"
@@ -24,7 +24,7 @@ CREATE TABLE category_attributes (
 );
 
 -- Global products (multiple entries per barcode allowed - conflicts exist in the real world)
-CREATE TABLE products (
+CREATE TABLE IF NOT EXISTS products (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   barcode         TEXT NOT NULL,
   name            TEXT NOT NULL,
@@ -41,7 +41,7 @@ CREATE TABLE products (
 );
 
 -- Product variants (same barcode, different spec: color, size, etc.)
-CREATE TABLE product_variants (
+CREATE TABLE IF NOT EXISTS product_variants (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   product_id    UUID NOT NULL REFERENCES products(id),
   name          TEXT NOT NULL,
@@ -51,7 +51,7 @@ CREATE TABLE product_variants (
 );
 
 -- Businesses (comercios)
-CREATE TABLE businesses (
+CREATE TABLE IF NOT EXISTS businesses (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name          TEXT NOT NULL,
   slug          TEXT NOT NULL UNIQUE,
@@ -60,7 +60,7 @@ CREATE TABLE businesses (
 );
 
 -- Business product catalog (stock, prices)
-CREATE TABLE business_products (
+CREATE TABLE IF NOT EXISTS business_products (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   business_id   UUID NOT NULL REFERENCES businesses(id),
   product_id    UUID NOT NULL REFERENCES products(id),
@@ -75,7 +75,7 @@ CREATE TABLE business_products (
 );
 
 -- Contributors / users
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email         TEXT UNIQUE,
   display_name  TEXT NOT NULL DEFAULT '',
@@ -84,7 +84,7 @@ CREATE TABLE users (
 );
 
 -- Contributions (who added/modified what)
-CREATE TABLE contributions (
+CREATE TABLE IF NOT EXISTS contributions (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id       UUID REFERENCES users(id),
   product_id    UUID REFERENCES products(id),
@@ -96,7 +96,7 @@ CREATE TABLE contributions (
 );
 
 -- Votes/confirmations on product data
-CREATE TABLE product_votes (
+CREATE TABLE IF NOT EXISTS product_votes (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id       UUID REFERENCES users(id),
   product_id    UUID REFERENCES products(id),
@@ -106,7 +106,7 @@ CREATE TABLE product_votes (
 );
 
 -- Product aliases for import/AI matching
-CREATE TABLE product_aliases (
+CREATE TABLE IF NOT EXISTS product_aliases (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   product_id    UUID NOT NULL REFERENCES products(id),
   alias         TEXT NOT NULL,       -- e.g. "Samsung A16" -> product
@@ -115,14 +115,14 @@ CREATE TABLE product_aliases (
 );
 
 -- Sales (simple POS, Phase 2)
-CREATE TABLE sales (
+CREATE TABLE IF NOT EXISTS sales (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   business_id   UUID NOT NULL REFERENCES businesses(id),
   total         NUMERIC(12,2) NOT NULL,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE sale_items (
+CREATE TABLE IF NOT EXISTS sale_items (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   sale_id       UUID NOT NULL REFERENCES sales(id),
   business_product_id UUID NOT NULL REFERENCES business_products(id),
@@ -132,11 +132,11 @@ CREATE TABLE sale_items (
 );
 
 -- Indexes
-CREATE INDEX idx_products_barcode ON products(barcode);
-CREATE INDEX idx_products_brand ON products(brand);
-CREATE INDEX idx_products_name ON products USING gin(to_tsvector('spanish', name));
-CREATE INDEX idx_products_category ON products(category_id);
-CREATE INDEX idx_business_products_business ON business_products(business_id);
-CREATE INDEX idx_product_aliases_alias ON product_aliases(alias);
-CREATE INDEX idx_contributions_product ON contributions(product_id);
-CREATE INDEX idx_contributions_status ON contributions(status);
+CREATE INDEX IF NOT EXISTS idx_products_barcode ON products(barcode);
+CREATE INDEX IF NOT EXISTS idx_products_brand ON products(brand);
+CREATE INDEX IF NOT EXISTS idx_products_name ON products USING gin(to_tsvector('spanish', name));
+CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id);
+CREATE INDEX IF NOT EXISTS idx_business_products_business ON business_products(business_id);
+CREATE INDEX IF NOT EXISTS idx_product_aliases_alias ON product_aliases(alias);
+CREATE INDEX IF NOT EXISTS idx_contributions_product ON contributions(product_id);
+CREATE INDEX IF NOT EXISTS idx_contributions_status ON contributions(status);
