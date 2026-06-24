@@ -4,6 +4,7 @@ import { Search } from './pages/Search';
 import { ProductDetail } from './pages/ProductDetail';
 import { ScanPage } from './pages/ScanPage';
 import { AddProduct } from './pages/AddProduct';
+import { ImportPage } from './pages/ImportPage';
 
 export default function App() {
   return (
@@ -14,6 +15,7 @@ export default function App() {
           <div className="flex gap-4 text-sm text-slate-400">
             <Link to="/search" className="hover:text-white">Buscar</Link>
             <Link to="/scan" className="hover:text-white">Escanear</Link>
+            <Link to="/import" className="hover:text-white">Importar</Link>
           </div>
         </div>
       </nav>
@@ -24,6 +26,7 @@ export default function App() {
           <Route path="/product/:barcode" element={<ProductDetail />} />
           <Route path="/scan" element={<ScanPage />} />
           <Route path="/add" element={<AddProduct />} />
+          <Route path="/import" element={<ImportPage />} />
         </Routes>
       </main>
     </div>
