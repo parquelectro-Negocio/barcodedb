@@ -21,6 +21,7 @@ searchRouter.get('/', async (c) => {
         like(schema.products.brand, `%${q}%`),
         like(schema.products.barcode, `%${q}%`),
         sql`to_tsvector('spanish', ${schema.products.name}) @@ plainto_tsquery('spanish', ${q})`,
+        sql`EXISTS (SELECT 1 FROM business_products bp WHERE bp.product_id = products.id AND bp.sku ILIKE ${'%' + q.toLowerCase() + '%'})`,
       ),
     );
   }
@@ -41,7 +42,12 @@ searchRouter.get('/', async (c) => {
     with: { category: true },
   });
 
-  return c.json({ data: results, page, limit, query: q, brand, category });
+  const countResult: any = await db.execute(
+    sql`SELECT COUNT(*) as total FROM products WHERE ${where ? sql`${where}` : sql`TRUE`}`,
+  );
+  const total = parseInt((Array.isArray(countResult) ? countResult[0] : countResult.rows?.[0])?.total ?? '0');
+
+  return c.json({ data: results, total, page, limit, query: q, brand, category });
 });
 
 searchRouter.get('/brands', async (c) => {
@@ -49,105 +55,108 @@ searchRouter.get('/brands', async (c) => {
   const results: any = await db.execute(
     sql`SELECT DISTINCT brand FROM products WHERE brand ILIKE ${`${q}%`} ORDER BY brand LIMIT 20`,
   );
-  return c.json(results.rows.map((r: any) => r.brand));
+  return c.json(asRows(results).map((r: any) => r.brand));
 });
 
-// Import matching: takes names[], returns { matches, unmatched }
-searchRouter.post('/match', async (c) => {
-  const { names } = await c.req.json() as { names: string[] };
-  if (!names?.length) return c.json({ matches: [], unmatched: [] });
+type MatchItem = { name?: string; barcode?: string; brand?: string; price?: number; stock?: number };
 
-  const matchedIds = new Set<string>();
-  const matches: any[] = [];
+function asRows(r: any): any[] {
+  return Array.isArray(r) ? r : (r?.rows ?? []);
+}
 
-  // Try exact match via aliases first, then ILIKE on name+brand
-  for (const name of names) {
-    const trimmed = name.trim();
-    if (!trimmed) continue;
+async function matchByName(trimmed: string): Promise<any> {
+  // 1. Alias match
+  const aliasResult: any = await db.execute(
+    sql`
+      SELECT p.id, p.name, p.brand, p.barcode, p.image_url, p.verification_score, p.status
+      FROM products p
+      JOIN product_aliases pa ON pa.product_id = p.id
+      WHERE LOWER(pa.alias) = LOWER(${trimmed})
+      LIMIT 1
+    `,
+  );
+  let found = asRows(aliasResult);
+  if (found.length > 0) return found[0];
 
-    let found: any[];
+  // 2. Name exact match
+  const nameResult: any = await db.execute(
+    sql`
+      SELECT id, name, brand, barcode, image_url, verification_score, status
+      FROM products WHERE LOWER(name) = LOWER(${trimmed}) LIMIT 1
+    `,
+  );
+  found = asRows(nameResult);
+  if (found.length > 0) return found[0];
 
-    // 1. Alias match
-    const aliasResult: any = await db.execute(
+  // 3. Name + brand fuzzy
+  const parts = trimmed.split(/\s+/);
+  if (parts.length >= 2) {
+    const brandNames: any = await db.execute(
       sql`
+        WITH possible_brands AS (
+          SELECT DISTINCT brand FROM products
+          WHERE LOWER(brand) = LOWER(${parts[0]}) OR LOWER(brand) = LOWER(${parts[1]})
+        )
         SELECT p.id, p.name, p.brand, p.barcode, p.image_url, p.verification_score, p.status
         FROM products p
-        JOIN product_aliases pa ON pa.product_id = p.id
-        WHERE LOWER(pa.alias) = LOWER(${trimmed})
+        WHERE p.brand IN (SELECT brand FROM possible_brands)
+          AND (${sql.join(parts.map(p => sql`LOWER(p.name) LIKE ${'%' + p.toLowerCase() + '%'}`), sql` AND `)})
         LIMIT 1
       `,
     );
-    found = aliasResult.rows ?? [];
-    if (found.length > 0) {
-      matchedIds.add(found[0].id);
-      matches.push(found[0]);
-      continue;
-    }
+    found = asRows(brandNames);
+    if (found.length > 0) return found[0];
+  }
 
-    // 2. Name exact match (case-insensitive)
-    const nameResult: any = await db.execute(
-      sql`
-        SELECT id, name, brand, barcode, image_url, verification_score, status
-        FROM products
-        WHERE LOWER(name) = LOWER(${trimmed})
-        LIMIT 1
-      `,
-    );
-    found = nameResult.rows ?? [];
-    if (found.length > 0) {
-      matchedIds.add(found[0].id);
-      matches.push(found[0]);
-      continue;
-    }
+  // 4. ILIKE fallback
+  const ilikeResult: any = await db.execute(
+    sql`
+      SELECT id, name, brand, barcode, image_url, verification_score, status
+      FROM products WHERE LOWER(name) LIKE ${'%' + trimmed.toLowerCase() + '%'} LIMIT 1
+    `,
+  );
+  found = asRows(ilikeResult);
+  return found.length > 0 ? found[0] : null;
+}
 
-    // 3. Name + brand fuzzy (contains both)
-    const parts = trimmed.split(/\s+/);
-    if (parts.length >= 2) {
-      const brandNames: any = await db.execute(
-        sql`
-          WITH possible_brands AS (
-            SELECT DISTINCT brand FROM products
-            WHERE LOWER(brand) = LOWER(${parts[0]})
-            OR LOWER(brand) = LOWER(${parts[1]})
-          )
-          SELECT p.id, p.name, p.brand, p.barcode, p.image_url, p.verification_score, p.status
-          FROM products p
-          WHERE p.brand IN (SELECT brand FROM possible_brands)
-            AND (${sql.join(parts.map(p => sql`LOWER(p.name) LIKE ${'%' + p.toLowerCase() + '%'}`), sql` AND `)})
-          LIMIT 1
-        `,
+// Import matching: takes names[] or items[], returns { matches, unmatched, items }
+searchRouter.post('/match', async (c) => {
+  const body = await c.req.json() as { names?: string[]; items?: MatchItem[] };
+  const items: MatchItem[] = body.items ?? body.names?.map(n => ({ name: n })) ?? [];
+  if (!items.length) return c.json({ matches: [], unmatched: [] });
+
+  const matchedIds = new Set<string>();
+  const matches: { match: any; item: MatchItem; index: number }[] = [];
+  const unmatched: { item: MatchItem; index: number }[] = [];
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    let found: any = null;
+
+    // Try barcode match first
+    if (item.barcode) {
+      const barResult: any = await db.execute(
+        sql`SELECT id, name, brand, barcode, image_url, verification_score, status FROM products WHERE barcode = ${item.barcode} LIMIT 1`,
       );
-      found = brandNames.rows ?? [];
-      if (found.length > 0) {
-        matchedIds.add(found[0].id);
-        matches.push(found[0]);
-        continue;
-      }
+      found = asRows(barResult)[0];
     }
 
-    // 4. ILIKE fallback (any part of name matches)
-    const ilikeResult: any = await db.execute(
-      sql`
-        SELECT id, name, brand, barcode, image_url, verification_score, status
-        FROM products
-        WHERE LOWER(name) LIKE ${'%' + trimmed.toLowerCase() + '%'}
-        LIMIT 1
-      `,
-    );
-    found = ilikeResult.rows ?? [];
-    if (found.length > 0) {
-      matchedIds.add(found[0].id);
-      matches.push(found[0]);
-      continue;
+    // Fall back to name match
+    if (!found && item.name) {
+      found = await matchByName(item.name.trim());
+    }
+
+    if (found) {
+      matchedIds.add(found.id);
+      matches.push({ match: found, item, index: i });
+    } else {
+      unmatched.push({ item, index: i });
     }
   }
 
-  // Track which original names were matched
-  const matchedLower = new Set(matches.map((m: any) => m.name?.toLowerCase()).filter(Boolean));
-  const unmatched = names.filter(n => {
-    const t = n.trim().toLowerCase();
-    return t.length > 0 && !matchedLower.has(t);
+  return c.json({
+    matches: matches.map(m => ({ ...m.match, _itemIndex: m.index })),
+    unmatched: unmatched.map(u => u.item.name ?? u.item.barcode ?? ''),
+    items: items,
   });
-
-  return c.json({ matches, unmatched });
 });

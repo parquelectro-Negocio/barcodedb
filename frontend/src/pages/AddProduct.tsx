@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-
-const API = '/api';
+import { normalizeName } from '../lib/normalizeName';
+import { useToast } from '../lib/toast';
+import { API_BASE } from '../lib/config';
 
 type Category = { id: string; name: string; slug: string };
 type Attribute = { id: string; name: string; label: string; type: string; options: any; required: boolean };
@@ -10,31 +11,53 @@ export function AddProduct() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const barcode = params.get('barcode') ?? '';
+  const prefillName = params.get('name') ?? '';
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [attrs, setAttrs] = useState<Attribute[]>([]);
   const [form, setForm] = useState<Record<string, any>>({
-    barcode, name: '', brand: '', description: '', unit: 'unidad', categoryId: '',
+    barcode, name: prefillName, brand: '', description: '', unit: 'unidad', categoryId: '',
   });
+  const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
+  const [brands, setBrands] = useState<string[]>([]);
+  const [normalized, setNormalized] = useState<{ name: string; brand: string | null } | null>(null);
 
   useEffect(() => {
-    fetch(`${API}/categories`)
+    fetch(`${API_BASE}/categories`)
       .then(r => r.json())
       .then(setCategories)
+      .catch(() => {});
+    fetch(`${API_BASE}/search/brands?q=`)
+      .then(r => r.json())
+      .then(setBrands)
       .catch(() => {});
   }, []);
 
   useEffect(() => {
     if (!form.categoryId) { setAttrs([]); return; }
-    fetch(`${API}/categories/${form.categoryId}/attributes`)
+    fetch(`${API_BASE}/categories/${form.categoryId}/attributes`)
       .then(r => r.json())
       .then(setAttrs)
       .catch(() => setAttrs([]));
   }, [form.categoryId]);
 
   const set = (field: string, value: any) => setForm(f => ({ ...f, [field]: value }));
+
+  // Normalize name whenever name or category changes
+  useEffect(() => {
+    if (!form.name?.trim()) { setNormalized(null); return; }
+    const timer = setTimeout(async () => {
+      const result = await normalizeName(form.name, form.categoryId || undefined);
+      if (result.name !== form.name || (result.brand && result.brand !== form.brand)) {
+        setNormalized({ name: result.name, brand: result.brand });
+      } else {
+        setNormalized(null);
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [form.name, form.categoryId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,8 +69,24 @@ export function AddProduct() {
       if (v !== undefined && v !== '') categoryAttrs[a.name] = v;
     }
 
+    let imageUrl = form.imageUrl ?? '';
+    // Upload image first if selected
+    const fileInput = document.getElementById('product-image') as HTMLInputElement;
+    const file = fileInput?.files?.[0];
+    if (file) {
+      const fd = new FormData();
+      fd.append('file', file);
+      try {
+        const upRes = await fetch(`${API_BASE}/upload`, { method: 'POST', body: fd });
+        if (upRes.ok) {
+          const upData = await upRes.json();
+          imageUrl = upData.url;
+        }
+      } catch {}
+    }
+
     try {
-      const res = await fetch(`${API}/products`, {
+      const res = await fetch(`${API_BASE}/products`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -57,15 +96,17 @@ export function AddProduct() {
           description: form.description,
           unit: form.unit,
           categoryId: form.categoryId || null,
+          imageUrl,
           attributes: categoryAttrs,
         }),
       });
       if (!res.ok) throw new Error('Error al guardar');
       const product = await res.json();
+      toast('Producto guardado', 'success');
       setDone(true);
       setTimeout(() => navigate(`/product/${product.barcode}`), 1500);
     } catch {
-      alert('Error al guardar el producto');
+      toast('Error al guardar el producto', 'error');
     } finally {
       setSaving(false);
     }
@@ -87,10 +128,12 @@ export function AddProduct() {
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
           <label className="block text-sm text-slate-400 mb-1">Código de barras</label>
-          <input
-            type="text" value={form.barcode} readOnly
-            className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg font-mono text-sm opacity-60 cursor-not-allowed"
-          />
+            <input
+              type="text" value={form.barcode}
+              onChange={e => set('barcode', e.target.value)}
+              className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg font-mono text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              placeholder="Ej: 7790040929604"
+            />
         </div>
 
         <div className="grid grid-cols-2 gap-4">
@@ -102,6 +145,19 @@ export function AddProduct() {
               className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
               placeholder="Ej: Cable HDMI 2m"
             />
+            {normalized && (
+              <button
+                type="button"
+                onClick={() => {
+                  set('name', normalized.name);
+                  if (normalized.brand && !form.brand) set('brand', normalized.brand);
+                  setNormalized(null);
+                }}
+                className="mt-1 text-xs text-emerald-400 hover:text-emerald-300 underline text-left"
+              >
+                Sugerencia: {normalized.name}{normalized.brand ? ` · ${normalized.brand}` : ''} (click para aplicar)
+              </button>
+            )}
           </div>
           <div>
             <label className="block text-sm text-slate-400 mb-1">Marca</label>
@@ -110,7 +166,11 @@ export function AddProduct() {
               onChange={e => set('brand', e.target.value)}
               className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
               placeholder="Ej: Samsung"
+              list="brand-suggestions"
             />
+            <datalist id="brand-suggestions">
+              {brands.map(b => <option key={b} value={b} />)}
+            </datalist>
           </div>
         </div>
 
@@ -164,6 +224,17 @@ export function AddProduct() {
             onChange={e => set('description', e.target.value)}
             rows={3}
             className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm text-slate-400 mb-1">Imagen</label>
+          <input
+            id="product-image"
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            className="w-full text-sm text-slate-400 file:mr-3 file:py-2 file:px-4 file:rounded-lg
+                       file:border-0 file:bg-slate-800 file:text-slate-200 hover:file:bg-slate-700"
           />
         </div>
 

@@ -2,8 +2,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { apiHeaders } from '../lib/user';
-
-const API = '/api';
+import { API_BASE } from '../lib/config';
 
 export function ProductDetail() {
   const { barcode } = useParams();
@@ -13,7 +12,7 @@ export function ProductDetail() {
   const { data, isLoading, error } = useQuery({
     queryKey: ['product', barcode],
     queryFn: async () => {
-      const res = await fetch(`${API}/products/${barcode}`);
+      const res = await fetch(`${API_BASE}/products/${barcode}`);
       if (!res.ok) throw new Error('Product not found');
       return res.json();
     },
@@ -83,14 +82,14 @@ function ProductView({ product, barcode, onBack }: { product: any; barcode: stri
   const { data: voteData } = useQuery({
     queryKey: ['vote', product.id],
     queryFn: async () => {
-      const res = await fetch(`${API}/votes/${product.id}`, { headers: apiHeaders() });
+      const res = await fetch(`${API_BASE}/votes/${product.id}`, { headers: apiHeaders() });
       return res.json();
     },
   });
 
   const voteMutation = useMutation({
     mutationFn: async (vote: 'confirm' | 'flag') => {
-      const res = await fetch(`${API}/votes/${product.id}`, {
+      const res = await fetch(`${API_BASE}/votes/${product.id}`, {
         method: 'POST',
         headers: apiHeaders(),
         body: JSON.stringify({ vote }),

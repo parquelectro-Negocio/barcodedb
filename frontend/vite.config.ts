@@ -1,6 +1,12 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
+
+const https = process.env.HTTPS === 'true'
+  ? { key: readFileSync(resolve('..', 'ssl', 'localhost-key.pem')), cert: readFileSync(resolve('..', 'ssl', 'localhost.pem')) }
+  : undefined;
 
 export default defineConfig({
   plugins: [
@@ -24,8 +30,14 @@ export default defineConfig({
     }),
   ],
   server: {
-    proxy: {
+    https,
+    host: process.env.HTTPS === 'true' ? '0.0.0.0' : undefined,
+    proxy: process.env.HTTPS === 'true' ? {
+      '/api': { target: 'https://localhost:3443', secure: false },
+      '/uploads': { target: 'https://localhost:3443', secure: false },
+    } : {
       '/api': 'http://localhost:3001',
+      '/uploads': 'http://localhost:3001',
     },
   },
 });

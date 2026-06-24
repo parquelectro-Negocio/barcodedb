@@ -8,11 +8,14 @@ type Props = {
 export function Scanner({ onDetect, onClose }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const detectedRef = useRef(false);
   const [error, setError] = useState('');
   const [detecting, setDetecting] = useState(false);
 
   useEffect(() => {
     let quagga: any;
+    let frameCount = 0;
+    let rafId = 0;
 
     const start = async () => {
       try {
@@ -37,7 +40,13 @@ export function Scanner({ onDetect, onClose }: Props) {
         const video = videoRef.current!;
 
         const detect = async () => {
-          if (!video.videoWidth) { requestAnimationFrame(detect); return; }
+          if (detectedRef.current) return;
+          if (!video.videoWidth) { rafId = requestAnimationFrame(detect); return; }
+
+          frameCount++;
+          // Skip first 15 frames — camera needs to settle
+          if (frameCount < 15) { rafId = requestAnimationFrame(detect); return; }
+
           canvas.width = video.videoWidth;
           canvas.height = video.videoHeight;
           ctx.drawImage(video, 0, 0);
@@ -46,6 +55,7 @@ export function Scanner({ onDetect, onClose }: Props) {
             const codes = await bd.detect(canvas);
             for (const code of codes) {
               if (code.rawValue) {
+                detectedRef.current = true;
                 cleanup();
                 onDetect(code.rawValue);
                 return;
@@ -53,7 +63,7 @@ export function Scanner({ onDetect, onClose }: Props) {
             }
           } catch { /* frame skip */ }
 
-          requestAnimationFrame(detect);
+          rafId = requestAnimationFrame(detect);
         };
         detect();
         return;
@@ -78,8 +88,10 @@ export function Scanner({ onDetect, onClose }: Props) {
       });
 
       Quagga.default.onDetected((data: any) => {
+        if (detectedRef.current) return;
         const code = data?.codeResult?.code;
         if (code) {
+          detectedRef.current = true;
           cleanup();
           onDetect(code);
         }
@@ -87,6 +99,7 @@ export function Scanner({ onDetect, onClose }: Props) {
     };
 
     const cleanup = () => {
+      cancelAnimationFrame(rafId);
       if (quagga) quagga.stop();
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(t => t.stop());

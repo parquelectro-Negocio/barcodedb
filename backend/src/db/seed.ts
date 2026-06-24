@@ -128,108 +128,103 @@ async function seed() {
       (${catDrinks.id}, 'con_gas', 'Con gas', 'boolean', null, 2)
   `;
 
+  const attrs = (o: Record<string, any>) => JSON.stringify(o);
+
   // ── Products ──
-  // Electrónica / Celulares
   const [p1] = await sql`
     INSERT INTO products (barcode, name, brand, category_id, unit, attributes, status, verification_score) VALUES
       ('7790040929604', 'Samsung Galaxy A16 128GB', 'Samsung', ${catPhones.id}, 'unidad',
-       '{"almacenamiento":"128GB","ram":"4GB","pantalla":"6.5\"","bateria":5000}', 'verified', 5)
+       ${attrs({almacenamiento:'128GB',ram:'4GB',pantalla:'6.5"',bateria:5000})}, 'verified', 5)
     RETURNING id
   `;
 
   const [p2] = await sql`
     INSERT INTO products (barcode, name, brand, category_id, unit, attributes, status, verification_score) VALUES
       ('7790040929605', 'Motorola Moto G54 256GB', 'Motorola', ${catPhones.id}, 'unidad',
-       '{"almacenamiento":"256GB","ram":"8GB","pantalla":"6.5\"","bateria":5000}', 'verified', 4)
+       ${attrs({almacenamiento:'256GB',ram:'8GB',pantalla:'6.5"',bateria:5000})}, 'verified', 4)
     RETURNING id
   `;
 
   const [p3] = await sql`
     INSERT INTO products (barcode, name, brand, category_id, unit, attributes, status, verification_score) VALUES
       ('7790040929606', 'iPhone 16 128GB', 'Apple', ${catPhones.id}, 'unidad',
-       '{"almacenamiento":"128GB","ram":"8GB","pantalla":"6.1\"","bateria":3561}', 'verified', 8)
+       ${attrs({almacenamiento:'128GB',ram:'8GB',pantalla:'6.1"',bateria:3561})}, 'verified', 8)
     RETURNING id
   `;
 
-  // Computación
   const [p4] = await sql`
     INSERT INTO products (barcode, name, brand, category_id, unit, attributes, status, verification_score) VALUES
       ('7790040929607', 'Notebook Lenovo ThinkPad X1 Carbon', 'Lenovo', ${catComputing.id}, 'unidad',
-       '{"tipo":"Notebook","almacenamiento":"512GB","ram":"16GB"}', 'verified', 3)
+       ${attrs({tipo:'Notebook',almacenamiento:'512GB',ram:'16GB'})}, 'verified', 3)
     RETURNING id
   `;
 
   const [p5] = await sql`
     INSERT INTO products (barcode, name, brand, category_id, unit, attributes, status, verification_score) VALUES
       ('7790040929608', 'Monitor Samsung 27" 4K', 'Samsung', ${catComputing.id}, 'unidad',
-       '{"tipo":"Monitor"}', 'verified', 6)
+       ${attrs({tipo:'Monitor'})}, 'verified', 6)
     RETURNING id
   `;
 
-  // Audio
   const [p6] = await sql`
     INSERT INTO products (barcode, name, brand, category_id, unit, attributes, status, verification_score) VALUES
       ('7790040929609', 'Auriculares Sony WH-1000XM5', 'Sony', ${catAudio.id}, 'unidad',
-       '{"tipo":"Auricular","conexion":"Bluetooth"}', 'verified', 10)
+       ${attrs({tipo:'Auricular',conexion:'Bluetooth'})}, 'verified', 10)
     RETURNING id
   `;
 
   const [p7] = await sql`
     INSERT INTO products (barcode, name, brand, category_id, unit, attributes, status, verification_score) VALUES
       ('7790040929610', 'Parlante JBL Flip 6', 'JBL', ${catAudio.id}, 'unidad',
-       '{"tipo":"Parlante","conexion":"Bluetooth"}', 'verified', 7)
+       ${attrs({tipo:'Parlante',conexion:'Bluetooth'})}, 'verified', 7)
     RETURNING id
   `;
 
-  // Cables
   const [p8] = await sql`
     INSERT INTO products (barcode, name, brand, category_id, unit, attributes, status, verification_score) VALUES
       ('7790040929611', 'Cable HDMI 2.0 3m', 'Ugreen', ${catCables.id}, 'unidad',
-       '{"tipo":"HDMI","longitud":3}', 'verified', 4)
+       ${attrs({tipo:'HDMI',longitud:3})}, 'verified', 4)
     RETURNING id
   `;
 
   const [p9] = await sql`
     INSERT INTO products (barcode, name, brand, category_id, unit, attributes, status, verification_score) VALUES
       ('7790040929612', 'Cable USB-C a USB-C 2m', 'Baseus', ${catCables.id}, 'unidad',
-       '{"tipo":"USB-C","longitud":2}', 'pending', 1)
+       ${attrs({tipo:'USB-C',longitud:2})}, 'pending', 1)
     RETURNING id
   `;
 
-  // Variant: different length
   await sql`
     INSERT INTO product_variants (product_id, name, barcode, attributes, sort_order) VALUES
-      (${p8.id}, '1.5m', '7790040929613', '{"longitud":1.5}', 1),
-      (${p8.id}, '5m', '7790040929614', '{"longitud":5}', 2)
+      (${p8.id}, '1.5m', '7790040929613', ${attrs({longitud:1.5})}, 1),
+      (${p8.id}, '5m', '7790040929614', ${attrs({longitud:5})}, 2)
   `;
 
-  // Alimentos / Snacks
   const [p10] = await sql`
     INSERT INTO products (barcode, name, brand, category_id, unit, attributes, status, verification_score) VALUES
       ('7790040929615', 'Alfajor Milka Oreo 50g', 'Milka', ${catSnacks.id}, 'unidad',
-       '{"peso_neto":50}', 'verified', 12)
+       ${attrs({peso_neto:50})}, 'verified', 12)
     RETURNING id
   `;
 
   const [p11] = await sql`
     INSERT INTO products (barcode, name, brand, category_id, unit, attributes, status, verification_score) VALUES
       ('7790040929616', 'Galletitas Terrabusi Rellenas x 160g', 'Terrabusi', ${catSnacks.id}, 'unidad',
-       '{"peso_neto":160}', 'verified', 9)
+       ${attrs({peso_neto:160})}, 'verified', 9)
     RETURNING id
   `;
 
-  // Bebidas
   const [p12] = await sql`
     INSERT INTO products (barcode, name, brand, category_id, unit, attributes, status, verification_score) VALUES
       ('7790040929617', 'Coca-Cola Zero 500ml', 'Coca-Cola', ${catDrinks.id}, 'unidad',
-       '{"volumen":500,"con_gas":true}', 'verified', 15)
+       ${attrs({volumen:500,con_gas:true})}, 'verified', 15)
     RETURNING id
   `;
 
   const [p13] = await sql`
     INSERT INTO products (barcode, name, brand, category_id, unit, attributes, status, verification_score) VALUES
       ('7790040929618', 'Agua Mineral Villavicencio 1.5L', 'Villavicencio', ${catDrinks.id}, 'unidad',
-       '{"volumen":1500,"con_gas":false}', 'verified', 11)
+       ${attrs({volumen:1500,con_gas:false})}, 'verified', 11)
     RETURNING id
   `;
 
@@ -279,6 +274,18 @@ async function seed() {
       (${b1.id}, ${p9.id}, 30, 2500, 4500)
   `;
 
+  // ── Users (for votes) ──
+  await sql`
+    INSERT INTO users (id, display_name, reputation) VALUES
+      ('00000000-0000-0000-0000-000000000001', 'Carlos Tech', 25),
+      ('00000000-0000-0000-0000-000000000002', 'Maria Compu', 18),
+      ('00000000-0000-0000-0000-000000000003', 'Juan Gadget', 12),
+      ('00000000-0000-0000-0000-000000000004', 'Ana Digital', 8),
+      ('00000000-0000-0000-0000-000000000005', 'Pedro Snacks', 30),
+      ('00000000-0000-0000-0000-000000000006', 'Laura Market', 22),
+      ('00000000-0000-0000-0000-000000000007', 'Martín Alimentos', 15)
+  `;
+
   // ── Votes ──
   await sql`
     INSERT INTO product_votes (user_id, product_id, vote) VALUES
@@ -293,18 +300,6 @@ async function seed() {
       ('00000000-0000-0000-0000-000000000007', ${p10.id}, 'confirm'),
       ('00000000-0000-0000-0000-000000000001', ${p11.id}, 'confirm'),
       ('00000000-0000-0000-0000-000000000002', ${p11.id}, 'confirm')
-  `;
-
-  // ── Users (for votes) ──
-  await sql`
-    INSERT INTO users (id, display_name, reputation) VALUES
-      ('00000000-0000-0000-0000-000000000001', 'Carlos Tech', 25),
-      ('00000000-0000-0000-0000-000000000002', 'Maria Compu', 18),
-      ('00000000-0000-0000-0000-000000000003', 'Juan Gadget', 12),
-      ('00000000-0000-0000-0000-000000000004', 'Ana Digital', 8),
-      ('00000000-0000-0000-0000-000000000005', 'Pedro Snacks', 30),
-      ('00000000-0000-0000-0000-000000000006', 'Laura Market', 22),
-      ('00000000-0000-0000-0000-000000000007', 'Martín Alimentos', 15)
   `;
 
   console.log('Seed complete:');

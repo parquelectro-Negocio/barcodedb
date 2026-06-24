@@ -1,13 +1,18 @@
 {
   "name": "barcodedb",
   "private": true,
-  "workspaces": ["backend", "frontend"],
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
   "scripts": {
     "dev": "concurrently \"npm run dev -w backend\" \"npm run dev -w frontend\"",
+    "dev:https": "concurrently \"cross-env SSL=true npm run dev -w backend\" \"cross-env HTTPS=true npm run dev -w frontend\"",
     "db:migrate": "npm run db:migrate -w backend",
     "build": "npm run build -w backend && npm run build -w frontend"
   },
   "devDependencies": {
-    "concurrently": "^9.0.0"
+    "concurrently": "^9.0.0",
+    "cross-env": "^10.1.0"
   }
 }

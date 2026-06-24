@@ -46,6 +46,23 @@ productsRouter.post('/', async (c) => {
     attributes: body.attributes,
   }).returning();
 
+  // Generate aliases for matching
+  const aliases: { productId: string; alias: string; source: string }[] = [
+    { productId: product.id, alias: product.name, source: 'manual' },
+  ];
+  if (body.brand) {
+    // Brand + rest without leading type keyword
+    const typeKeywords = ['auricular','parlante','cable','notebook','monitor','mouse','teclado','celular','tablet','impresora','router','alfajor','galletita','bebida','cargador','funda','memoria','disco','protector'];
+    const tokens = product.name.split(/\s+/);
+    const withoutType = tokens.filter(t => !typeKeywords.includes(t.toLowerCase())).join(' ');
+    if (withoutType && withoutType !== product.name) {
+      aliases.push({ productId: product.id, alias: withoutType, source: 'ai' });
+    }
+  }
+  if (aliases.length > 0) {
+    await db.insert(schema.productAliases).values(aliases);
+  }
+
   return c.json(product, 201);
 });
 

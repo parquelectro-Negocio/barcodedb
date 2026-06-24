@@ -1,8 +1,8 @@
 import { useState, useCallback } from 'react';
 import { apiHeaders } from '../lib/user';
+import { useToast } from '../lib/toast';
+import { API_BASE } from '../lib/config';
 import { Scanner } from '../components/Scanner';
-
-const API = '/api';
 
 type CartItem = {
   id: string;
@@ -15,6 +15,7 @@ type CartItem = {
 };
 
 export function POSPage() {
+  const { toast } = useToast();
   const [scanning, setScanning] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [businessSlug, setBusinessSlug] = useState('');
@@ -27,12 +28,12 @@ export function POSPage() {
   const loadBusiness = async (slug: string) => {
     if (!slug.trim()) return;
     try {
-      const res = await fetch(`${API}/businesses/${slug}`);
+      const res = await fetch(`${API_BASE}/businesses/${slug}`);
       if (!res.ok) return;
       const b = await res.json();
       setBusiness(b);
 
-      const bpRes = await fetch(`${API}/businesses/${slug}/products`);
+      const bpRes = await fetch(`${API_BASE}/businesses/${slug}/products`);
       if (bpRes.ok) {
         const bpData = await bpRes.json();
         setCatalog(Array.isArray(bpData) ? bpData : []);
@@ -50,7 +51,7 @@ export function POSPage() {
     }
 
     try {
-      const res = await fetch(`${API}/products/${barcode}`);
+      const res = await fetch(`${API_BASE}/products/${barcode}`);
       if (!res.ok) return;
 
       const data = await res.json();
@@ -104,7 +105,7 @@ export function POSPage() {
     setCheckingOut(true);
 
     try {
-      const res = await fetch(`${API}/sales`, {
+      const res = await fetch(`${API_BASE}/sales`, {
         method: 'POST',
         headers: apiHeaders(),
         body: JSON.stringify({
@@ -118,9 +119,9 @@ export function POSPage() {
 
       if (!res.ok) {
         const err = await res.json();
-        alert(err.error === 'insufficient_stock'
+        toast(err.error === 'insufficient_stock'
           ? `Stock insuficiente: ${err.product} (disponible: ${err.stock})`
-          : 'Error al procesar la venta');
+          : 'Error al procesar la venta', 'error');
         return;
       }
 
@@ -128,7 +129,7 @@ export function POSPage() {
       setReceipt(data);
       setCart([]);
     } catch {
-      alert('Error al procesar la venta');
+      toast('Error al procesar la venta', 'error');
     } finally {
       setCheckingOut(false);
     }
