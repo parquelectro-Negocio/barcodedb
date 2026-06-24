@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 
@@ -21,9 +21,12 @@ export function ProductDetail() {
     <div className="text-center py-12">
       <p className="text-slate-500 mb-4">Producto no encontrado</p>
       <p className="text-sm text-slate-600">Código: {barcode}</p>
-      <button className="mt-4 px-4 py-2 bg-emerald-600 rounded-lg text-sm">
+      <Link
+        to={`/add?barcode=${barcode}`}
+        className="inline-block mt-4 px-6 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-sm font-medium"
+      >
         Agregar producto
-      </button>
+      </Link>
     </div>
   );
 

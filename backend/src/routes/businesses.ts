@@ -1,12 +1,28 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { zValidator } from '../middleware/zValidator';
 import { db, schema } from '../db';
 import { eq, and } from 'drizzle-orm';
 
 export const businessesRouter = new Hono();
 
-// Get business catalog
+const addProductSchema = z.object({
+  productId: z.string().uuid(),
+  variantId: z.string().uuid().nullable().optional(),
+  sku: z.string().optional().default(''),
+  stock: z.number().int().min(0).optional().default(0),
+  cost: z.number().min(0).optional().default(0),
+  price: z.number().min(0),
+});
+
+businessesRouter.get('/:slug', async (c) => {
+  const { slug } = c.req.param();
+  const business = await db.query.businesses.findFirst({
+    where: eq(schema.businesses.slug, slug),
+  });
+  if (!business) return c.json({ error: 'not_found' }, 404);
+  return c.json(business);
+});
+
 businessesRouter.get('/:slug/products', async (c) => {
   const { slug } = c.req.param();
   const business = await db.query.businesses.findFirst({
@@ -21,41 +37,37 @@ businessesRouter.get('/:slug/products', async (c) => {
   return c.json(products);
 });
 
-// Add product to business catalog
-const addProductSchema = z.object({
-  productId: z.string().uuid(),
-  variantId: z.string().uuid().optional(),
-  sku: z.string().optional(),
-  stock: z.number().int().min(0).optional(),
-  cost: z.number().min(0).optional(),
-  price: z.number().min(0),
-});
-
-businessesRouter.post('/:slug/products', zValidator('json', addProductSchema), async (c) => {
+businessesRouter.post('/:slug/products', async (c) => {
   const { slug } = c.req.param();
-  const body = c.req.valid('json');
+  const raw = await c.req.json();
+  const parsed = addProductSchema.safeParse(raw);
+  if (!parsed.success) {
+    return c.json({ error: 'validation_error', details: parsed.error.flatten() }, 400);
+  }
+
   const business = await db.query.businesses.findFirst({
     where: eq(schema.businesses.slug, slug),
   });
   if (!business) return c.json({ error: 'business_not_found' }, 404);
 
+  const body = parsed.data;
   const [bp] = await db.insert(schema.businessProducts).values({
     businessId: business.id,
     productId: body.productId,
     variantId: body.variantId ?? null,
-    sku: body.sku ?? '',
-    stock: body.stock ?? 0,
-    cost: String(body.cost ?? 0),
+    sku: body.sku,
+    stock: body.stock,
+    cost: String(body.cost),
     price: String(body.price),
   }).returning();
 
   return c.json(bp, 201);
 });
 
-// Update stock/price
 businessesRouter.patch('/:slug/products/:id', async (c) => {
   const { slug, id } = c.req.param();
   const body = await c.req.json();
+
   const business = await db.query.businesses.findFirst({
     where: eq(schema.businesses.slug, slug),
   });

@@ -3,6 +3,7 @@ import { Home } from './pages/Home';
 import { Search } from './pages/Search';
 import { ProductDetail } from './pages/ProductDetail';
 import { ScanPage } from './pages/ScanPage';
+import { AddProduct } from './pages/AddProduct';
 
 export default function App() {
   return (
@@ -22,6 +23,7 @@ export default function App() {
           <Route path="/search" element={<Search />} />
           <Route path="/product/:barcode" element={<ProductDetail />} />
           <Route path="/scan" element={<ScanPage />} />
+          <Route path="/add" element={<AddProduct />} />
         </Routes>
       </main>
     </div>

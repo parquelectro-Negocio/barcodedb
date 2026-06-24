@@ -29,7 +29,13 @@ export function Search() {
 
       {data?.data?.length === 0 && (
         <div className="text-center py-12 text-slate-500">
-          No encontramos resultados. ¿Querés agregar este producto?
+          <p className="mb-4">No encontramos resultados.</p>
+          <Link
+            to={`/add?barcode=${q}`}
+            className="inline-block px-6 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-sm font-medium text-white"
+          >
+            Agregar producto
+          </Link>
         </div>
       )}
 

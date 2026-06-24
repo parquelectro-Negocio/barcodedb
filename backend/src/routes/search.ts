@@ -8,8 +8,8 @@ searchRouter.get('/', async (c) => {
   const q = c.req.query('q')?.trim();
   const brand = c.req.query('brand')?.trim();
   const category = c.req.query('category')?.trim();
-  const page = parseInt(c.req.query('page') ?? '1');
-  const limit = Math.min(parseInt(c.req.query('limit') ?? '20'), 100);
+  const page = Math.max(1, parseInt(c.req.query('page') ?? '1'));
+  const limit = Math.min(Math.max(1, parseInt(c.req.query('limit') ?? '20')), 100);
   const offset = (page - 1) * limit;
 
   const conditions = [];
@@ -44,23 +44,19 @@ searchRouter.get('/', async (c) => {
   return c.json({ data: results, page, limit, query: q, brand, category });
 });
 
-// Distinct brands for autocomplete
 searchRouter.get('/brands', async (c) => {
   const q = c.req.query('q')?.trim() ?? '';
-  const results = await db.execute(
+  const results: any = await db.execute(
     sql`SELECT DISTINCT brand FROM products WHERE brand ILIKE ${`${q}%`} ORDER BY brand LIMIT 20`,
   );
   return c.json(results.rows.map((r: any) => r.brand));
 });
 
-// Import matching: takes an array of product names, returns matches
 searchRouter.post('/match', async (c) => {
   const { names } = await c.req.json() as { names: string[] };
   if (!names?.length) return c.json({ matches: [] });
 
-  // Try to match by alias first, then by name similarity
-  const placeholders = names.map((_, i) => `$${i + 1}`).join(', ');
-  const results = await db.execute(
+  const results: any = await db.execute(
     sql`
       SELECT p.*, pa.alias as matched_alias
       FROM products p
