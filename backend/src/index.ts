@@ -21,7 +21,7 @@ const app = new Hono();
 
 app.use('/*', cors());
 app.use('/api/*', userMiddleware);
-app.get('/', (c) => c.json({ ok: true, version: '0.1.0' }));
+app.get('/', (c) => c.json({ ok: true, version: '0.1.1' }));
 
 app.use('/uploads/*', serveStatic({ root: join(__dirname, '..') }));
 app.route('/api/upload', uploadRouter);
