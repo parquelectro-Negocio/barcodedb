@@ -11,7 +11,6 @@ import { searchRouter } from './routes/search';
 import { categoriesRouter } from './routes/categories';
 import { votesRouter } from './routes/votes';
 import { salesRouter } from './routes/sales';
-import { uploadRouter } from './routes/upload';
 import { userMiddleware } from './middleware/user';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -24,7 +23,6 @@ app.use('/api/*', userMiddleware);
 app.get('/', (c) => c.json({ ok: true, version: '0.1.1' }));
 
 app.use('/uploads/*', serveStatic({ root: join(__dirname, '..') }));
-app.route('/api/upload', uploadRouter);
 app.route('/api/products', productsRouter);
 app.route('/api/businesses', businessesRouter);
 app.route('/api/search', searchRouter);

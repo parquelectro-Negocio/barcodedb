@@ -57,7 +57,7 @@ export function Home() {
             </div>
             <div>
               <p className="font-medium text-stone-800 mb-1">💰 4. Armar tu inventario</p>
-              <p className="text-stone-500">Cuando ves un producto, podés ponerle tu precio y stock para tener tu catálogo personal. Después usalo en el <Link to="/pos" className="text-emerald-600 underline">Punto de Venta</Link>.</p>
+              <p className="text-stone-500">Cuando ves un producto, podés ponerle tu precio y stock para tener tu catálogo personal. Después usalo en <Link to="/pos" className="text-emerald-600 underline">Vender</Link>.</p>
             </div>
             <div>
               <p className="font-medium text-stone-800 mb-1">📦 5. Importar desde Excel</p>
