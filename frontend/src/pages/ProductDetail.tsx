@@ -1,6 +1,6 @@
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { apiHeaders } from '../lib/user';
 import { API_BASE, resolveImageUrl } from '../lib/config';
 
@@ -208,82 +208,83 @@ function ProductView({ product, barcode, onBack }: { product: any; barcode: stri
 }
 
 function InventorySection({ productId }: { productId: string }) {
-  const [slug, setSlug] = useState('');
-  const [businessName, setBusinessName] = useState('');
-  const [pin, setPin] = useState('');
-  const [pinHint, setPinHint] = useState('');
   const [price, setPrice] = useState('');
   const [stock, setStock] = useState('');
   const [showForm, setShowForm] = useState(false);
-  const [existing, setExisting] = useState<any>(null);
-  const [error, setError] = useState('');
+  const [showSetup, setShowSetup] = useState(false);
+  const [business, setBusiness] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [slug, setSlug] = useState(localStorage.getItem('biz_slug') || '');
+  const [businessName, setBusinessName] = useState('');
+  const [pin, setPin] = useState('');
+  const [pinHint, setPinHint] = useState('');
+  const [setupError, setSetupError] = useState('');
   const queryClient = useQueryClient();
-  const savedSlug = localStorage.getItem('biz_slug');
 
-  const loadBusiness = async () => {
-    const s = slug.trim();
+  const loadBusiness = async (s: string) => {
     if (!s) return;
-    setError('');
+    setLoading(true);
     try {
       const res = await fetch(`${API_BASE}/businesses/${s}`);
-      if (res.status === 404) {
-        setExisting(null);
-        setError('negocio_no_existe');
-        return;
+      if (res.ok) {
+        const b = await res.json();
+        setBusiness(b);
+        localStorage.setItem('biz_slug', s);
       }
-      if (!res.ok) throw new Error();
-      setExisting(await res.json());
-      localStorage.setItem('biz_slug', s);
-      setError('');
-    } catch {
-      setError('Error al buscar el comercio');
+    } catch {} finally {
+      setLoading(false);
     }
   };
 
-  const addMutation = useMutation({
+  useEffect(() => {
+    if (slug) loadBusiness(slug);
+  }, []);
+
+  const createBizMutation = useMutation({
     mutationFn: async () => {
       const s = slug.trim();
-      let biz = existing;
-      if (!biz) {
-        const res = await fetch(`${API_BASE}/businesses`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ slug: s, name: businessName || s, pin: pin || undefined, pinHint: pinHint || undefined }),
-        });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          throw new Error(err.error || `Error ${res.status} al crear el comercio`);
-        }
-        biz = await res.json();
-        localStorage.setItem('biz_slug', s);
-      }
-      const res = await fetch(`${API_BASE}/businesses/${s}/products`, {
+      const res = await fetch(`${API_BASE}/businesses`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          productId,
-          price: Number(price),
-          stock: Number(stock),
-          cost: 0,
-        }),
+        body: JSON.stringify({ slug: s, name: businessName || s, pin: pin || undefined, pinHint: pinHint || undefined }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || err.details || `Error ${res.status} al agregar al inventario`);
+        throw new Error(err.error || `Error ${res.status}`);
+      }
+      return res.json();
+    },
+    onSuccess: (b) => {
+      setBusiness(b);
+      localStorage.setItem('biz_slug', b.slug);
+      setShowSetup(false);
+    },
+  });
+
+  const addMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`${API_BASE}/businesses/${business.slug}/products`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId, price: Number(price), stock: Number(stock), cost: 0 }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || err.details || `Error ${res.status}`);
       }
       return res.json();
     },
     onSuccess: () => {
       setShowForm(false);
-      queryClient.invalidateQueries({ queryKey: ['business', slug] });
+      queryClient.invalidateQueries({ queryKey: ['business', business.slug] });
     },
   });
 
   if (!showForm) {
     return (
       <div className="mt-8 border-t border-stone-200 pt-6">
-          <button
-          onClick={() => { setShowForm(true); if (savedSlug) setSlug(savedSlug); }}
+        <button
+          onClick={() => setShowForm(true)}
           className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-sm font-medium text-white"
         >
           Agregar a mi inventario
@@ -292,77 +293,113 @@ function InventorySection({ productId }: { productId: string }) {
     );
   }
 
-  return (
-    <div className="mt-8 border-t border-stone-200 pt-6">
-      <h3 className="text-lg font-semibold mb-4 text-stone-800">Agregar a mi inventario</h3>
-      <div className="space-y-3 max-w-md">
-        <div>
-          <label className="block text-sm text-stone-500 mb-1">Nombre de tu comercio</label>
-          <input
-            type="text"
-            value={businessName}
-            onChange={e => setBusinessName(e.target.value)}
-            placeholder="Ej: Mi Almacén"
-            className="w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm text-stone-900"
-          />
-        </div>
-        <div>
-          <label className="block text-sm text-stone-500 mb-1">
-            Identificador (slug)
-            <span className="group relative inline-flex ml-1">
-              <span className="cursor-help text-stone-400 hover:text-stone-600 text-xs border border-stone-300 rounded-full w-4 h-4 inline-flex items-center justify-center">?</span>
-              <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-stone-800 text-white text-xs rounded-lg shadow-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                Es el identificador único de tu comercio. Sin espacios, todo en minúscula. Ej: "electro-mundo"
-              </span>
-            </span>
-          </label>
-          <input
-            type="text"
-            value={slug}
-            onChange={e => { setSlug(e.target.value.toLowerCase().replace(/\s+/g, '-')); setExisting(null); }}
-            onBlur={loadBusiness}
-            placeholder="Ej: mi-almacen"
-            className="w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm font-mono text-stone-900"
-          />
-          {error === 'negocio_no_existe' && (
-            <p className="mt-1 text-xs text-yellow-700">No existe. Se va a crear cuando guardes.</p>
-          )}
-          {existing && (
-            <p className="mt-1 text-xs text-emerald-600">Comercio encontrado: {existing.name}</p>
-          )}
-        </div>
-        <div>
-          <label className="block text-sm text-stone-500 mb-1">PIN (opcional) — protegé tu POS</label>
-          <p className="text-xs text-amber-600 mb-2">⚠️ No lo olvides. No hay forma de recuperarlo si lo perdés.</p>
-          <input
-            type="password"
-            value={pin}
-            onChange={e => setPin(e.target.value)}
-            placeholder="Ej: 1234"
-            maxLength={4}
-            className="w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm font-mono text-stone-900"
-          />
-        </div>
-        {pin && (
+  if (!business && !showSetup) {
+    return (
+      <div className="mt-8 border-t border-stone-200 pt-6">
+        <p className="text-stone-500 text-sm mb-3">
+          {loading ? 'Cargando...' : slug ? `Comercio "${slug}" no encontrado.` : 'No tenés un comercio configurado.'}
+        </p>
+        <button
+          onClick={() => setShowSetup(true)}
+          className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-sm font-medium text-white"
+        >
+          {slug ? 'Usar otro comercio' : 'Crear mi comercio'}
+        </button>
+      </div>
+    );
+  }
+
+  if (showSetup) {
+    return (
+      <div className="mt-8 border-t border-stone-200 pt-6">
+        <h3 className="text-lg font-semibold mb-4 text-stone-800">Configurar comercio</h3>
+        <div className="space-y-3 max-w-md">
           <div>
-            <label className="block text-sm text-stone-500 mb-1">Pista para recordar el PIN</label>
+            <label className="block text-sm text-stone-500 mb-1">Nombre de tu comercio</label>
             <input
-              type="text"
-              value={pinHint}
-              onChange={e => setPinHint(e.target.value)}
-              placeholder="Ej: mi año de nacimiento"
+              type="text" value={businessName}
+              onChange={e => setBusinessName(e.target.value)}
+              placeholder="Ej: Mi Almacén"
               className="w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm text-stone-900"
             />
           </div>
-        )}
+          <div>
+            <label className="block text-sm text-stone-500 mb-1">
+              Identificador (slug)
+              <span className="group relative inline-flex ml-1">
+                <span className="cursor-help text-stone-400 hover:text-stone-600 text-xs border border-stone-300 rounded-full w-4 h-4 inline-flex items-center justify-center">?</span>
+                <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-stone-800 text-white text-xs rounded-lg shadow-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                  Identificador único de tu comercio, sin espacios, todo en minúscula. Ej: "electro-mundo"
+                </span>
+              </span>
+            </label>
+            <input
+              type="text" value={slug}
+              onChange={e => setSlug(e.target.value.toLowerCase().replace(/\s+/g, '-'))}
+              placeholder="Ej: mi-almacen"
+              className="w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm font-mono text-stone-900"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-stone-500 mb-1">PIN (opcional) — protegé tu POS</label>
+            <p className="text-xs text-amber-600 mb-2">⚠️ No lo olvides. No hay forma de recuperarlo si lo perdés.</p>
+            <input
+              type="password" value={pin}
+              onChange={e => setPin(e.target.value)}
+              placeholder="Ej: 1234" maxLength={4}
+              className="w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm font-mono text-stone-900"
+            />
+          </div>
+          {pin && (
+            <div>
+              <label className="block text-sm text-stone-500 mb-1">Pista para recordar el PIN</label>
+              <input
+                type="text" value={pinHint}
+                onChange={e => setPinHint(e.target.value)}
+                placeholder="Ej: mi año de nacimiento"
+                className="w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm text-stone-900"
+              />
+            </div>
+          )}
+          <div className="flex gap-3">
+            <button
+              onClick={() => setShowSetup(false)}
+              className="flex-1 px-4 py-2 bg-stone-100 hover:bg-stone-200 rounded-lg text-sm text-stone-700"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={() => {
+                if (!slug.trim()) { setSetupError('Completá el identificador'); return; }
+                setSetupError('');
+                createBizMutation.mutate();
+              }}
+              disabled={createBizMutation.isPending}
+              className="flex-1 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-sm disabled:opacity-50 text-white"
+            >
+              {createBizMutation.isPending ? 'Guardando...' : 'Guardar comercio'}
+            </button>
+          </div>
+          {(setupError || createBizMutation.isError) && (
+            <p className="text-xs text-red-600">{setupError || (createBizMutation.error as any)?.message}</p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-8 border-t border-stone-200 pt-6">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold text-stone-800">Agregar a mi inventario</h3>
+        <span className="text-sm text-emerald-600 font-medium">{business?.name}</span>
+      </div>
+      <div className="space-y-3 max-w-md">
         <div className="flex gap-3">
           <div className="flex-1">
             <label className="block text-sm text-stone-500 mb-1">Precio de venta $</label>
             <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={price}
+              type="number" min="0" step="0.01" value={price}
               onChange={e => setPrice(e.target.value)}
               className="w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm text-stone-900"
             />
@@ -370,21 +407,27 @@ function InventorySection({ productId }: { productId: string }) {
           <div className="flex-1">
             <label className="block text-sm text-stone-500 mb-1">Stock</label>
             <input
-              type="number"
-              min="0"
-              value={stock}
+              type="number" min="0" value={stock}
               onChange={e => setStock(e.target.value)}
               className="w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm text-stone-900"
             />
           </div>
         </div>
-        <button
-          onClick={() => addMutation.mutate()}
-          disabled={addMutation.isPending || !price || !slug}
-          className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-sm font-medium disabled:opacity-50 text-white"
-        >
-          {addMutation.isPending ? 'Guardando...' : addMutation.isSuccess ? '✓ Guardado' : 'Guardar'}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowSetup(true)}
+            className="px-4 py-2 bg-stone-100 hover:bg-stone-200 rounded-lg text-sm text-stone-700"
+          >
+            Cambiar comercio
+          </button>
+          <button
+            onClick={() => addMutation.mutate()}
+            disabled={addMutation.isPending || !price}
+            className="flex-1 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-sm font-medium disabled:opacity-50 text-white"
+          >
+            {addMutation.isPending ? 'Guardando...' : addMutation.isSuccess ? '✓ Guardado' : 'Guardar'}
+          </button>
+        </div>
         {addMutation.isError && (
           <p className="text-xs text-red-600">{(addMutation.error as any)?.message || 'Error al guardar'}</p>
         )}
