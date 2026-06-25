@@ -10,15 +10,13 @@ async function seed() {
   await sql`DELETE FROM sale_items`;
   await sql`DELETE FROM sales`;
   await sql`DELETE FROM business_products`;
-  await sql`DELETE FROM product_votes`;
-  await sql`DELETE FROM contributions`;
   await sql`DELETE FROM product_aliases`;
   await sql`DELETE FROM product_variants`;
+  await sql`DELETE FROM product_votes`;
   await sql`DELETE FROM products`;
   await sql`DELETE FROM category_attributes`;
   await sql`DELETE FROM categories`;
   await sql`DELETE FROM businesses`;
-  await sql`DELETE FROM users`;
 
   // ── Categories ──
   const [catElectronics] = await sql`
@@ -274,19 +272,7 @@ async function seed() {
       (${b1.id}, ${p9.id}, 30, 2500, 4500)
   `;
 
-  // ── Users (for votes) ──
-  await sql`
-    INSERT INTO users (id, display_name, reputation) VALUES
-      ('00000000-0000-0000-0000-000000000001', 'Carlos Tech', 25),
-      ('00000000-0000-0000-0000-000000000002', 'Maria Compu', 18),
-      ('00000000-0000-0000-0000-000000000003', 'Juan Gadget', 12),
-      ('00000000-0000-0000-0000-000000000004', 'Ana Digital', 8),
-      ('00000000-0000-0000-0000-000000000005', 'Pedro Snacks', 30),
-      ('00000000-0000-0000-0000-000000000006', 'Laura Market', 22),
-      ('00000000-0000-0000-0000-000000000007', 'Martín Alimentos', 15)
-  `;
-
-  // ── Votes ──
+  // ── Votes (anonymous — no FK to users) ──
   await sql`
     INSERT INTO product_votes (user_id, product_id, vote) VALUES
       ('00000000-0000-0000-0000-000000000001', ${p1.id}, 'confirm'),
@@ -310,7 +296,6 @@ async function seed() {
   console.log(`  Businesses: 2`);
   console.log(`  Business Products: 7`);
   console.log(`  Votes: 11`);
-  console.log(`  Users: 7`);
 
   await sql.end();
 }

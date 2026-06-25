@@ -71,28 +71,9 @@ export const businessProducts = pgTable('business_products', {
   uniqueIdx: uniqueIndex('business_product_unique').on(table.businessId, table.productId),
 }));
 
-export const users = pgTable('users', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  email: text('email').unique(),
-  displayName: text('display_name').default('').notNull(),
-  reputation: integer('reputation').default(0).notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-});
-
-export const contributions = pgTable('contributions', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  userId: uuid('user_id').references(() => users.id),
-  productId: uuid('product_id').references(() => products.id),
-  field: text('field').notNull(),
-  oldValue: jsonb('old_value'),
-  newValue: jsonb('new_value').notNull(),
-  status: text('status').default('pending').notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-});
-
 export const productVotes = pgTable('product_votes', {
   id: uuid('id').defaultRandom().primaryKey(),
-  userId: uuid('user_id').references(() => users.id),
+  userId: uuid('user_id').notNull(),
   productId: uuid('product_id').references(() => products.id),
   vote: text('vote').default('confirm').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),

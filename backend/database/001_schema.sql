@@ -76,31 +76,10 @@ CREATE TABLE IF NOT EXISTS business_products (
   UNIQUE(business_id, product_id)
 );
 
--- Contributors / users
-CREATE TABLE IF NOT EXISTS users (
-  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  email         TEXT UNIQUE,
-  display_name  TEXT NOT NULL DEFAULT '',
-  reputation    INT NOT NULL DEFAULT 0,  -- score based on accepted contributions
-  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
--- Contributions (who added/modified what)
-CREATE TABLE IF NOT EXISTS contributions (
-  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id       UUID REFERENCES users(id),
-  product_id    UUID REFERENCES products(id),
-  field         TEXT NOT NULL,      -- 'name', 'brand', 'attributes', 'image'
-  old_value     JSONB,
-  new_value     JSONB NOT NULL,
-  status        TEXT NOT NULL DEFAULT 'pending', -- pending | accepted | rejected
-  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
--- Votes/confirmations on product data
+-- Votes/confirmations on product data (no FK to users — anonymous voting)
 CREATE TABLE IF NOT EXISTS product_votes (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id       UUID REFERENCES users(id),
+  user_id       UUID NOT NULL,
   product_id    UUID REFERENCES products(id),
   vote          TEXT NOT NULL DEFAULT 'confirm', -- confirm | flag
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -157,6 +136,12 @@ ALTER TABLE businesses ADD COLUMN IF NOT EXISTS pin_hint TEXT;
 ALTER TABLE sales ADD COLUMN IF NOT EXISTS payment_method TEXT;
 ALTER TABLE sales ADD COLUMN IF NOT EXISTS amount_tendered NUMERIC(12,2);
 ALTER TABLE sales ADD COLUMN IF NOT EXISTS change NUMERIC(12,2);
+
+-- Migration: drop FK constraints, then drop users + contributions (no auth system, dead code)
+ALTER TABLE product_votes DROP CONSTRAINT IF EXISTS product_votes_user_id_fkey;
+ALTER TABLE contributions DROP CONSTRAINT IF EXISTS contributions_user_id_fkey;
+DROP TABLE IF EXISTS contributions;
+DROP TABLE IF EXISTS users;
 
 -- Migration: replace (business_id, product_id, variant_id) unique with (business_id, product_id)
 -- variant_id is typically NULL and PG treats NULLs as distinct, allowing duplicates
