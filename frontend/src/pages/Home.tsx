@@ -73,9 +73,9 @@ export function Home() {
           <span>•</span>
           <span>Categoría</span>
           <span>•</span>
-          <span><Link to="/add" className="text-emerald-600 hover:underline">Agregar producto</Link></span>
+          <span><Link to="/add" className="px-3 py-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 transition-colors">Agregar producto</Link></span>
           <span>•</span>
-          <span><Link to="/import" className="text-emerald-600 hover:underline">Importar</Link></span>
+          <span><Link to="/import" className="px-3 py-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 transition-colors">Importar</Link></span>
         </div>
       </div>
     </div>

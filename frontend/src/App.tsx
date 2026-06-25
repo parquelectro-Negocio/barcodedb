@@ -15,11 +15,11 @@ export default function App() {
         <nav className="border-b border-stone-200 bg-white px-6 py-4">
           <div className="max-w-6xl mx-auto flex items-center justify-between">
             <Link to="/" className="text-xl font-bold text-emerald-600">BarcodeDB</Link>
-            <div className="flex gap-4 text-sm text-stone-500">
-              <Link to="/search" className="hover:text-stone-900">Buscar</Link>
-              <Link to="/scan" className="hover:text-stone-900">Escanear</Link>
-              <Link to="/import" className="hover:text-stone-900">Importar</Link>
-              <Link to="/pos" className="hover:text-stone-900">POS</Link>
+            <div className="flex gap-2 text-sm">
+              <Link to="/search" className="px-3 py-1.5 rounded-lg text-stone-500 hover:text-emerald-700 hover:bg-emerald-50 transition-colors">Buscar</Link>
+              <Link to="/scan" className="px-3 py-1.5 rounded-lg text-stone-500 hover:text-emerald-700 hover:bg-emerald-50 transition-colors">Escanear</Link>
+              <Link to="/import" className="px-3 py-1.5 rounded-lg text-stone-500 hover:text-emerald-700 hover:bg-emerald-50 transition-colors">Importar</Link>
+              <Link to="/pos" className="px-3 py-1.5 rounded-lg text-stone-500 hover:text-emerald-700 hover:bg-emerald-50 transition-colors">POS</Link>
             </div>
           </div>
         </nav>
