@@ -16,7 +16,7 @@ export function AddProduct() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [attrs, setAttrs] = useState<Attribute[]>([]);
   const [form, setForm] = useState<Record<string, any>>({
-    barcode, name: prefillName, brand: '', description: '', unit: 'unidad', categoryId: '',
+    barcode, name: prefillName, brand: '', sku: '', description: '', unit: 'unidad', categoryId: '',
   });
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
@@ -93,6 +93,7 @@ export function AddProduct() {
           barcode: form.barcode,
           name: form.name,
           brand: form.brand,
+          sku: form.sku,
           description: form.description,
           unit: form.unit,
           categoryId: form.categoryId || null,
@@ -137,6 +138,15 @@ export function AddProduct() {
         </div>
 
         <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm text-slate-400 mb-1">SKU</label>
+            <input
+              type="text" value={form.sku}
+              onChange={e => set('sku', e.target.value)}
+              className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg font-mono text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              placeholder="Ej: MON-27-4K"
+            />
+          </div>
           <div>
             <label className="block text-sm text-slate-400 mb-1">Nombre *</label>
             <input

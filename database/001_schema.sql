@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS products (
   barcode         TEXT NOT NULL,
   name            TEXT NOT NULL,
   brand           TEXT NOT NULL DEFAULT '',
+  sku             TEXT NOT NULL DEFAULT '',
   description     TEXT NOT NULL DEFAULT '',
   category_id     UUID REFERENCES categories(id),
   image_url       TEXT NOT NULL DEFAULT '',
@@ -140,3 +141,6 @@ CREATE INDEX IF NOT EXISTS idx_business_products_business ON business_products(b
 CREATE INDEX IF NOT EXISTS idx_product_aliases_alias ON product_aliases(alias);
 CREATE INDEX IF NOT EXISTS idx_contributions_product ON contributions(product_id);
 CREATE INDEX IF NOT EXISTS idx_contributions_status ON contributions(status);
+
+-- Migration: add sku column to products (idempotent)
+ALTER TABLE products ADD COLUMN IF NOT EXISTS sku TEXT NOT NULL DEFAULT '';

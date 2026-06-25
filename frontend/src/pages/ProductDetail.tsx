@@ -126,7 +126,8 @@ function ProductView({ product, barcode, onBack }: { product: any; barcode: stri
         <div className="flex-1">
           <h1 className="text-3xl font-bold mb-2">{product.name}</h1>
           {product.brand && <p className="text-lg text-slate-400 mb-2">{product.brand}</p>}
-          <p className="text-sm font-mono text-slate-500 mb-4">{product.barcode}</p>
+          <p className="text-sm font-mono text-slate-500 mb-1">{product.barcode}</p>
+          {product.sku && <p className="text-sm text-slate-500 mb-4">SKU: {product.sku}</p>}
 
           <div className="flex flex-wrap gap-2 mb-4">
             {product.status === 'verified' ? (

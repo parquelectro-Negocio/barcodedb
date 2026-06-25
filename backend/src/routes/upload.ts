@@ -26,6 +26,7 @@ uploadRouter.post('/', async (c) => {
   const buf = Buffer.from(await file.arrayBuffer());
   await writeFile(join(UPLOADS_DIR, filename), buf);
 
-  const url = `/uploads/${filename}`;
+  const origin = new URL(c.req.url).origin;
+  const url = `${origin}/uploads/${filename}`;
   return c.json({ url });
 });
