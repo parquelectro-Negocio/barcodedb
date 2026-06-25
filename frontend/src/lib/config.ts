@@ -1,1 +1,1 @@
-export const API_BASE: string = import.meta.env.VITE_API_URL ?? '/api';
+export const API_BASE: string = 'https://backend-production-f446.up.railway.app/api';
