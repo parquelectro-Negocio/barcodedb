@@ -248,7 +248,10 @@ function InventorySection({ productId }: { productId: string }) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ slug: s, name: businessName || s }),
         });
-        if (!res.ok) throw new Error('No se pudo crear el comercio');
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || `Error ${res.status} al crear el comercio`);
+        }
         biz = await res.json();
         localStorage.setItem('biz_slug', s);
       }
@@ -262,7 +265,10 @@ function InventorySection({ productId }: { productId: string }) {
           cost: 0,
         }),
       });
-      if (!res.ok) throw new Error('No se pudo agregar al inventario');
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || err.details || `Error ${res.status} al agregar al inventario`);
+      }
       return res.json();
     },
     onSuccess: () => {
@@ -354,7 +360,7 @@ function InventorySection({ productId }: { productId: string }) {
           {addMutation.isPending ? 'Guardando...' : addMutation.isSuccess ? '✓ Guardado' : 'Guardar'}
         </button>
         {addMutation.isError && (
-          <p className="text-xs text-red-600">Error al guardar. ¿El backend está actualizado?</p>
+          <p className="text-xs text-red-600">{(addMutation.error as any)?.message || 'Error al guardar'}</p>
         )}
       </div>
     </div>
