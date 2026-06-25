@@ -17,6 +17,8 @@ export function ProductDetail() {
       return res.json();
     },
     enabled: !!barcode,
+    retry: false,
+    staleTime: 1000 * 60 * 5,
   });
 
   const productList: any[] = data?.products ?? [];
