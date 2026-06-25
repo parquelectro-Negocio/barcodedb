@@ -210,6 +210,8 @@ function ProductView({ product, barcode, onBack }: { product: any; barcode: stri
 function InventorySection({ productId }: { productId: string }) {
   const [slug, setSlug] = useState('');
   const [businessName, setBusinessName] = useState('');
+  const [pin, setPin] = useState('');
+  const [pinHint, setPinHint] = useState('');
   const [price, setPrice] = useState('');
   const [stock, setStock] = useState('');
   const [showForm, setShowForm] = useState(false);
@@ -246,7 +248,7 @@ function InventorySection({ productId }: { productId: string }) {
         const res = await fetch(`${API_BASE}/businesses`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ slug: s, name: businessName || s }),
+          body: JSON.stringify({ slug: s, name: businessName || s, pin: pin || undefined, pinHint: pinHint || undefined }),
         });
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
@@ -329,6 +331,30 @@ function InventorySection({ productId }: { productId: string }) {
             <p className="mt-1 text-xs text-emerald-600">Comercio encontrado: {existing.name}</p>
           )}
         </div>
+        <div>
+          <label className="block text-sm text-stone-500 mb-1">PIN (opcional) — protegé tu POS</label>
+          <p className="text-xs text-amber-600 mb-2">⚠️ No lo olvides. No hay forma de recuperarlo si lo perdés.</p>
+          <input
+            type="password"
+            value={pin}
+            onChange={e => setPin(e.target.value)}
+            placeholder="Ej: 1234"
+            maxLength={4}
+            className="w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm font-mono text-stone-900"
+          />
+        </div>
+        {pin && (
+          <div>
+            <label className="block text-sm text-stone-500 mb-1">Pista para recordar el PIN</label>
+            <input
+              type="text"
+              value={pinHint}
+              onChange={e => setPinHint(e.target.value)}
+              placeholder="Ej: mi año de nacimiento"
+              className="w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm text-stone-900"
+            />
+          </div>
+        )}
         <div className="flex gap-3">
           <div className="flex-1">
             <label className="block text-sm text-stone-500 mb-1">Precio de venta $</label>
@@ -342,7 +368,7 @@ function InventorySection({ productId }: { productId: string }) {
             />
           </div>
           <div className="flex-1">
-            <label className="block text-sm text-slate-400 mb-1">Stock</label>
+            <label className="block text-sm text-stone-500 mb-1">Stock</label>
             <input
               type="number"
               min="0"

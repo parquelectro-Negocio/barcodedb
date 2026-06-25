@@ -50,6 +50,8 @@ export const businesses = pgTable('businesses', {
   id: uuid('id').defaultRandom().primaryKey(),
   name: text('name').notNull(),
   slug: text('slug').notNull().unique(),
+  pin: text('pin'),
+  pinHint: text('pin_hint'),
   plan: text('plan').default('free').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });

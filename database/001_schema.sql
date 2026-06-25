@@ -147,3 +147,6 @@ CREATE INDEX IF NOT EXISTS idx_contributions_status ON contributions(status);
 ALTER TABLE products ADD COLUMN IF NOT EXISTS sku TEXT NOT NULL DEFAULT '';
 -- Migration: add color column to products (idempotent)
 ALTER TABLE products ADD COLUMN IF NOT EXISTS color TEXT NOT NULL DEFAULT '';
+-- Migration: add pin and pin_hint to businesses (idempotent)
+ALTER TABLE businesses ADD COLUMN IF NOT EXISTS pin TEXT;
+ALTER TABLE businesses ADD COLUMN IF NOT EXISTS pin_hint TEXT;

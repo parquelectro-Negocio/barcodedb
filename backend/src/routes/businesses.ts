@@ -15,10 +15,20 @@ const addProductSchema = z.object({
 });
 
 businessesRouter.post('/', async (c) => {
-  const { slug, name } = await c.req.json();
+  const { slug, name, pin, pinHint } = await c.req.json();
   if (!slug || typeof slug !== 'string') return c.json({ error: 'slug_required' }, 400);
-  const [biz] = await db.insert(schema.businesses).values({ slug, name: name || slug }).returning();
+  const [biz] = await db.insert(schema.businesses).values({ slug, name: name || slug, pin: pin || null, pinHint: pinHint || null }).returning();
   return c.json(biz, 201);
+});
+
+businessesRouter.post('/:slug/verify-pin', async (c) => {
+  const { slug } = c.req.param();
+  const { pin } = await c.req.json();
+  const business = await db.query.businesses.findFirst({ where: eq(schema.businesses.slug, slug) });
+  if (!business) return c.json({ error: 'not_found' }, 404);
+  if (!business.pin) return c.json({ ok: true });
+  if (business.pin !== pin) return c.json({ error: 'pin_incorrecto', hint: business.pinHint || null }, 403);
+  return c.json({ ok: true });
 });
 
 businessesRouter.get('/:slug', async (c) => {

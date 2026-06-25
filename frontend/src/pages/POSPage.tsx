@@ -24,6 +24,9 @@ export function POSPage() {
   const [checkingOut, setCheckingOut] = useState(false);
   const [receipt, setReceipt] = useState<any>(null);
   const [manualBarcode, setManualBarcode] = useState('');
+  const [pin, setPin] = useState('');
+  const [showPinPrompt, setShowPinPrompt] = useState(false);
+  const [pinError, setPinError] = useState('');
 
   const loadBusiness = async (slug: string) => {
     if (!slug.trim()) return;
@@ -32,13 +35,41 @@ export function POSPage() {
       if (!res.ok) return;
       const b = await res.json();
       setBusiness(b);
-
-      const bpRes = await fetch(`${API_BASE}/businesses/${slug}/products`);
-      if (bpRes.ok) {
-        const bpData = await bpRes.json();
-        setCatalog(Array.isArray(bpData) ? bpData : []);
+      if (b.pin) {
+        setShowPinPrompt(true);
+        setPinError('');
+        return;
       }
+      await loadProducts(slug);
     } catch {}
+  };
+
+  const verifyPin = async () => {
+    if (!business) return;
+    try {
+      const res = await fetch(`${API_BASE}/businesses/${business.slug}/verify-pin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        setPinError(data.hint ? `PIN incorrecto. Pista: ${data.hint}` : 'PIN incorrecto');
+        return;
+      }
+      setShowPinPrompt(false);
+      loadProducts(business.slug);
+    } catch {
+      setPinError('Error al verificar PIN');
+    }
+  };
+
+  const loadProducts = async (slug: string) => {
+    const bpRes = await fetch(`${API_BASE}/businesses/${slug}/products`);
+    if (bpRes.ok) {
+      const bpData = await bpRes.json();
+      setCatalog(Array.isArray(bpData) ? bpData : []);
+    }
   };
 
   const addToCart = useCallback(async (barcode: string) => {
@@ -166,6 +197,42 @@ export function POSPage() {
   return (
     <div className="max-w-4xl mx-auto">
       <h2 className="text-2xl font-bold mb-4 text-stone-800">Punto de Venta</h2>
+
+      {showPinPrompt && business && (
+        <div className="fixed inset-0 z-40 bg-black/40 flex items-center justify-center">
+          <div className="bg-white rounded-xl p-6 shadow-xl max-w-sm w-full mx-4">
+            <h3 className="text-lg font-semibold mb-2 text-stone-800">Ingresá el PIN de {business.name}</h3>
+            <p className="text-sm text-stone-500 mb-4">Este comercio tiene un PIN de protección.</p>
+            <input
+              type="password"
+              value={pin}
+              onChange={e => setPin(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && verifyPin()}
+              placeholder="PIN de 4 dígitos"
+              maxLength={4}
+              className="w-full px-4 py-3 bg-white border border-stone-300 rounded-lg text-lg font-mono text-stone-900 text-center tracking-widest focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              autoFocus
+            />
+            {pinError && (
+              <p className="mt-2 text-sm text-red-600">{pinError}</p>
+            )}
+            <div className="flex gap-3 mt-4">
+              <button
+                onClick={() => { setShowPinPrompt(false); setPin(''); setPinError(''); }}
+                className="flex-1 px-4 py-2 bg-stone-100 hover:bg-stone-200 rounded-lg text-sm text-stone-700"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={verifyPin}
+                className="flex-1 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-sm text-white"
+              >
+                Ingresar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Business selector */}
       <div className="mb-6">
