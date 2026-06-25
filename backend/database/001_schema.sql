@@ -162,4 +162,8 @@ ALTER TABLE sales ADD COLUMN IF NOT EXISTS change NUMERIC(12,2);
 -- variant_id is typically NULL and PG treats NULLs as distinct, allowing duplicates
 ALTER TABLE business_products DROP CONSTRAINT IF EXISTS business_products_business_id_product_id_variant_id_key;
 ALTER TABLE business_products DROP CONSTRAINT IF EXISTS business_products_business_id_product_id_key;
-ALTER TABLE business_products ADD CONSTRAINT business_products_unique UNIQUE(business_id, product_id);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'business_products_unique') THEN
+    ALTER TABLE business_products ADD CONSTRAINT business_products_unique UNIQUE(business_id, product_id);
+  END IF;
+END $$;
