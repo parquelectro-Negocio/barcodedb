@@ -14,6 +14,13 @@ const addProductSchema = z.object({
   price: z.number().min(0),
 });
 
+businessesRouter.post('/', async (c) => {
+  const { slug, name } = await c.req.json();
+  if (!slug || typeof slug !== 'string') return c.json({ error: 'slug_required' }, 400);
+  const [biz] = await db.insert(schema.businesses).values({ slug, name: name || slug }).returning();
+  return c.json(biz, 201);
+});
+
 businessesRouter.get('/:slug', async (c) => {
   const { slug } = c.req.param();
   const business = await db.query.businesses.findFirst({

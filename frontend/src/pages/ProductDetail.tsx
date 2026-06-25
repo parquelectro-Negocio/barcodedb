@@ -2,7 +2,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { apiHeaders } from '../lib/user';
-import { API_BASE } from '../lib/config';
+import { API_BASE, resolveImageUrl } from '../lib/config';
 
 export function ProductDetail() {
   const { barcode } = useParams();
@@ -44,7 +44,7 @@ export function ProductDetail() {
                          hover:border-emerald-500 transition-colors text-left"
             >
               <div className="w-16 h-16 bg-slate-800 rounded flex items-center justify-center text-slate-600">
-                {p.imageUrl ? <img src={p.imageUrl} alt="" className="w-full h-full object-cover rounded" /> : '?'}
+                {p.imageUrl ? <img src={resolveImageUrl(p.imageUrl)} alt="" className="w-full h-full object-cover rounded" /> : '?'}
               </div>
               <div className="flex-1">
                 <p className="font-semibold">{p.name}</p>
@@ -116,7 +116,7 @@ function ProductView({ product, barcode, onBack }: { product: any; barcode: stri
 
       <div className="flex gap-8 items-start mb-6">
         {product.imageUrl ? (
-          <img src={product.imageUrl} alt="" className="w-48 h-48 object-cover rounded-xl" />
+          <img src={resolveImageUrl(product.imageUrl)} alt="" className="w-48 h-48 object-cover rounded-xl" />
         ) : (
           <div className="w-48 h-48 bg-slate-800 rounded-xl flex items-center justify-center text-slate-600 text-lg">
             Sin imagen
@@ -199,6 +199,156 @@ function ProductView({ product, barcode, onBack }: { product: any; barcode: stri
           </div>
         </div>
       )}
+
+      {/* Inventory */}
+      <InventorySection productId={product.id} />
     </div>
   );
 }
+
+function InventorySection({ productId }: { productId: string }) {
+  const [slug, setSlug] = useState('');
+  const [businessName, setBusinessName] = useState('');
+  const [price, setPrice] = useState('');
+  const [stock, setStock] = useState('');
+  const [showForm, setShowForm] = useState(false);
+  const [existing, setExisting] = useState<any>(null);
+  const [error, setError] = useState('');
+  const queryClient = useQueryClient();
+  const savedSlug = localStorage.getItem('biz_slug');
+
+  const loadBusiness = async () => {
+    const s = slug.trim();
+    if (!s) return;
+    setError('');
+    try {
+      const res = await fetch(`${API_BASE}/businesses/${s}`);
+      if (res.status === 404) {
+        setExisting(null);
+        setError('negocio_no_existe');
+        return;
+      }
+      if (!res.ok) throw new Error();
+      setExisting(await res.json());
+      localStorage.setItem('biz_slug', s);
+      setError('');
+    } catch {
+      setError('Error al buscar el comercio');
+    }
+  };
+
+  const addMutation = useMutation({
+    mutationFn: async () => {
+      const s = slug.trim();
+      let biz = existing;
+      if (!biz) {
+        const res = await fetch(`${API_BASE}/businesses`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ slug: s, name: businessName || s }),
+        });
+        if (!res.ok) throw new Error('No se pudo crear el comercio');
+        biz = await res.json();
+        localStorage.setItem('biz_slug', s);
+      }
+      const res = await fetch(`${API_BASE}/businesses/${s}/products`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productId,
+          price: Number(price),
+          stock: Number(stock),
+          cost: 0,
+        }),
+      });
+      if (!res.ok) throw new Error('No se pudo agregar al inventario');
+      return res.json();
+    },
+    onSuccess: () => {
+      setShowForm(false);
+      queryClient.invalidateQueries({ queryKey: ['business', slug] });
+    },
+  });
+
+  if (!showForm) {
+    return (
+      <div className="mt-8 border-t border-slate-800 pt-6">
+        <button
+          onClick={() => { setShowForm(true); if (savedSlug) setSlug(savedSlug); }}
+          className="px-5 py-2 bg-emerald-700 hover:bg-emerald-600 rounded-lg text-sm font-medium"
+        >
+          Agregar a mi inventario
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-8 border-t border-slate-800 pt-6">
+      <h3 className="text-lg font-semibold mb-4">Agregar a mi inventario</h3>
+      <div className="space-y-3 max-w-md">
+        <div>
+          <label className="block text-sm text-slate-400 mb-1">Nombre de tu comercio</label>
+          <input
+            type="text"
+            value={businessName}
+            onChange={e => setBusinessName(e.target.value)}
+            placeholder="Ej: Mi Almacén"
+            className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm"
+          />
+        </div>
+        <div>
+          <label className="block text-sm text-slate-400 mb-1">Identificador (slug)</label>
+          <input
+            type="text"
+            value={slug}
+            onChange={e => { setSlug(e.target.value.toLowerCase().replace(/\s+/g, '-')); setExisting(null); }}
+            onBlur={loadBusiness}
+            placeholder="Ej: mi-almacen"
+            className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm font-mono"
+          />
+          {error === 'negocio_no_existe' && (
+            <p className="mt-1 text-xs text-yellow-400">No existe. Se va a crear cuando guardes.</p>
+          )}
+          {existing && (
+            <p className="mt-1 text-xs text-emerald-400">Comercio encontrado: {existing.name}</p>
+          )}
+        </div>
+        <div className="flex gap-3">
+          <div className="flex-1">
+            <label className="block text-sm text-slate-400 mb-1">Precio de venta $</label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={price}
+              onChange={e => setPrice(e.target.value)}
+              className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm"
+            />
+          </div>
+          <div className="flex-1">
+            <label className="block text-sm text-slate-400 mb-1">Stock</label>
+            <input
+              type="number"
+              min="0"
+              value={stock}
+              onChange={e => setStock(e.target.value)}
+              className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm"
+            />
+          </div>
+        </div>
+        <button
+          onClick={() => addMutation.mutate()}
+          disabled={addMutation.isPending || !price || !slug}
+          className="px-5 py-2 bg-emerald-700 hover:bg-emerald-600 rounded-lg text-sm font-medium disabled:opacity-50"
+        >
+          {addMutation.isPending ? 'Guardando...' : addMutation.isSuccess ? '✓ Guardado' : 'Guardar'}
+        </button>
+        {addMutation.isError && (
+          <p className="text-xs text-red-400">Error al guardar. ¿El backend está actualizado?</p>
+        )}
+      </div>
+    </div>
+  );
+}
+

@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { API_BASE } from '../lib/config';
+import { API_BASE, resolveImageUrl } from '../lib/config';
 const PAGE_SIZE = 20;
 
 function isBarcode(s: string): boolean {
@@ -104,7 +104,7 @@ export function Search() {
                        hover:border-slate-600 transition-colors"
           >
             {product.imageUrl ? (
-              <img src={product.imageUrl} alt="" className="w-16 h-16 object-cover rounded" />
+              <img src={resolveImageUrl(product.imageUrl)} alt="" className="w-16 h-16 object-cover rounded" />
             ) : (
               <div className="w-16 h-16 bg-slate-800 rounded flex items-center justify-center text-slate-600">
                 ?
