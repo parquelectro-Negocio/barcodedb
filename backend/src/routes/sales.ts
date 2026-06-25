@@ -11,6 +11,8 @@ const createSaleSchema = z.object({
     businessProductId: z.string().uuid(),
     quantity: z.number().int().min(1),
   })).min(1),
+  paymentMethod: z.enum(['efectivo', 'transferencia', 'otro']).optional(),
+  amountTendered: z.number().min(0).optional(),
 });
 
 // Create a sale (deducts stock)
@@ -21,7 +23,7 @@ salesRouter.post('/', async (c) => {
     return c.json({ error: 'validation_error', details: parsed.error.flatten() }, 400);
   }
 
-  const { businessId, items } = parsed.data;
+  const { businessId, items, paymentMethod, amountTendered } = parsed.data;
 
   // Verify business exists
   const business = await db.query.businesses.findFirst({
@@ -65,10 +67,14 @@ salesRouter.post('/', async (c) => {
   }
 
   // Create sale + items in a transaction
+  const change = paymentMethod === 'efectivo' && amountTendered ? String(amountTendered - total) : null;
   const [sale] = await db.transaction(async (tx) => {
     const [s] = await tx.insert(schema.sales).values({
       businessId,
       total: String(total),
+      paymentMethod: paymentMethod ?? null,
+      amountTendered: amountTendered ? String(amountTendered) : null,
+      change,
     }).returning();
 
     for (const si of saleItems) {

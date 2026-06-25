@@ -116,12 +116,15 @@ CREATE TABLE IF NOT EXISTS product_aliases (
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Sales (simple POS, Phase 2)
+-- Sales (POS)
 CREATE TABLE IF NOT EXISTS sales (
-  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  business_id   UUID NOT NULL REFERENCES businesses(id),
-  total         NUMERIC(12,2) NOT NULL,
-  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  business_id     UUID NOT NULL REFERENCES businesses(id),
+  total           NUMERIC(12,2) NOT NULL,
+  payment_method  TEXT,           -- efectivo | transferencia | otro
+  amount_tendered NUMERIC(12,2),  -- con cuánto pagó (solo efectivo)
+  change          NUMERIC(12,2),  -- vuelto (solo efectivo)
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS sale_items (
@@ -150,3 +153,7 @@ ALTER TABLE products ADD COLUMN IF NOT EXISTS color TEXT NOT NULL DEFAULT '';
 -- Migration: add pin and pin_hint to businesses (idempotent)
 ALTER TABLE businesses ADD COLUMN IF NOT EXISTS pin TEXT;
 ALTER TABLE businesses ADD COLUMN IF NOT EXISTS pin_hint TEXT;
+-- Migration: add payment fields to sales (idempotent)
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS payment_method TEXT;
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS amount_tendered NUMERIC(12,2);
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS change NUMERIC(12,2);

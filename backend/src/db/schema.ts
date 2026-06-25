@@ -112,6 +112,9 @@ export const sales = pgTable('sales', {
   id: uuid('id').defaultRandom().primaryKey(),
   businessId: uuid('business_id').notNull().references(() => businesses.id),
   total: numeric('total', { precision: 12, scale: 2 }).notNull(),
+  paymentMethod: text('payment_method'),
+  amountTendered: numeric('amount_tendered', { precision: 12, scale: 2 }),
+  change: numeric('change', { precision: 12, scale: 2 }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 

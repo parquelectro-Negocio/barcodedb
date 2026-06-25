@@ -14,6 +14,8 @@ type CartItem = {
   stock: number;
 };
 
+type PaymentMethod = 'efectivo' | 'transferencia' | 'otro';
+
 export function POSPage() {
   const { toast } = useToast();
   const [scanning, setScanning] = useState(false);
@@ -27,6 +29,9 @@ export function POSPage() {
   const [pin, setPin] = useState('');
   const [showPinPrompt, setShowPinPrompt] = useState(false);
   const [pinError, setPinError] = useState('');
+  const [showPayment, setShowPayment] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('efectivo');
+  const [amountTendered, setAmountTendered] = useState('');
 
   const loadBusiness = async (slug: string) => {
     if (!slug.trim()) return;
@@ -89,7 +94,6 @@ export function POSPage() {
       const product = data.products?.[0];
       if (!product) return;
 
-      // Find in business catalog by productId
       const bp = catalog.find((c: any) => c.productId === product.id);
       const price = bp ? parseFloat(bp.price) : 0;
       const stock = bp ? bp.stock : 0;
@@ -130,9 +134,21 @@ export function POSPage() {
   };
 
   const total = cart.reduce((sum, i) => sum + i.total, 0);
+  const tendered = parseFloat(amountTendered) || 0;
+  const change = paymentMethod === 'efectivo' && tendered >= total ? tendered - total : 0;
 
-  const handleCheckout = async () => {
+  const openPayment = () => {
+    setPaymentMethod('efectivo');
+    setAmountTendered('');
+    setShowPayment(true);
+  };
+
+  const confirmSale = async () => {
     if (!business || cart.length === 0) return;
+    if (paymentMethod === 'efectivo' && (!amountTendered || tendered < total)) {
+      toast('El monto debe cubrir el total', 'error');
+      return;
+    }
     setCheckingOut(true);
 
     try {
@@ -145,6 +161,8 @@ export function POSPage() {
             businessProductId: i.id,
             quantity: i.quantity,
           })),
+          paymentMethod,
+          amountTendered: paymentMethod === 'efectivo' ? tendered : undefined,
         }),
       });
 
@@ -159,6 +177,7 @@ export function POSPage() {
       const data = await res.json();
       setReceipt(data);
       setCart([]);
+      setShowPayment(false);
     } catch {
       toast('Error al procesar la venta', 'error');
     } finally {
@@ -183,6 +202,13 @@ export function POSPage() {
             <span>Total</span>
             <span>${parseFloat(receipt.sale.total).toFixed(2)}</span>
           </div>
+          {receipt.sale.paymentMethod && (
+            <div className="border-t border-stone-200 mt-3 pt-3 text-sm text-stone-500 space-y-1">
+              <p>Pago: {receipt.sale.paymentMethod === 'efectivo' ? 'Efectivo' : receipt.sale.paymentMethod === 'transferencia' ? 'Transferencia' : 'Otro'}</p>
+              {receipt.sale.amountTendered && <p>Con ${parseFloat(receipt.sale.amountTendered).toFixed(2)}</p>}
+              {receipt.sale.change && <p className="text-emerald-600 font-medium">Vuelto: ${parseFloat(receipt.sale.change).toFixed(2)}</p>}
+            </div>
+          )}
         </div>
         <button
           onClick={() => setReceipt(null)}
@@ -234,7 +260,72 @@ export function POSPage() {
         </div>
       )}
 
-      {/* Business selector */}
+      {showPayment && (
+        <div className="fixed inset-0 z-40 bg-black/40 flex items-center justify-center">
+          <div className="bg-white rounded-xl p-6 shadow-xl max-w-sm w-full mx-4">
+            <h3 className="text-lg font-semibold mb-4 text-stone-800">Completar venta</h3>
+            <p className="text-3xl font-bold text-center text-stone-900 mb-6">${total.toFixed(2)}</p>
+            <label className="block text-sm text-stone-500 mb-2">Forma de pago</label>
+            <div className="flex gap-2 mb-4">
+              {(['efectivo', 'transferencia', 'otro'] as PaymentMethod[]).map(m => (
+                <button
+                  key={m}
+                  onClick={() => setPaymentMethod(m)}
+                  className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    paymentMethod === m
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
+                  }`}
+                >
+                  {m === 'efectivo' ? 'Efectivo' : m === 'transferencia' ? 'Transferencia' : 'Otro'}
+                </button>
+              ))}
+            </div>
+            {paymentMethod === 'efectivo' && (
+              <>
+                <label className="block text-sm text-stone-500 mb-1">Con cuánto paga</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={amountTendered}
+                  onChange={e => setAmountTendered(e.target.value)}
+                  placeholder="0.00"
+                  className="w-full px-4 py-3 bg-white border border-stone-300 rounded-lg text-xl font-mono text-stone-900 text-center focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  autoFocus
+                />
+                {tendered >= total && (
+                  <p className="text-emerald-600 text-lg font-semibold text-center mt-2">
+                    Vuelto: ${(tendered - total).toFixed(2)}
+                  </p>
+                )}
+                {tendered > 0 && tendered < total && (
+                  <p className="text-amber-600 text-sm text-center mt-1">Faltan ${(total - tendered).toFixed(2)}</p>
+                )}
+              </>
+            )}
+            {paymentMethod !== 'efectivo' && (
+              <p className="text-sm text-stone-400 text-center py-4">Registrando venta sin efectivo</p>
+            )}
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setShowPayment(false)}
+                className="flex-1 px-4 py-3 bg-stone-100 hover:bg-stone-200 rounded-lg text-sm text-stone-700"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmSale}
+                disabled={checkingOut}
+                className="flex-1 px-4 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 rounded-lg text-sm font-medium"
+              >
+                {checkingOut ? 'Procesando...' : 'Confirmar venta'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="mb-6">
         <div className="flex gap-3">
           <input
@@ -259,7 +350,6 @@ export function POSPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        {/* Left: Scanner + manual input */}
         <div className="lg:col-span-3 space-y-4">
           <div className="flex gap-3">
             <input
@@ -278,26 +368,22 @@ export function POSPage() {
               +
             </button>
           </div>
-
           <button
             onClick={() => setScanning(true)}
             className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-lg font-medium"
           >
             Escanear código
           </button>
-
           {scanning && (
             <Scanner onDetect={handleScan} onClose={() => setScanning(false)} />
           )}
         </div>
 
-        {/* Right: Cart */}
         <div className="lg:col-span-2 bg-white border border-stone-200 rounded-xl p-4 shadow-sm">
           <h3 className="text-lg font-semibold mb-4 flex justify-between">
             <span>Carrito</span>
             <span className="text-stone-400 text-sm">{cart.length} items</span>
           </h3>
-
           {cart.length === 0 ? (
             <p className="text-stone-300 text-sm text-center py-8">
               Escaneá o ingresá un código de barras
@@ -340,7 +426,6 @@ export function POSPage() {
               ))}
             </div>
           )}
-
           {cart.length > 0 && (
             <>
               <div className="border-t border-stone-200 pt-3 mb-4 flex justify-between text-lg font-bold">
@@ -348,11 +433,10 @@ export function POSPage() {
                 <span>${total.toFixed(2)}</span>
               </div>
               <button
-                onClick={handleCheckout}
-                disabled={checkingOut || !business}
-                className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 rounded-xl font-medium"
+                onClick={openPayment}
+                className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 rounded-xl font-medium"
               >
-                {checkingOut ? 'Procesando...' : `Cobrar $${total.toFixed(2)}`}
+                Cobrar ${total.toFixed(2)}
               </button>
             </>
           )}
