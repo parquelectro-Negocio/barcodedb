@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { db, schema } from '../db';
-import { eq, sql } from 'drizzle-orm';
+import { eq, inArray, sql } from 'drizzle-orm';
 
 export const salesRouter = new Hono();
 
@@ -32,7 +32,7 @@ salesRouter.post('/', async (c) => {
   // Fetch all business products with prices
   const bpIds = items.map(i => i.businessProductId);
   const bpResults: any[] = await db.query.businessProducts.findMany({
-    where: sql`id = ANY(${bpIds}::uuid[])`,
+    where: inArray(schema.businessProducts.id, bpIds),
     with: { product: true },
   });
 
