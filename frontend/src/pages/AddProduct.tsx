@@ -70,19 +70,14 @@ export function AddProduct() {
     }
 
     let imageUrl = form.imageUrl ?? '';
-    // Upload image first if selected
     const fileInput = document.getElementById('product-image') as HTMLInputElement;
     const file = fileInput?.files?.[0];
     if (file) {
-      const fd = new FormData();
-      fd.append('file', file);
-      try {
-        const upRes = await fetch(`${API_BASE}/upload`, { method: 'POST', body: fd });
-        if (upRes.ok) {
-          const upData = await upRes.json();
-          imageUrl = upData.url;
-        }
-      } catch {}
+      const reader = new FileReader();
+      imageUrl = await new Promise<string>((resolve) => {
+        reader.onload = () => resolve(reader.result as string);
+        reader.readAsDataURL(file);
+      });
     }
 
     try {
