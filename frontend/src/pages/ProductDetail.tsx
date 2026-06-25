@@ -31,7 +31,7 @@ export function ProductDetail() {
   if (!isLoading && !error && conflict && !selectedId) {
     return (
       <div className="max-w-2xl mx-auto">
-        <div className="bg-yellow-900/30 border border-yellow-700 rounded-lg p-4 mb-6 text-yellow-200 text-sm">
+        <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-4 mb-6 text-yellow-800 text-sm">
           Este código de barras tiene {productList.length} productos registrados.
           Seleccioná el correcto:
         </div>
@@ -40,19 +40,19 @@ export function ProductDetail() {
             <button
               key={p.id}
               onClick={() => setSelectedId(p.id)}
-              className="flex items-center gap-4 bg-slate-900 border border-slate-700 rounded-lg p-4
-                         hover:border-emerald-500 transition-colors text-left"
+              className="flex items-center gap-4 bg-white border border-stone-200 rounded-lg p-4
+                         hover:border-emerald-400 transition-colors text-left shadow-sm"
             >
-              <div className="w-16 h-16 bg-slate-800 rounded flex items-center justify-center text-slate-600">
+              <div className="w-16 h-16 bg-stone-100 rounded flex items-center justify-center text-stone-400">
                 {p.imageUrl ? <img src={resolveImageUrl(p.imageUrl)} alt="" className="w-full h-full object-cover rounded" /> : '?'}
               </div>
               <div className="flex-1">
-                <p className="font-semibold">{p.name}</p>
-                <p className="text-sm text-slate-400">{p.brand}</p>
-                <p className="text-xs text-slate-500">{p.verification_score} confirmaciones</p>
+                <p className="font-semibold text-stone-900">{p.name}</p>
+                <p className="text-sm text-stone-500">{p.brand}</p>
+                <p className="text-xs text-stone-400">{p.verification_score} confirmaciones</p>
               </div>
               {p.status === 'verified' && (
-                <span className="text-xs px-2 py-1 bg-emerald-900 text-emerald-300 rounded">Verificado</span>
+                <span className="text-xs px-2 py-1 bg-emerald-100 text-emerald-700 rounded">Verificado</span>
               )}
             </button>
           ))}
@@ -61,14 +61,14 @@ export function ProductDetail() {
     );
   }
 
-  if (isLoading) return <p className="text-slate-400">Cargando...</p>;
+  if (isLoading) return <p className="text-stone-500">Cargando...</p>;
   if (error || !product) return (
     <div className="text-center py-12">
-      <p className="text-slate-500 mb-4">Producto no encontrado</p>
-      <p className="text-sm text-slate-600 font-mono mb-6">{barcode}</p>
+      <p className="text-stone-500 mb-4">Producto no encontrado</p>
+      <p className="text-sm text-stone-400 font-mono mb-6">{barcode}</p>
       <Link
         to={`/add?barcode=${barcode}`}
-        className="inline-block px-6 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-sm font-medium"
+        className="inline-block px-6 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-sm font-medium text-white"
       >
         Agregar producto
       </Link>
@@ -109,52 +109,53 @@ function ProductView({ product, barcode, onBack }: { product: any; barcode: stri
   return (
     <div className="max-w-2xl mx-auto">
       {onBack && (
-        <button onClick={onBack} className="text-sm text-slate-500 hover:text-white mb-4">
+        <button onClick={onBack} className="text-sm text-stone-500 hover:text-stone-900 mb-4">
           &larr; Ver todos los productos para este código
         </button>
       )}
 
       <div className="flex gap-8 items-start mb-6">
         {product.imageUrl ? (
-          <img src={resolveImageUrl(product.imageUrl)} alt="" className="w-48 h-48 object-cover rounded-xl" />
+          <img src={resolveImageUrl(product.imageUrl)} alt="" className="w-48 h-48 object-cover rounded-xl shadow-sm" />
         ) : (
-          <div className="w-48 h-48 bg-slate-800 rounded-xl flex items-center justify-center text-slate-600 text-lg">
+          <div className="w-48 h-48 bg-stone-100 rounded-xl flex items-center justify-center text-stone-400 text-lg">
             Sin imagen
           </div>
         )}
 
         <div className="flex-1">
-          <h1 className="text-3xl font-bold mb-2">{product.name}</h1>
-          {product.brand && <p className="text-lg text-slate-400 mb-2">{product.brand}</p>}
-          <p className="text-sm font-mono text-slate-500 mb-1">{product.barcode}</p>
-          {product.sku && <p className="text-sm text-slate-500 mb-4">SKU: {product.sku}</p>}
+          <h1 className="text-3xl font-bold mb-2 text-stone-900">{product.name}</h1>
+          {product.brand && <p className="text-lg text-stone-500 mb-2">{product.brand}</p>}
+          <p className="text-sm font-mono text-stone-400 mb-1">{product.barcode}</p>
+          {product.sku && <p className="text-sm text-stone-400 mb-4">SKU: {product.sku}</p>}
+          {product.color && <p className="text-sm text-stone-400 mb-4">Color: {product.color}</p>}
 
           <div className="flex flex-wrap gap-2 mb-4">
             {product.status === 'verified' ? (
-              <span className="text-xs px-3 py-1 rounded bg-emerald-900 text-emerald-300">
+              <span className="text-xs px-3 py-1 rounded bg-emerald-100 text-emerald-700">
                 Verificado
               </span>
             ) : product.status === 'flagged' ? (
-              <span className="text-xs px-3 py-1 rounded bg-red-900 text-red-300">
+              <span className="text-xs px-3 py-1 rounded bg-red-100 text-red-700">
                 Reportado - en revisión
               </span>
             ) : (
-              <span className="text-xs px-3 py-1 rounded bg-yellow-900 text-yellow-300">
+              <span className="text-xs px-3 py-1 rounded bg-yellow-100 text-yellow-800">
                 Pendiente
               </span>
             )}
-            <span className="text-xs px-3 py-1 rounded bg-slate-800 text-slate-400">
+            <span className="text-xs px-3 py-1 rounded bg-stone-100 text-stone-500">
               {product.verification_score} confirmaciones
             </span>
             {product.category && (
-              <span className="text-xs px-3 py-1 rounded bg-slate-800 text-slate-400">
+              <span className="text-xs px-3 py-1 rounded bg-stone-100 text-stone-500">
                 {product.category.name}
               </span>
             )}
           </div>
 
           {product.description && (
-            <p className="text-slate-300">{product.description}</p>
+            <p className="text-stone-600">{product.description}</p>
           )}
         </div>
       </div>
@@ -166,8 +167,8 @@ function ProductView({ product, barcode, onBack }: { product: any; barcode: stri
           disabled={voteMutation.isPending}
           className={`px-5 py-2 rounded-lg text-sm font-medium transition-colors ${
             currentVote === 'confirm'
-              ? 'bg-emerald-700 text-emerald-200 ring-2 ring-emerald-500'
-              : 'bg-slate-800 text-slate-300 hover:bg-emerald-900 hover:text-emerald-200'
+              ? 'bg-emerald-600 text-white ring-2 ring-emerald-500'
+              : 'bg-stone-100 text-stone-700 hover:bg-emerald-50 hover:text-emerald-700'
           }`}
         >
           {currentVote === 'confirm' ? '✓ Confirmado' : 'Confirmar datos'}
@@ -177,8 +178,8 @@ function ProductView({ product, barcode, onBack }: { product: any; barcode: stri
           disabled={voteMutation.isPending}
           className={`px-5 py-2 rounded-lg text-sm font-medium transition-colors ${
             currentVote === 'flag'
-              ? 'bg-red-900 text-red-200 ring-2 ring-red-500'
-              : 'bg-slate-800 text-slate-300 hover:bg-red-900 hover:text-red-200'
+              ? 'bg-red-600 text-white ring-2 ring-red-500'
+              : 'bg-stone-100 text-stone-700 hover:bg-red-50 hover:text-red-700'
           }`}
         >
           {currentVote === 'flag' ? '⚑ Reportado' : 'Reportar error'}
@@ -188,12 +189,12 @@ function ProductView({ product, barcode, onBack }: { product: any; barcode: stri
       {/* Variants */}
       {product.variants?.length > 0 && (
         <div className="mt-6">
-          <h3 className="text-lg font-semibold mb-3">Variantes</h3>
+          <h3 className="text-lg font-semibold mb-3 text-stone-800">Variantes</h3>
           <div className="grid grid-cols-2 gap-3">
             {product.variants.map((v: any) => (
-              <div key={v.id} className="bg-slate-900 border border-slate-800 rounded-lg p-3">
-                <p className="font-medium">{v.name}</p>
-                {v.barcode && <p className="text-xs font-mono text-slate-500">{v.barcode}</p>}
+              <div key={v.id} className="bg-white border border-stone-200 rounded-lg p-3 shadow-sm">
+                <p className="font-medium text-stone-900">{v.name}</p>
+                {v.barcode && <p className="text-xs font-mono text-stone-400">{v.barcode}</p>}
               </div>
             ))}
           </div>
@@ -272,10 +273,10 @@ function InventorySection({ productId }: { productId: string }) {
 
   if (!showForm) {
     return (
-      <div className="mt-8 border-t border-slate-800 pt-6">
-        <button
+      <div className="mt-8 border-t border-stone-200 pt-6">
+          <button
           onClick={() => { setShowForm(true); if (savedSlug) setSlug(savedSlug); }}
-          className="px-5 py-2 bg-emerald-700 hover:bg-emerald-600 rounded-lg text-sm font-medium"
+          className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-sm font-medium text-white"
         >
           Agregar a mi inventario
         </button>
@@ -284,46 +285,46 @@ function InventorySection({ productId }: { productId: string }) {
   }
 
   return (
-    <div className="mt-8 border-t border-slate-800 pt-6">
-      <h3 className="text-lg font-semibold mb-4">Agregar a mi inventario</h3>
+    <div className="mt-8 border-t border-stone-200 pt-6">
+      <h3 className="text-lg font-semibold mb-4 text-stone-800">Agregar a mi inventario</h3>
       <div className="space-y-3 max-w-md">
         <div>
-          <label className="block text-sm text-slate-400 mb-1">Nombre de tu comercio</label>
+          <label className="block text-sm text-stone-500 mb-1">Nombre de tu comercio</label>
           <input
             type="text"
             value={businessName}
             onChange={e => setBusinessName(e.target.value)}
             placeholder="Ej: Mi Almacén"
-            className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm"
+            className="w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm text-stone-900"
           />
         </div>
         <div>
-          <label className="block text-sm text-slate-400 mb-1">Identificador (slug)</label>
+          <label className="block text-sm text-stone-500 mb-1">Identificador (slug)</label>
           <input
             type="text"
             value={slug}
             onChange={e => { setSlug(e.target.value.toLowerCase().replace(/\s+/g, '-')); setExisting(null); }}
             onBlur={loadBusiness}
             placeholder="Ej: mi-almacen"
-            className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm font-mono"
+            className="w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm font-mono text-stone-900"
           />
           {error === 'negocio_no_existe' && (
-            <p className="mt-1 text-xs text-yellow-400">No existe. Se va a crear cuando guardes.</p>
+            <p className="mt-1 text-xs text-yellow-700">No existe. Se va a crear cuando guardes.</p>
           )}
           {existing && (
-            <p className="mt-1 text-xs text-emerald-400">Comercio encontrado: {existing.name}</p>
+            <p className="mt-1 text-xs text-emerald-600">Comercio encontrado: {existing.name}</p>
           )}
         </div>
         <div className="flex gap-3">
           <div className="flex-1">
-            <label className="block text-sm text-slate-400 mb-1">Precio de venta $</label>
+            <label className="block text-sm text-stone-500 mb-1">Precio de venta $</label>
             <input
               type="number"
               min="0"
               step="0.01"
               value={price}
               onChange={e => setPrice(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm"
+              className="w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm text-stone-900"
             />
           </div>
           <div className="flex-1">
@@ -333,19 +334,19 @@ function InventorySection({ productId }: { productId: string }) {
               min="0"
               value={stock}
               onChange={e => setStock(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm"
+              className="w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm text-stone-900"
             />
           </div>
         </div>
         <button
           onClick={() => addMutation.mutate()}
           disabled={addMutation.isPending || !price || !slug}
-          className="px-5 py-2 bg-emerald-700 hover:bg-emerald-600 rounded-lg text-sm font-medium disabled:opacity-50"
+          className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-sm font-medium disabled:opacity-50 text-white"
         >
           {addMutation.isPending ? 'Guardando...' : addMutation.isSuccess ? '✓ Guardado' : 'Guardar'}
         </button>
         {addMutation.isError && (
-          <p className="text-xs text-red-400">Error al guardar. ¿El backend está actualizado?</p>
+          <p className="text-xs text-red-600">Error al guardar. ¿El backend está actualizado?</p>
         )}
       </div>
     </div>

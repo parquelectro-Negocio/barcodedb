@@ -173,14 +173,14 @@ export function ImportPage() {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <h2 className="text-2xl font-bold mb-2">Importar productos</h2>
+      <h2 className="text-2xl font-bold mb-2 text-stone-800">Importar productos</h2>
 
       <div
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onClick={() => fileInputRef.current?.click()}
         className={`border-2 border-dashed rounded-xl p-8 mb-4 text-center cursor-pointer transition-colors
-          ${fileRows ? 'border-emerald-600 bg-emerald-900/20' : 'border-slate-600 hover:border-slate-500 bg-slate-900/50'}`}
+          ${fileRows ? 'border-emerald-500 bg-emerald-50' : 'border-stone-300 hover:border-stone-400 bg-white'}`}
       >
         <input
           ref={fileInputRef}
@@ -190,9 +190,9 @@ export function ImportPage() {
           onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
         />
         {fileRows ? (
-          <p className="text-emerald-400">{fileName} &mdash; {fileRows.length} filas cargadas (click para cambiar)</p>
+          <p className="text-emerald-600">{fileName} &mdash; {fileRows.length} filas cargadas (click para cambiar)</p>
         ) : (
-          <p className="text-slate-400">Solta un archivo .xlsx / .xls / .csv aca, o hace click para seleccionar</p>
+          <p className="text-stone-400">Solta un archivo .xlsx / .xls / .csv aca, o hace click para seleccionar</p>
         )}
       </div>
 
@@ -200,20 +200,20 @@ export function ImportPage() {
         <div className="mb-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-lg font-semibold">Vista previa &mdash; mapea las columnas</h3>
-            <button onClick={clearFile} className="text-sm text-slate-400 hover:text-white">Quitar archivo</button>
+            <button onClick={clearFile} className="text-sm text-stone-400 hover:text-stone-900">Quitar archivo</button>
           </div>
 
-          <div className="overflow-x-auto border border-slate-700 rounded-xl">
+          <div className="overflow-x-auto border border-stone-200 rounded-xl shadow-sm">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-slate-800">
+                <tr className="bg-stone-100">
                   {fileHeaders.map(h => (
-                    <th key={h} className="p-2 text-left font-medium text-slate-300 whitespace-nowrap">
+                    <th key={h} className="p-2 text-left font-medium text-stone-600 whitespace-nowrap">
                       <p className="mb-1">{h}</p>
                       <select
                         value={columnMap[h] ?? ''}
                         onChange={e => setColumnMap(prev => ({ ...prev, [h]: e.target.value as ColumnKey | '' }))}
-                        className="w-full text-xs bg-slate-900 border border-slate-700 rounded px-1 py-1 text-slate-200"
+                        className="w-full text-xs bg-white border border-stone-200 rounded px-1 py-1 text-stone-800"
                       >
                         <option value="">&mdash; Ignorar &mdash;</option>
                         {COLUMN_KEYS.map(k => (
@@ -226,15 +226,15 @@ export function ImportPage() {
               </thead>
               <tbody>
                 {fileRows.slice(0, 10).map((row, i) => (
-                  <tr key={i} className="border-t border-slate-800">
+                  <tr key={i} className="border-t border-stone-200">
                     {fileHeaders.map(h => (
-                      <td key={h} className="p-2 text-slate-400 truncate max-w-[200px]">{row[h]}</td>
+                      <td key={h} className="p-2 text-stone-500 truncate max-w-[200px]">{row[h]}</td>
                     ))}
                   </tr>
                 ))}
                 {fileRows.length > 10 && (
-                  <tr className="border-t border-slate-800">
-                    <td colSpan={fileHeaders.length} className="p-2 text-center text-slate-500 italic">
+                  <tr className="border-t border-stone-200">
+                    <td colSpan={fileHeaders.length} className="p-2 text-center text-stone-400 italic">
                       ... y {fileRows.length - 10} filas mas
                     </td>
                   </tr>
@@ -247,13 +247,13 @@ export function ImportPage() {
 
       {!fileRows && (
         <>
-          <p className="text-slate-400 mb-3">O pega una lista de productos (uno por linea):</p>
+          <p className="text-stone-500 mb-3">O pega una lista de productos (uno por linea):</p>
           <textarea
             value={text}
             onChange={e => setText(e.target.value)}
             placeholder={"Samsung Galaxy A16\nKingston 128GB microSD\nMouse Logitech M90\nCable HDMI 2m\n..."}
             rows={6}
-            className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-xl text-sm
+            className="w-full px-4 py-3 bg-white border border-stone-300 rounded-xl text-sm text-stone-900
                        focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none font-mono"
           />
         </>
@@ -265,12 +265,12 @@ export function ImportPage() {
           value={businessSlug}
           onChange={e => setBusinessSlug(e.target.value)}
           placeholder="Slug de tu comercio (opcional)"
-          className="flex-1 px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          className="flex-1 px-4 py-2 bg-white border border-stone-300 rounded-lg text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
         />
         <button
           onClick={handleMatch}
           disabled={loading || (!text.trim() && !fileRows)}
-          className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 rounded-lg font-medium"
+          className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 rounded-lg font-medium text-white"
         >
           {loading ? 'Procesando...' : 'Buscar coincidencias'}
         </button>
@@ -291,17 +291,17 @@ function UnmatchedItem({ name, navigate }: { name: string; navigate: any }) {
   }, [name]);
 
   return (
-    <div className="flex items-center gap-3 bg-slate-900 border border-slate-800 rounded-lg p-3">
-      <span className="text-yellow-400 text-sm shrink-0">?</span>
+    <div className="flex items-center gap-3 bg-white border border-stone-200 rounded-lg p-3 shadow-sm">
+      <span className="text-yellow-600 text-sm shrink-0">?</span>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium truncate">{name}</p>
         {suggestion && (
-          <p className="text-xs text-emerald-500 truncate">Sugerencia: {suggestion}</p>
+          <p className="text-xs text-emerald-600 truncate">Sugerencia: {suggestion}</p>
         )}
       </div>
       <button
         onClick={() => navigate(`/add?name=${encodeURIComponent(suggestion ?? name)}`)}
-        className="text-xs px-3 py-1 bg-slate-800 hover:bg-emerald-900 rounded shrink-0"
+        className="text-xs px-3 py-1 bg-stone-100 hover:bg-emerald-50 rounded shrink-0 text-stone-700"
       >
         Agregar
       </button>
@@ -319,7 +319,7 @@ function MatchResults({ results, businessSlug, onAddToBusiness }: {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-semibold mb-3 text-emerald-400">
+        <h3 className="text-lg font-semibold mb-3 text-emerald-600">
           Encontrados ({matched.length})
         </h3>
         <div className="grid gap-2">
@@ -330,11 +330,11 @@ function MatchResults({ results, businessSlug, onAddToBusiness }: {
               <span className="text-emerald-400 text-sm shrink-0">&#10003;</span>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">{m.name}</p>
-                <p className="text-xs text-slate-500">{m.brand} &middot; {m.barcode}</p>
+                <p className="text-sm text-stone-500">{m.brand} &middot; {m.barcode}</p>
               </div>
               <button
                 onClick={() => navigate(`/product/${m.barcode}`)}
-                className="text-xs text-slate-400 hover:text-white shrink-0"
+                className="text-xs text-stone-400 hover:text-stone-900 shrink-0"
               >
                 Ver
               </button>
@@ -345,7 +345,7 @@ function MatchResults({ results, businessSlug, onAddToBusiness }: {
 
       {unmatched.length > 0 && (
         <div>
-          <h3 className="text-lg font-semibold mb-3 text-yellow-400">
+          <h3 className="text-lg font-semibold mb-3 text-yellow-700">
             No encontrados ({unmatched.length})
           </h3>
           <div className="grid gap-2">
@@ -360,7 +360,7 @@ function MatchResults({ results, businessSlug, onAddToBusiness }: {
       {businessSlug && matched.length > 0 && (
         <button
           onClick={onAddToBusiness}
-          className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 rounded-xl font-medium"
+          className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 rounded-xl font-medium text-white"
         >
           Agregar {matched.length} productos a {businessSlug}
         </button>

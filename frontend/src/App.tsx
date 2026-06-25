@@ -11,15 +11,15 @@ import { ToastProvider } from './lib/toast';
 export default function App() {
   return (
     <ToastProvider>
-      <div className="min-h-screen bg-slate-950 text-slate-100">
-        <nav className="border-b border-slate-800 px-6 py-4">
+      <div className="min-h-screen bg-stone-50 text-stone-900">
+        <nav className="border-b border-stone-200 bg-white px-6 py-4">
           <div className="max-w-6xl mx-auto flex items-center justify-between">
-            <Link to="/" className="text-xl font-bold text-emerald-400">BarcodeDB</Link>
-            <div className="flex gap-4 text-sm text-slate-400">
-              <Link to="/search" className="hover:text-white">Buscar</Link>
-              <Link to="/scan" className="hover:text-white">Escanear</Link>
-              <Link to="/import" className="hover:text-white">Importar</Link>
-              <Link to="/pos" className="hover:text-white">POS</Link>
+            <Link to="/" className="text-xl font-bold text-emerald-600">BarcodeDB</Link>
+            <div className="flex gap-4 text-sm text-stone-500">
+              <Link to="/search" className="hover:text-stone-900">Buscar</Link>
+              <Link to="/scan" className="hover:text-stone-900">Escanear</Link>
+              <Link to="/import" className="hover:text-stone-900">Importar</Link>
+              <Link to="/pos" className="hover:text-stone-900">POS</Link>
             </div>
           </div>
         </nav>

@@ -15,8 +15,8 @@ export function ScanPage() {
     <div className="text-center py-8">
       {!scanning ? (
         <div>
-          <h2 className="text-2xl font-bold mb-4">Escaneá un código de barras</h2>
-          <p className="text-slate-400 mb-8">
+          <h2 className="text-2xl font-bold mb-4 text-stone-800">Escaneá un código de barras</h2>
+          <p className="text-stone-500 mb-8">
             Usá la cámara para identificar un producto al instante
           </p>
           <button

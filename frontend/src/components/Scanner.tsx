@@ -136,7 +136,7 @@ export function Scanner({ onDetect, onClose }: Props) {
       <div className="p-6 flex justify-center">
         <button
           onClick={onClose}
-          className="px-8 py-3 bg-slate-800 rounded-xl text-white text-lg font-medium"
+          className="px-8 py-3 bg-stone-800 rounded-xl text-white text-lg font-medium"
         >
           Cancelar
         </button>

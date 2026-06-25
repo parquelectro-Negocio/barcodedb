@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS products (
   name            TEXT NOT NULL,
   brand           TEXT NOT NULL DEFAULT '',
   sku             TEXT NOT NULL DEFAULT '',
+  color           TEXT NOT NULL DEFAULT '',
   description     TEXT NOT NULL DEFAULT '',
   category_id     UUID REFERENCES categories(id),
   image_url       TEXT NOT NULL DEFAULT '',
@@ -144,3 +145,5 @@ CREATE INDEX IF NOT EXISTS idx_contributions_status ON contributions(status);
 
 -- Migration: add sku column to products (idempotent)
 ALTER TABLE products ADD COLUMN IF NOT EXISTS sku TEXT NOT NULL DEFAULT '';
+-- Migration: add color column to products (idempotent)
+ALTER TABLE products ADD COLUMN IF NOT EXISTS color TEXT NOT NULL DEFAULT '';

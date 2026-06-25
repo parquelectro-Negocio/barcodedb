@@ -25,6 +25,7 @@ export const products = pgTable('products', {
   name: text('name').notNull(),
   brand: text('brand').default('').notNull(),
   sku: text('sku').default('').notNull(),
+  color: text('color').default('').notNull(),
   description: text('description').default('').notNull(),
   categoryId: uuid('category_id').references(() => categories.id),
   imageUrl: text('image_url').default('').notNull(),

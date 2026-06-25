@@ -138,17 +138,17 @@ export function POSPage() {
   if (receipt) {
     return (
       <div className="max-w-md mx-auto text-center py-8">
-        <div className="text-emerald-400 text-5xl mb-4">✓</div>
+        <div className="text-emerald-600 text-5xl mb-4">✓</div>
         <h2 className="text-2xl font-bold mb-2">Venta registrada</h2>
-        <p className="text-slate-400 mb-6 font-mono text-sm">{receipt.sale.id.slice(0, 8)}...</p>
-        <div className="bg-slate-900 rounded-xl p-6 mb-6 text-left">
+        <p className="text-stone-500 mb-6 font-mono text-sm">{receipt.sale.id.slice(0, 8)}...</p>
+        <div className="bg-white border border-stone-200 rounded-xl p-6 mb-6 text-left shadow-sm">
           {receipt.items.map((item: any, i: number) => (
             <div key={i} className="flex justify-between text-sm py-1">
               <span>{item.quantity}x</span>
-              <span className="text-slate-300">${parseFloat(item.total).toFixed(2)}</span>
+              <span className="text-stone-700">${parseFloat(item.total).toFixed(2)}</span>
             </div>
           ))}
-          <div className="border-t border-slate-700 mt-3 pt-3 flex justify-between font-bold">
+          <div className="border-t border-stone-200 mt-3 pt-3 flex justify-between font-bold">
             <span>Total</span>
             <span>${parseFloat(receipt.sale.total).toFixed(2)}</span>
           </div>
@@ -165,7 +165,7 @@ export function POSPage() {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <h2 className="text-2xl font-bold mb-4">Punto de Venta</h2>
+      <h2 className="text-2xl font-bold mb-4 text-stone-800">Punto de Venta</h2>
 
       {/* Business selector */}
       <div className="mb-6">
@@ -177,17 +177,17 @@ export function POSPage() {
             onBlur={() => loadBusiness(businessSlug)}
             onKeyDown={e => e.key === 'Enter' && loadBusiness(businessSlug)}
             placeholder="Slug del comercio (ej: electromundo)"
-            className="px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm w-80 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            className="px-4 py-2 bg-white border border-stone-300 rounded-lg text-sm text-stone-900 w-80 focus:outline-none focus:ring-2 focus:ring-emerald-500"
           />
           <button
             onClick={() => loadBusiness(businessSlug)}
-            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm"
+            className="px-4 py-2 bg-stone-100 hover:bg-stone-200 rounded-lg text-sm text-stone-700"
           >
             Cargar
           </button>
         </div>
         {business && (
-          <p className="text-sm text-emerald-400 mt-2">{business.name} — {catalog.length} productos</p>
+          <p className="text-sm text-emerald-600 mt-2">{business.name} — {catalog.length} productos</p>
         )}
       </div>
 
@@ -201,12 +201,12 @@ export function POSPage() {
               onChange={e => setManualBarcode(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleManualAdd()}
               placeholder="Código de barras manual..."
-              className="flex-1 px-4 py-3 bg-slate-900 border border-slate-700 rounded-xl text-lg font-mono
+              className="flex-1 px-4 py-3 bg-white border border-stone-300 rounded-xl text-lg font-mono text-stone-900
                          focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
             <button
               onClick={handleManualAdd}
-              className="px-4 py-3 bg-slate-800 hover:bg-slate-700 rounded-xl"
+              className="px-4 py-3 bg-stone-100 hover:bg-stone-200 rounded-xl text-stone-700"
             >
               +
             </button>
@@ -225,28 +225,28 @@ export function POSPage() {
         </div>
 
         {/* Right: Cart */}
-        <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-4">
+        <div className="lg:col-span-2 bg-white border border-stone-200 rounded-xl p-4 shadow-sm">
           <h3 className="text-lg font-semibold mb-4 flex justify-between">
             <span>Carrito</span>
-            <span className="text-slate-400 text-sm">{cart.length} items</span>
+            <span className="text-stone-400 text-sm">{cart.length} items</span>
           </h3>
 
           {cart.length === 0 ? (
-            <p className="text-slate-600 text-sm text-center py-8">
+            <p className="text-stone-300 text-sm text-center py-8">
               Escaneá o ingresá un código de barras
             </p>
           ) : (
             <div className="space-y-3 mb-4">
               {cart.map(item => (
-                <div key={item.barcode} className="bg-slate-800 rounded-lg p-3">
+                <div key={item.barcode} className="bg-stone-50 rounded-lg p-3 shadow-sm">
                   <div className="flex justify-between items-start mb-2">
                     <div className="flex-1 min-w-0 mr-2">
                       <p className="text-sm font-medium truncate">{item.productName}</p>
-                      <p className="text-xs text-slate-500 font-mono">{item.barcode}</p>
+                      <p className="text-xs text-stone-400 font-mono">{item.barcode}</p>
                     </div>
                     <button
                       onClick={() => removeItem(item.barcode)}
-                      className="text-slate-600 hover:text-red-400 text-sm"
+                      className="text-stone-400 hover:text-red-600 text-sm"
                     >
                       ✕
                     </button>
@@ -255,14 +255,14 @@ export function POSPage() {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => updateQty(item.barcode, item.quantity - 1)}
-                        className="w-7 h-7 bg-slate-700 rounded flex items-center justify-center hover:bg-slate-600"
+                        className="w-7 h-7 bg-stone-200 rounded flex items-center justify-center hover:bg-stone-300 text-stone-700"
                       >
                         -
                       </button>
                       <span className="w-6 text-center font-mono">{item.quantity}</span>
                       <button
                         onClick={() => updateQty(item.barcode, item.quantity + 1)}
-                        className="w-7 h-7 bg-slate-700 rounded flex items-center justify-center hover:bg-slate-600"
+                        className="w-7 h-7 bg-stone-200 rounded flex items-center justify-center hover:bg-stone-300 text-stone-700"
                       >
                         +
                       </button>
@@ -276,7 +276,7 @@ export function POSPage() {
 
           {cart.length > 0 && (
             <>
-              <div className="border-t border-slate-700 pt-3 mb-4 flex justify-between text-lg font-bold">
+              <div className="border-t border-stone-200 pt-3 mb-4 flex justify-between text-lg font-bold">
                 <span>Total</span>
                 <span>${total.toFixed(2)}</span>
               </div>
