@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { apiHeaders } from '../lib/user';
 import { useToast } from '../lib/toast';
 import { API_BASE } from '../lib/config';
@@ -20,7 +20,7 @@ export function POSPage() {
   const { toast } = useToast();
   const [scanning, setScanning] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [businessSlug, setBusinessSlug] = useState('');
+  const [businessSlug, setBusinessSlug] = useState(localStorage.getItem('biz_slug') || '');
   const [business, setBusiness] = useState<any>(null);
   const [catalog, setCatalog] = useState<any[]>([]);
   const [checkingOut, setCheckingOut] = useState(false);
@@ -30,24 +30,34 @@ export function POSPage() {
   const [showPinPrompt, setShowPinPrompt] = useState(false);
   const [pinError, setPinError] = useState('');
   const [showPayment, setShowPayment] = useState(false);
+  const [loadingBusiness, setLoadingBusiness] = useState(false);
+  const [businessError, setBusinessError] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('efectivo');
   const [amountTendered, setAmountTendered] = useState('');
 
   const loadBusiness = async (slug: string) => {
     if (!slug.trim()) return;
+    setLoadingBusiness(true);
+    setBusinessError('');
     try {
       const res = await fetch(`${API_BASE}/businesses/${slug}`);
-      if (!res.ok) return;
+      if (!res.ok) { setBusinessError('Comercio no encontrado'); setLoadingBusiness(false); return; }
       const b = await res.json();
       setBusiness(b);
+      localStorage.setItem('biz_slug', slug);
       if (b.pin) {
         setShowPinPrompt(true);
         setPinError('');
+        setLoadingBusiness(false);
         return;
       }
       await loadProducts(slug);
-    } catch {}
+    } catch { setBusinessError('Error al cargar el comercio'); } finally { setLoadingBusiness(false); }
   };
+
+  useEffect(() => {
+    if (businessSlug) loadBusiness(businessSlug);
+  }, []);
 
   const verifyPin = async () => {
     if (!business) return;
@@ -220,9 +230,45 @@ export function POSPage() {
     );
   }
 
+  // Gate: no business loaded yet
+  if (!business && !loadingBusiness && !receipt) {
+    return (
+      <div className="max-w-lg mx-auto text-center py-12">
+        <h2 className="text-2xl font-bold mb-2 text-stone-800">Vender</h2>
+        <p className="text-stone-500 mb-8">Primero ingresá tu comercio para empezar a vender</p>
+        <div className="space-y-3">
+          <input
+            type="text"
+            value={businessSlug}
+            onChange={e => setBusinessSlug(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && loadBusiness(businessSlug)}
+            placeholder="Identificador de tu comercio"
+            className="w-full px-4 py-3 bg-white border border-stone-300 rounded-xl text-lg text-stone-900 text-center focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            autoFocus
+          />
+          <button
+            onClick={() => loadBusiness(businessSlug)}
+            className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-lg font-medium"
+          >
+            Ingresar
+          </button>
+          {businessError && <p className="text-sm text-red-600">{businessError}</p>}
+        </div>
+      </div>
+    );
+  }
+
+  if (loadingBusiness && !business) {
+    return (
+      <div className="max-w-lg mx-auto text-center py-16">
+        <p className="text-stone-500 text-lg">Cargando comercio...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-4xl mx-auto">
-      <h2 className="text-2xl font-bold mb-4 text-stone-800">Punto de Venta</h2>
+      <h2 className="text-2xl font-bold mb-4 text-stone-800">Vender</h2>
 
       {showPinPrompt && business && (
         <div className="fixed inset-0 z-40 bg-black/40 flex items-center justify-center">
@@ -327,26 +373,16 @@ export function POSPage() {
       )}
 
       <div className="mb-6">
-        <div className="flex gap-3">
-          <input
-            type="text"
-            value={businessSlug}
-            onChange={e => setBusinessSlug(e.target.value)}
-            onBlur={() => loadBusiness(businessSlug)}
-            onKeyDown={e => e.key === 'Enter' && loadBusiness(businessSlug)}
-            placeholder="Slug del comercio (ej: electromundo)"
-            className="px-4 py-2 bg-white border border-stone-300 rounded-lg text-sm text-stone-900 w-80 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-          />
+        <div className="flex gap-3 items-center">
+          <p className="text-sm text-emerald-600 font-medium">{business?.name}</p>
           <button
-            onClick={() => loadBusiness(businessSlug)}
-            className="px-4 py-2 bg-stone-100 hover:bg-stone-200 rounded-lg text-sm text-stone-700"
+            onClick={() => { setBusiness(null); setCatalog([]); setCart([]); setBusinessSlug(''); }}
+            className="text-xs text-stone-400 hover:text-stone-600 underline"
           >
-            Cargar
+            Cambiar comercio
           </button>
         </div>
-        {business && (
-          <p className="text-sm text-emerald-600 mt-2">{business.name} — {catalog.length} productos</p>
-        )}
+        <p className="text-xs text-stone-400 mt-1">{catalog.length} productos en catálogo</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
@@ -357,7 +393,7 @@ export function POSPage() {
               value={manualBarcode}
               onChange={e => setManualBarcode(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleManualAdd()}
-              placeholder="Código de barras manual..."
+              placeholder="Código de barras..."
               className="flex-1 px-4 py-3 bg-white border border-stone-300 rounded-xl text-lg font-mono text-stone-900
                          focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />

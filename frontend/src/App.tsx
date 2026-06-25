@@ -12,14 +12,14 @@ export default function App() {
   return (
     <ToastProvider>
       <div className="min-h-screen bg-stone-50 text-stone-900">
-        <nav className="border-b border-stone-200 bg-white px-6 py-4">
+        <nav className="border-b border-stone-200 bg-white px-6 py-5">
           <div className="max-w-6xl mx-auto flex items-center justify-between">
-            <Link to="/" className="text-xl font-bold text-emerald-600">BarcodeDB</Link>
-            <div className="flex gap-2 text-sm">
-              <Link to="/search" className="px-3 py-1.5 rounded-lg text-stone-500 hover:text-emerald-700 hover:bg-emerald-50 transition-colors">Buscar</Link>
-              <Link to="/scan" className="px-3 py-1.5 rounded-lg text-stone-500 hover:text-emerald-700 hover:bg-emerald-50 transition-colors">Escanear</Link>
-              <Link to="/import" className="px-3 py-1.5 rounded-lg text-stone-500 hover:text-emerald-700 hover:bg-emerald-50 transition-colors">Importar</Link>
-              <Link to="/pos" className="px-3 py-1.5 rounded-lg text-stone-500 hover:text-emerald-700 hover:bg-emerald-50 transition-colors">POS</Link>
+            <Link to="/" className="text-2xl font-bold text-emerald-600">BarcodeDB</Link>
+            <div className="flex gap-3">
+              <Link to="/search" className="px-4 py-2 rounded-lg text-stone-600 hover:text-emerald-700 hover:bg-emerald-50 transition-colors font-medium">Buscar</Link>
+              <Link to="/scan" className="px-4 py-2 rounded-lg text-stone-600 hover:text-emerald-700 hover:bg-emerald-50 transition-colors font-medium">Escanear</Link>
+              <Link to="/import" className="px-4 py-2 rounded-lg text-stone-600 hover:text-emerald-700 hover:bg-emerald-50 transition-colors font-medium">Importar</Link>
+              <Link to="/pos" className="px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 transition-colors font-medium">Vender</Link>
             </div>
           </div>
         </nav>
