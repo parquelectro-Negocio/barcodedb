@@ -299,7 +299,15 @@ function InventorySection({ productId }: { productId: string }) {
           />
         </div>
         <div>
-          <label className="block text-sm text-stone-500 mb-1">Identificador (slug)</label>
+          <label className="block text-sm text-stone-500 mb-1">
+            Identificador (slug)
+            <span className="group relative inline-flex ml-1">
+              <span className="cursor-help text-stone-400 hover:text-stone-600 text-xs border border-stone-300 rounded-full w-4 h-4 inline-flex items-center justify-center">?</span>
+              <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-stone-800 text-white text-xs rounded-lg shadow-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                Es el identificador único de tu comercio. Sin espacios, todo en minúscula. Ej: "electro-mundo"
+              </span>
+            </span>
+          </label>
           <input
             type="text"
             value={slug}
