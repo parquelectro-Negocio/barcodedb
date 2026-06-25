@@ -219,20 +219,34 @@ function InventorySection({ productId }: { productId: string }) {
   const [pin, setPin] = useState('');
   const [pinHint, setPinHint] = useState('');
   const [setupError, setSetupError] = useState('');
+  const [existingBP, setExistingBP] = useState<any>(null);
+  const [productsLoaded, setProductsLoaded] = useState(false);
   const queryClient = useQueryClient();
 
   const loadBusiness = async (s: string) => {
     if (!s) return;
     setLoading(true);
+    setProductsLoaded(false);
     try {
       const res = await fetch(`${API_BASE}/businesses/${s}`);
       if (res.ok) {
         const b = await res.json();
         setBusiness(b);
         localStorage.setItem('biz_slug', s);
+        const bpRes = await fetch(`${API_BASE}/businesses/${s}/products`);
+        if (bpRes.ok) {
+          const bpList = await bpRes.json();
+          const match = bpList.find((bp: any) => bp.productId === productId);
+          if (match) {
+            setExistingBP(match);
+            setPrice(match.price);
+            setStock(String(match.stock));
+          }
+        }
       }
     } catch {} finally {
       setLoading(false);
+      setProductsLoaded(true);
     }
   };
 
@@ -258,6 +272,7 @@ function InventorySection({ productId }: { productId: string }) {
       setBusiness(b);
       localStorage.setItem('biz_slug', b.slug);
       setShowSetup(false);
+      loadBusiness(b.slug);
     },
   });
 
@@ -274,7 +289,8 @@ function InventorySection({ productId }: { productId: string }) {
       }
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      setExistingBP(data);
       setShowForm(false);
       queryClient.invalidateQueries({ queryKey: ['business', business.slug] });
     },
@@ -287,7 +303,7 @@ function InventorySection({ productId }: { productId: string }) {
           onClick={() => setShowForm(true)}
           className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-sm font-medium text-white"
         >
-          Agregar a mi inventario
+          {!productsLoaded ? 'Inventario...' : existingBP ? 'Ver / editar inventario' : 'Agregar a mi inventario'}
         </button>
       </div>
     );
@@ -391,9 +407,14 @@ function InventorySection({ productId }: { productId: string }) {
   return (
     <div className="mt-8 border-t border-stone-200 pt-6">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-stone-800">Agregar a mi inventario</h3>
+        <h3 className="text-lg font-semibold text-stone-800">
+          {existingBP ? 'Editar inventario' : 'Agregar a mi inventario'}
+        </h3>
         <span className="text-sm text-emerald-600 font-medium">{business?.name}</span>
       </div>
+      {existingBP && (
+        <p className="text-xs text-stone-500 mb-3">Este producto ya está en tu inventario. Actualizá precio y stock.</p>
+      )}
       <div className="space-y-3 max-w-md">
         <div className="flex gap-3">
           <div className="flex-1">
@@ -425,7 +446,7 @@ function InventorySection({ productId }: { productId: string }) {
             disabled={addMutation.isPending || !price}
             className="flex-1 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-sm font-medium disabled:opacity-50 text-white"
           >
-            {addMutation.isPending ? 'Guardando...' : addMutation.isSuccess ? '✓ Guardado' : 'Guardar'}
+            {addMutation.isPending ? 'Guardando...' : addMutation.isSuccess ? '✓ Guardado' : (existingBP ? 'Actualizar' : 'Guardar')}
           </button>
         </div>
         {addMutation.isError && (

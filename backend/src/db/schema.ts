@@ -68,7 +68,7 @@ export const businessProducts = pgTable('business_products', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
-  uniqueIdx: uniqueIndex('business_product_unique').on(table.businessId, table.productId, table.variantId),
+  uniqueIdx: uniqueIndex('business_product_unique').on(table.businessId, table.productId),
 }));
 
 export const users = pgTable('users', {

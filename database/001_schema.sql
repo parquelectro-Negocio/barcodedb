@@ -73,7 +73,7 @@ CREATE TABLE IF NOT EXISTS business_products (
   price         NUMERIC(12,2) NOT NULL DEFAULT 0,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE(business_id, product_id, variant_id)
+  UNIQUE(business_id, product_id)
 );
 
 -- Contributors / users
@@ -157,3 +157,9 @@ ALTER TABLE businesses ADD COLUMN IF NOT EXISTS pin_hint TEXT;
 ALTER TABLE sales ADD COLUMN IF NOT EXISTS payment_method TEXT;
 ALTER TABLE sales ADD COLUMN IF NOT EXISTS amount_tendered NUMERIC(12,2);
 ALTER TABLE sales ADD COLUMN IF NOT EXISTS change NUMERIC(12,2);
+
+-- Migration: replace (business_id, product_id, variant_id) unique with (business_id, product_id)
+-- variant_id is typically NULL and PG treats NULLs as distinct, allowing duplicates
+ALTER TABLE business_products DROP CONSTRAINT IF EXISTS business_products_business_id_product_id_variant_id_key;
+ALTER TABLE business_products DROP CONSTRAINT IF EXISTS business_products_business_id_product_id_key;
+ALTER TABLE business_products ADD CONSTRAINT business_products_unique UNIQUE(business_id, product_id);

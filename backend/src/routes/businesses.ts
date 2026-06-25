@@ -68,6 +68,28 @@ businessesRouter.post('/:slug/products', async (c) => {
   if (!business) return c.json({ error: 'business_not_found' }, 404);
 
   const body = parsed.data;
+
+  // Upsert: if product already exists for this business, update price/stock
+  const existing = await db.query.businessProducts.findFirst({
+    where: and(
+      eq(schema.businessProducts.businessId, business.id),
+      eq(schema.businessProducts.productId, body.productId),
+    ),
+  });
+
+  if (existing) {
+    const [bp] = await db.update(schema.businessProducts)
+      .set({
+        price: String(body.price),
+        stock: body.stock,
+        cost: String(body.cost),
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.businessProducts.id, existing.id))
+      .returning();
+    return c.json(bp);
+  }
+
   const [bp] = await db.insert(schema.businessProducts).values({
     businessId: business.id,
     productId: body.productId,
