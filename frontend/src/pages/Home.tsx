@@ -1,9 +1,33 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { API_BASE } from '../lib/config';
 
 export function Home() {
   const [query, setQuery] = useState('');
   const navigate = useNavigate();
+
+  // Dashboard state
+  const [businessSlug, setBusinessSlug] = useState(localStorage.getItem('biz_slug') || '');
+  const [business, setBusiness] = useState<any>(null);
+  const [stats, setStats] = useState<any>(null);
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [showBizInput, setShowBizInput] = useState(false);
+
+  const loadStats = async (slug: string) => {
+    setStatsLoading(true);
+    try {
+      const [b, s] = await Promise.all([
+        fetch(`${API_BASE}/businesses/${slug}`).then(r => r.ok ? r.json() : null),
+        fetch(`${API_BASE}/businesses/${slug}/stats`).then(r => r.ok ? r.json() : null),
+      ]);
+      if (b) { setBusiness(b); setBusinessSlug(slug); localStorage.setItem('biz_slug', slug); }
+      if (s) setStats(s);
+    } catch {} finally { setStatsLoading(false); }
+  };
+
+  useEffect(() => {
+    if (businessSlug) loadStats(businessSlug);
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -12,7 +36,126 @@ export function Home() {
 
   return (
     <div className="max-w-2xl mx-auto">
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-8">
+      {/* Dashboard */}
+      {business && stats && (
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-stone-700">
+              {business.name}
+              <button
+                onClick={() => setShowBizInput(!showBizInput)}
+                className="ml-2 text-xs text-stone-400 hover:text-stone-600 underline font-normal"
+              >
+                Cambiar
+              </button>
+            </h2>
+            <Link to="/sales" className="text-sm text-emerald-600 hover:text-emerald-700 font-medium">
+              Ver todas →
+            </Link>
+          </div>
+
+          {showBizInput && (
+            <div className="flex gap-2 mb-4">
+              <input
+                type="text"
+                value={businessSlug}
+                onChange={e => setBusinessSlug(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && loadStats(businessSlug)}
+                placeholder="Identificador del comercio"
+                className="flex-1 px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                autoFocus
+              />
+              <button
+                onClick={() => loadStats(businessSlug)}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-sm font-medium"
+              >
+                Ir
+              </button>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <div className="bg-white border border-stone-200 rounded-xl p-4 shadow-sm">
+              <p className="text-xs text-stone-400 uppercase tracking-wide mb-1">Hoy</p>
+              <p className="text-2xl font-bold text-stone-800">${parseFloat(stats.today.total || '0').toFixed(2)}</p>
+              <p className="text-xs text-stone-500">{stats.today.count} ventas</p>
+            </div>
+            <div className="bg-white border border-stone-200 rounded-xl p-4 shadow-sm">
+              <p className="text-xs text-stone-400 uppercase tracking-wide mb-1">Esta semana</p>
+              <p className="text-2xl font-bold text-stone-800">${parseFloat(stats.week.total || '0').toFixed(2)}</p>
+              <p className="text-xs text-stone-500">{stats.week.count} ventas</p>
+            </div>
+          </div>
+
+          {stats.lowStock.length > 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
+              <p className="text-sm font-semibold text-amber-800 mb-2">
+                ⚠️ {stats.lowStock.length} producto{stats.lowStock.length > 1 ? 's' : ''} con stock bajo
+              </p>
+              <div className="space-y-1">
+                {stats.lowStock.map((item: any) => (
+                  <div key={item.id} className="flex justify-between text-sm text-amber-700">
+                    <Link to={`/product/${item.barcode}`} className="hover:underline truncate mr-2">
+                      {item.productName}
+                    </Link>
+                    <span className="font-mono shrink-0">{item.stock} uds.</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="flex gap-2">
+            <Link to="/pos" className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-sm font-medium text-center">
+              Vender
+            </Link>
+            <Link to="/sales" className="flex-1 py-3 bg-white border border-stone-200 hover:bg-stone-50 rounded-xl text-sm font-medium text-stone-700 text-center">
+              Ventas
+            </Link>
+            <Link to="/add" className="flex-1 py-3 bg-white border border-stone-200 hover:bg-stone-50 rounded-xl text-sm font-medium text-stone-700 text-center">
+              + Producto
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {statsLoading && (
+        <div className="mb-8 bg-white border border-stone-200 rounded-xl p-6 text-center">
+          <p className="text-stone-400 text-sm">Cargando dashboard...</p>
+        </div>
+      )}
+
+      {!business && !statsLoading && (
+        <div className="mb-8">
+          <button
+            onClick={() => setShowBizInput(true)}
+            className="w-full py-3 border-2 border-dashed border-stone-200 rounded-xl text-sm text-stone-400 hover:text-stone-600 hover:border-stone-300 transition-colors"
+          >
+            + Configurar mi comercio
+          </button>
+          {showBizInput && (
+            <div className="mt-3 flex gap-2">
+              <input
+                type="text"
+                value={businessSlug}
+                onChange={e => setBusinessSlug(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && loadStats(businessSlug)}
+                placeholder="Identificador de tu comercio"
+                className="flex-1 px-4 py-3 bg-white border border-stone-300 rounded-xl text-lg text-center focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                autoFocus
+              />
+              <button
+                onClick={() => loadStats(businessSlug)}
+                className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 rounded-xl font-medium"
+              >
+                Ir
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="flex flex-col items-center justify-center gap-8">
         <div className="text-center">
           <h1 className="text-5xl font-bold mb-4 text-stone-800">BarcodeDB</h1>
           <p className="text-stone-500 text-lg">

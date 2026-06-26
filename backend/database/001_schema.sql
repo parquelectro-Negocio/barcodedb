@@ -122,8 +122,8 @@ CREATE INDEX IF NOT EXISTS idx_products_name ON products USING gin(to_tsvector('
 CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id);
 CREATE INDEX IF NOT EXISTS idx_business_products_business ON business_products(business_id);
 CREATE INDEX IF NOT EXISTS idx_product_aliases_alias ON product_aliases(alias);
-CREATE INDEX IF NOT EXISTS idx_contributions_product ON contributions(product_id);
-CREATE INDEX IF NOT EXISTS idx_contributions_status ON contributions(status);
+CREATE INDEX IF NOT EXISTS idx_sales_business ON sales(business_id);
+CREATE INDEX IF NOT EXISTS idx_sales_created ON sales(created_at);
 
 -- Migration: add sku column to products (idempotent)
 ALTER TABLE products ADD COLUMN IF NOT EXISTS sku TEXT NOT NULL DEFAULT '';

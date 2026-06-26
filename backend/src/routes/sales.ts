@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { db, schema } from '../db';
-import { eq, inArray, sql } from 'drizzle-orm';
+import { eq, and, gte, inArray, sql } from 'drizzle-orm';
 
 export const salesRouter = new Hono();
 
@@ -101,10 +101,15 @@ salesRouter.post('/', async (c) => {
 // List sales for a business
 salesRouter.get('/', async (c) => {
   const businessId = c.req.query('businessId');
-  const limit = Math.min(Math.max(1, parseInt(c.req.query('limit') ?? '20')), 100);
+  const limit = Math.min(Math.max(1, parseInt(c.req.query('limit') ?? '50')), 100);
   const offset = Math.max(0, parseInt(c.req.query('offset') ?? '0'));
+  const since = c.req.query('since');
 
-  const where = businessId ? eq(schema.sales.businessId, businessId!) : undefined;
+  const conditions = [];
+  if (businessId) conditions.push(eq(schema.sales.businessId, businessId!));
+  if (since) conditions.push(gte(schema.sales.createdAt, new Date(since)));
+
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
   const results: any = await db.query.sales.findMany({
     where,
     limit, offset,
