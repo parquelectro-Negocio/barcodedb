@@ -8,6 +8,7 @@ type SaleItem = {
   total: string;
   businessProduct: {
     id: string;
+    cost: string;
     product: { id: string; name: string; barcode: string };
   };
 };
@@ -23,6 +24,35 @@ type Sale = {
 };
 
 type Period = 'today' | 'week' | 'month' | 'all';
+
+function exportCSV(sales: Sale[], businessName: string) {
+  const rows = [['Fecha', 'Producto', 'Cantidad', 'Precio Unit.', 'Costo', 'Ganancia', 'Total Venta', 'Método Pago']];
+  for (const sale of sales) {
+    const date = new Date(sale.createdAt).toLocaleDateString('es-AR');
+    for (const item of sale.items) {
+      const cost = parseFloat(item.businessProduct.cost || '0') * item.quantity;
+      const profit = parseFloat(item.total) - cost;
+      rows.push([
+        date,
+        item.businessProduct.product.name,
+        String(item.quantity),
+        `$${parseFloat(item.unitPrice).toFixed(2)}`,
+        `$${cost.toFixed(2)}`,
+        `$${profit.toFixed(2)}`,
+        `$${sale.total}`,
+        sale.paymentMethod === 'efectivo' ? 'Efectivo' : sale.paymentMethod === 'transferencia' ? 'Transferencia' : 'Otro',
+      ]);
+    }
+  }
+  const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `ventas-${businessName}-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 export function SalesPage() {
   const [businessSlug, setBusinessSlug] = useState(localStorage.getItem('biz_slug') || '');
@@ -106,6 +136,10 @@ export function SalesPage() {
   }
 
   const totalPeriod = sales.reduce((s, sale) => s + parseFloat(sale.total), 0);
+  const totalProfit = sales.reduce((s, sale) => {
+    const cost = sale.items.reduce((c, item) => c + (parseFloat(item.businessProduct.cost || '0') * item.quantity), 0);
+    return s + parseFloat(sale.total) - cost;
+  }, 0);
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -114,12 +148,22 @@ export function SalesPage() {
           <h2 className="text-2xl font-bold text-stone-800">Ventas</h2>
           <p className="text-sm text-emerald-600 font-medium">{business?.name}</p>
         </div>
-        <button
-          onClick={() => { setBusiness(null); setBusinessSlug(''); }}
-          className="text-xs text-stone-400 hover:text-stone-600 underline"
-        >
-          Cambiar comercio
-        </button>
+        <div className="flex items-center gap-3">
+          {sales.length > 0 && (
+            <button
+              onClick={() => exportCSV(sales, business?.name || 'export')}
+              className="px-3 py-1.5 bg-white border border-stone-200 hover:bg-stone-50 rounded-lg text-xs font-medium text-stone-600"
+            >
+              Exportar CSV
+            </button>
+          )}
+          <button
+            onClick={() => { setBusiness(null); setBusinessSlug(''); }}
+            className="text-xs text-stone-400 hover:text-stone-600 underline"
+          >
+            Cambiar comercio
+          </button>
+        </div>
       </div>
 
       <div className="flex gap-2 mb-6 flex-wrap">
@@ -139,9 +183,17 @@ export function SalesPage() {
       </div>
 
       {sales.length > 0 && (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-6 flex justify-between items-center">
-          <span className="text-sm text-emerald-800 font-medium">Total del período</span>
-          <span className="text-xl font-bold text-emerald-700">${totalPeriod.toFixed(2)}</span>
+        <div className="grid grid-cols-2 gap-3 mb-6">
+          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex justify-between items-center">
+            <span className="text-sm text-emerald-800 font-medium">Total ventas</span>
+            <span className="text-xl font-bold text-emerald-700">${totalPeriod.toFixed(2)}</span>
+          </div>
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex justify-between items-center">
+            <span className="text-sm text-blue-800 font-medium">Ganancia neta</span>
+            <span className={`text-xl font-bold ${totalProfit >= 0 ? 'text-blue-700' : 'text-red-600'}`}>
+              ${totalProfit.toFixed(2)}
+            </span>
+          </div>
         </div>
       )}
 
@@ -170,19 +222,39 @@ export function SalesPage() {
                     {sale.paymentMethod === 'efectivo' ? 'Efectivo' : sale.paymentMethod === 'transferencia' ? 'Transfer.' : 'Otro'}
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className="font-bold text-stone-800">${parseFloat(sale.total).toFixed(2)}</span>
+                <div className="flex items-center gap-4">
+                  <div className="text-right">
+                    <p className="font-bold text-stone-800">${parseFloat(sale.total).toFixed(2)}</p>
+                    <p className="text-xs text-blue-600 font-medium">
+                      ${(() => {
+                        const cost = sale.items.reduce((c, item) => c + (parseFloat(item.businessProduct.cost || '0') * item.quantity), 0);
+                        return (parseFloat(sale.total) - cost).toFixed(2);
+                      })()} gan.
+                      ({(() => {
+                        const cost = sale.items.reduce((c, item) => c + (parseFloat(item.businessProduct.cost || '0') * item.quantity), 0);
+                        const t = parseFloat(sale.total);
+                        return t > 0 ? ((t - cost) / t * 100).toFixed(0) : '0';
+                      })()}%)
+                    </p>
+                  </div>
                   <span className={`text-xs transition-transform ${expanded === sale.id ? 'rotate-180' : ''}`}>▼</span>
                 </div>
               </button>
               {expanded === sale.id && (
                 <div className="border-t border-stone-100 px-4 py-3 space-y-2 text-sm">
-                  {sale.items.map((item, i) => (
-                    <div key={i} className="flex justify-between text-stone-600">
-                      <span>{item.quantity}x {item.businessProduct.product.name}</span>
-                      <span className="font-mono">${parseFloat(item.total).toFixed(2)}</span>
-                    </div>
-                  ))}
+                  {sale.items.map((item, i) => {
+                    const cost = parseFloat(item.businessProduct.cost || '0') * item.quantity;
+                    const profit = parseFloat(item.total) - cost;
+                    return (
+                      <div key={i} className="flex justify-between text-stone-600 items-center">
+                        <span className="flex-1">{item.quantity}x {item.businessProduct.product.name}</span>
+                        <span className="font-mono text-stone-400 mr-3">${cost.toFixed(2)} cost</span>
+                        <span className={`font-mono font-medium ${profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                          ${profit.toFixed(2)}
+                        </span>
+                      </div>
+                    );
+                  })}
                   {sale.change && parseFloat(sale.change) > 0 && (
                     <div className="border-t border-stone-100 pt-2 text-emerald-600 font-medium flex justify-between">
                       <span>Vuelto</span>

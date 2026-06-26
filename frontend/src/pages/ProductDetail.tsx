@@ -214,6 +214,7 @@ function ProductView({ product, barcode, onBack }: { product: any; barcode: stri
 
 function InventorySection({ productId }: { productId: string }) {
   const [price, setPrice] = useState('');
+  const [cost, setCost] = useState('');
   const [stock, setStock] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [showSetup, setShowSetup] = useState(false);
@@ -245,6 +246,7 @@ function InventorySection({ productId }: { productId: string }) {
           if (match) {
             setExistingBP(match);
             setPrice(match.price);
+            setCost(match.cost ?? '0');
             setStock(String(match.stock));
           }
         }
@@ -286,7 +288,7 @@ function InventorySection({ productId }: { productId: string }) {
       const res = await fetch(`${API_BASE}/businesses/${business.slug}/products`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productId, price: Number(price), stock: Number(stock), cost: 0 }),
+        body: JSON.stringify({ productId, price: Number(price), stock: Number(stock), cost: Number(cost) }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -427,6 +429,14 @@ function InventorySection({ productId }: { productId: string }) {
             <input
               type="number" min="0" step="0.01" value={price}
               onChange={e => setPrice(e.target.value)}
+              className="w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm text-stone-900"
+            />
+          </div>
+          <div className="flex-1">
+            <label className="block text-sm text-stone-500 mb-1">Costo $</label>
+            <input
+              type="number" min="0" step="0.01" value={cost}
+              onChange={e => setCost(e.target.value)}
               className="w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm text-stone-900"
             />
           </div>

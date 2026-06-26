@@ -21,7 +21,7 @@ export function StockPage() {
   const [loading, setLoading] = useState(false);
   const [busError, setBusError] = useState('');
   const [search, setSearch] = useState('');
-  const [editing, setEditing] = useState<Record<string, { stock: number; price: string }>>({});
+  const [editing, setEditing] = useState<Record<string, { stock: number; price: string; cost: string }>>({});
   const [saving, setSaving] = useState<string | null>(null);
   const [filterStock, setFilterStock] = useState<'all' | 'low' | 'out'>('all');
 
@@ -48,7 +48,7 @@ export function StockPage() {
   }, []);
 
   const startEdit = (item: BPItem) => {
-    setEditing(prev => ({ ...prev, [item.id]: { stock: item.stock, price: item.price } }));
+    setEditing(prev => ({ ...prev, [item.id]: { stock: item.stock, price: item.price, cost: item.cost } }));
   };
 
   const cancelEdit = (id: string) => {
@@ -63,11 +63,11 @@ export function StockPage() {
       const res = await fetch(`${API_BASE}/businesses/${business!.slug}/products/${item.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stock: edit.stock, price: String(edit.price) }),
+        body: JSON.stringify({ stock: edit.stock, price: String(edit.price), cost: String(edit.cost) }),
       });
       if (!res.ok) throw new Error();
       const updated = await res.json();
-      setItems(prev => prev.map(i => i.id === item.id ? { ...i, stock: updated.stock, price: updated.price } : i));
+      setItems(prev => prev.map(i => i.id === item.id ? { ...i, stock: updated.stock, price: updated.price, cost: updated.cost } : i));
       cancelEdit(item.id);
       toast('Stock actualizado', 'success');
     } catch {
@@ -93,6 +93,8 @@ export function StockPage() {
   const lowStockCount = items.filter(i => i.stock > 0 && i.stock <= 5).length;
   const outOfStockCount = items.filter(i => i.stock === 0).length;
   const totalValue = items.reduce((s, i) => s + (parseFloat(i.price) * i.stock), 0);
+  const totalCost = items.reduce((s, i) => s + (parseFloat(i.cost) * i.stock), 0);
+  const potentialProfit = totalValue - totalCost;
 
   if (!business && !loading) {
     return (
@@ -138,24 +140,29 @@ export function StockPage() {
         </button>
       </div>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-3 gap-3 mb-6">
+      <div className="grid grid-cols-4 gap-3 mb-6">
         <div className="bg-white border border-stone-200 rounded-xl p-4 shadow-sm">
           <p className="text-xs text-stone-400 uppercase tracking-wide mb-1">Productos</p>
           <p className="text-2xl font-bold text-stone-800">{items.length}</p>
         </div>
         <div className="bg-white border border-stone-200 rounded-xl p-4 shadow-sm">
-          <p className="text-xs text-stone-400 uppercase tracking-wide mb-1">Valor inventario</p>
+          <p className="text-xs text-stone-400 uppercase tracking-wide mb-1">Venta total</p>
           <p className="text-2xl font-bold text-stone-800">${totalValue.toFixed(2)}</p>
         </div>
         <div className="bg-white border border-stone-200 rounded-xl p-4 shadow-sm">
-          <p className="text-xs text-stone-400 uppercase tracking-wide mb-1">Stock bajo</p>
-          <p className="text-2xl font-bold text-amber-600">{lowStockCount}</p>
+          <p className="text-xs text-stone-400 uppercase tracking-wide mb-1">Costo total</p>
+          <p className="text-2xl font-bold text-stone-800">${totalCost.toFixed(2)}</p>
+        </div>
+        <div className="bg-white border border-stone-200 rounded-xl p-4 shadow-sm">
+          <p className="text-xs text-stone-400 uppercase tracking-wide mb-1">Ganancia potencial</p>
+          <p className={`text-2xl font-bold ${potentialProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+            ${potentialProfit.toFixed(2)}
+          </p>
+          {lowStockCount > 0 && <p className="text-xs text-amber-600 mt-1">{lowStockCount} prod. stock bajo</p>}
           {outOfStockCount > 0 && <p className="text-xs text-red-500">{outOfStockCount} sin stock</p>}
         </div>
       </div>
 
-      {/* Filters */}
       <div className="flex gap-3 mb-4 flex-wrap">
         <input
           type="text"
@@ -198,6 +205,9 @@ export function StockPage() {
               const isEditing = edit !== undefined;
               const isLow = item.stock > 0 && item.stock <= 5;
               const isOut = item.stock === 0;
+              const price = parseFloat(item.price);
+              const cost = parseFloat(item.cost);
+              const margin = price > 0 ? ((price - cost) / price * 100) : 0;
 
               return (
                 <div key={item.id} className={`p-4 ${isOut ? 'bg-red-50' : isLow ? 'bg-amber-50' : ''}`}>
@@ -224,12 +234,28 @@ export function StockPage() {
                             min="0"
                             value={edit.stock}
                             onChange={e => setEditing(prev => ({ ...prev, [item.id]: { ...prev[item.id], stock: Math.max(0, parseInt(e.target.value) || 0) } }))}
-                            className="w-16 text-center font-mono text-lg bg-transparent border-none focus:outline-none"
+                            className="w-14 text-center font-mono text-lg bg-transparent border-none focus:outline-none"
                           />
                           <button
                             onClick={() => setEditing(prev => ({ ...prev, [item.id]: { ...prev[item.id], stock: edit.stock + 1 } }))}
                             className="w-8 h-8 bg-stone-100 hover:bg-stone-200 rounded-lg text-stone-600 font-bold"
                           >+</button>
+                        </div>
+                        <div className="text-right">
+                          <input
+                            type="number" min="0" step="0.01"
+                            value={edit.price}
+                            onChange={e => setEditing(prev => ({ ...prev, [item.id]: { ...prev[item.id], price: e.target.value } }))}
+                            className="w-20 text-right font-mono text-sm bg-transparent border border-stone-200 rounded px-1 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                            placeholder="Precio"
+                          />
+                          <input
+                            type="number" min="0" step="0.01"
+                            value={edit.cost}
+                            onChange={e => setEditing(prev => ({ ...prev, [item.id]: { ...prev[item.id], cost: e.target.value } }))}
+                            className="w-20 text-right font-mono text-xs text-stone-500 bg-transparent border border-stone-200 rounded px-1 mt-0.5 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                            placeholder="Costo"
+                          />
                         </div>
                         <div className="flex gap-1">
                           <button
@@ -256,8 +282,18 @@ export function StockPage() {
                           <p className="text-xs text-stone-400">uds.</p>
                         </div>
                         <div className="text-right min-w-[70px]">
-                          <p className="text-sm font-mono text-stone-700">${parseFloat(item.price).toFixed(2)}</p>
+                          <p className="text-sm font-mono text-stone-700">${price.toFixed(2)}</p>
                           <p className="text-xs text-stone-400">precio</p>
+                        </div>
+                        <div className="text-right min-w-[60px]">
+                          <p className="text-sm font-mono text-stone-500">${cost.toFixed(2)}</p>
+                          <p className="text-xs text-stone-400">costo</p>
+                        </div>
+                        <div className="text-right min-w-[50px]">
+                          <p className={`text-sm font-mono font-medium ${margin >= 30 ? 'text-emerald-600' : margin >= 10 ? 'text-amber-600' : 'text-red-500'}`}>
+                            {margin.toFixed(0)}%
+                          </p>
+                          <p className="text-xs text-stone-400">margen</p>
                         </div>
                         <button
                           onClick={() => startEdit(item)}
