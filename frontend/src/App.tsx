@@ -8,6 +8,7 @@ import { ImportPage } from './pages/ImportPage';
 import { POSPage } from './pages/POSPage';
 import { SalesPage } from './pages/SalesPage';
 import { EditProduct } from './pages/EditProduct';
+import { StockPage } from './pages/StockPage';
 import { ToastProvider } from './lib/toast';
 
 export default function App() {
@@ -22,6 +23,7 @@ export default function App() {
               <Link to="/scan" className="px-4 py-2 rounded-lg text-stone-600 hover:text-emerald-700 hover:bg-emerald-50 transition-colors font-medium">Escanear</Link>
               <Link to="/import" className="px-4 py-2 rounded-lg text-stone-600 hover:text-emerald-700 hover:bg-emerald-50 transition-colors font-medium">Importar</Link>
               <Link to="/sales" className="px-4 py-2 rounded-lg text-stone-600 hover:text-emerald-700 hover:bg-emerald-50 transition-colors font-medium">Ventas</Link>
+              <Link to="/stock" className="px-4 py-2 rounded-lg text-stone-600 hover:text-emerald-700 hover:bg-emerald-50 transition-colors font-medium">Stock</Link>
               <Link to="/pos" className="px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 transition-colors font-medium">Vender</Link>
             </div>
           </div>
@@ -37,6 +39,7 @@ export default function App() {
             <Route path="/pos" element={<POSPage />} />
             <Route path="/sales" element={<SalesPage />} />
             <Route path="/edit/:barcode" element={<EditProduct />} />
+            <Route path="/stock" element={<StockPage />} />
           </Routes>
         </main>
       </div>
