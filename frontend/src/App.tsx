@@ -7,6 +7,7 @@ import { AddProduct } from './pages/AddProduct';
 import { ImportPage } from './pages/ImportPage';
 import { POSPage } from './pages/POSPage';
 import { SalesPage } from './pages/SalesPage';
+import { EditProduct } from './pages/EditProduct';
 import { ToastProvider } from './lib/toast';
 
 export default function App() {
@@ -35,6 +36,7 @@ export default function App() {
             <Route path="/import" element={<ImportPage />} />
             <Route path="/pos" element={<POSPage />} />
             <Route path="/sales" element={<SalesPage />} />
+            <Route path="/edit/:barcode" element={<EditProduct />} />
           </Routes>
         </main>
       </div>

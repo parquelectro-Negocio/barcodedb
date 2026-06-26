@@ -126,7 +126,12 @@ function ProductView({ product, barcode, onBack }: { product: any; barcode: stri
         <div className="flex-1">
           <h1 className="text-3xl font-bold mb-2 text-stone-900">{product.name}</h1>
           {product.brand && <p className="text-lg text-stone-500 mb-2">{product.brand}</p>}
-          <p className="text-sm font-mono text-stone-400 mb-1">{product.barcode}</p>
+          <p className="text-sm font-mono text-stone-400 mb-1">
+            {product.barcode}
+            <Link to={`/edit/${barcode}`} className="ml-3 text-xs text-emerald-600 hover:text-emerald-700 underline font-sans">
+              Editar
+            </Link>
+          </p>
           {product.sku && <p className="text-sm text-stone-400 mb-4">SKU: {product.sku}</p>}
           {product.color && <p className="text-sm text-stone-400 mb-4">Color: {product.color}</p>}
 
