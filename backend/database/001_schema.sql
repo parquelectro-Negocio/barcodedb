@@ -125,25 +125,6 @@ ALTER TABLE sales ADD COLUMN IF NOT EXISTS payment_method TEXT;
 ALTER TABLE sales ADD COLUMN IF NOT EXISTS amount_tendered NUMERIC(12,2);
 ALTER TABLE sales ADD COLUMN IF NOT EXISTS change NUMERIC(12,2);
 
--- Migration: drop FKs referencing users, drop old users table, recreate with auth
-
-ALTER TABLE product_votes DROP CONSTRAINT IF EXISTS product_votes_user_id_fkey;
-ALTER TABLE IF EXISTS businesses DROP CONSTRAINT IF EXISTS businesses_owner_id_fkey;
-ALTER TABLE IF EXISTS products DROP CONSTRAINT IF EXISTS products_created_by_fkey;
-ALTER TABLE IF EXISTS duplicate_reports DROP CONSTRAINT IF EXISTS duplicate_reports_reported_by_fkey;
-ALTER TABLE IF EXISTS duplicate_reports DROP CONSTRAINT IF EXISTS duplicate_reports_resolved_by_fkey;
-ALTER TABLE IF EXISTS product_votes DROP CONSTRAINT IF EXISTS product_votes_user_id_fkey;
-DROP TABLE IF EXISTS contributions;
-DROP TABLE IF EXISTS users;
-
-ALTER TABLE business_products DROP CONSTRAINT IF EXISTS business_products_business_id_product_id_variant_id_key;
-ALTER TABLE business_products DROP CONSTRAINT IF EXISTS business_products_business_id_product_id_key;
-DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'business_products_unique') THEN
-    ALTER TABLE business_products ADD CONSTRAINT business_products_unique UNIQUE(business_id, product_id);
-  END IF;
-END $$;
-
 CREATE TABLE IF NOT EXISTS users (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email         TEXT NOT NULL UNIQUE,
@@ -152,6 +133,14 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash TEXT NOT NULL,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+ALTER TABLE business_products DROP CONSTRAINT IF EXISTS business_products_business_id_product_id_variant_id_key;
+ALTER TABLE business_products DROP CONSTRAINT IF EXISTS business_products_business_id_product_id_key;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'business_products_unique') THEN
+    ALTER TABLE business_products ADD CONSTRAINT business_products_unique UNIQUE(business_id, product_id);
+  END IF;
+END $$;
 
 ALTER TABLE businesses ADD COLUMN IF NOT EXISTS owner_id UUID REFERENCES users(id);
 ALTER TABLE products ADD COLUMN IF NOT EXISTS created_by UUID REFERENCES users(id);
