@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { API_BASE, uploadImage } from '../lib/config';
+import { normalizeProduct } from '../lib/format';
 import { useToast } from '../lib/toast';
+import { API_BASE, uploadImage, resolveImageUrl } from '../lib/config';
+import { Autocomplete } from '../components/Autocomplete';
 
-type Category = { id: string; name: string; slug: string };
 type Attribute = { id: string; name: string; label: string; type: string; options: any; required: boolean };
 
 export function EditProduct() {
@@ -13,7 +14,7 @@ export function EditProduct() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
   const [attrs, setAttrs] = useState<Attribute[]>([]);
   const [productId, setProductId] = useState('');
   const [existingImage, setExistingImage] = useState('');
@@ -24,10 +25,7 @@ export function EditProduct() {
   const set = (field: string, value: any) => setForm((f: any) => ({ ...f, [field]: value }));
 
   useEffect(() => {
-    fetch(`${API_BASE}/categories`)
-      .then(r => r.json())
-      .then(setCategories)
-      .catch(() => {});
+    fetch(`${API_BASE}/categories`).then(r => r.json()).then(setCategories).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -73,7 +71,9 @@ export function EditProduct() {
     e.preventDefault();
     setSaving(true);
 
-    let imageUrl = form.imageUrl || existingImage;
+    const normalized = normalizeProduct(form);
+
+    let imageUrl = normalized.imageUrl || existingImage;
     const fileInput = document.getElementById('edit-product-image') as HTMLInputElement;
     const file = fileInput?.files?.[0];
     if (file) imageUrl = await uploadImage(file);
@@ -83,25 +83,39 @@ export function EditProduct() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          barcode: form.barcode,
-          name: form.name,
-          brand: form.brand,
-          sku: form.sku,
-          color: form.color,
-          description: form.description,
-          unit: form.unit,
-          categoryId: form.categoryId || null,
+          barcode: normalized.barcode,
+          name: normalized.name,
+          brand: normalized.brand,
+          sku: normalized.sku,
+          color: normalized.color,
+          description: normalized.description,
+          unit: normalized.unit,
+          categoryId: normalized.categoryId || null,
           imageUrl,
         }),
       });
       if (!res.ok) throw new Error('Error al guardar');
       toast('Producto actualizado', 'success');
-      navigate(`/product/${form.slug || form.barcode}`);
+      navigate(`/product/${normalized.slug || normalized.barcode}`);
     } catch {
       toast('Error al actualizar el producto', 'error');
     } finally {
       setSaving(false);
     }
+  };
+
+  const searchBrands = async (q: string) => {
+    const res = await fetch(`${API_BASE}/search/brands?q=${encodeURIComponent(q)}&limit=10`);
+    if (!res.ok) return [];
+    const list: string[] = await res.json();
+    return list.map(b => ({ value: b, label: b }));
+  };
+
+  const searchCategories = async (q: string) => {
+    const res = await fetch(`${API_BASE}/categories?q=${encodeURIComponent(q)}`);
+    if (!res.ok) return [];
+    const list: any[] = await res.json();
+    return list.map(c => ({ value: c.id, label: c.name }));
   };
 
   if (loading) {
@@ -153,10 +167,10 @@ export function EditProduct() {
           </div>
           <div>
             <label className="block text-sm text-stone-500 mb-1">Marca</label>
-            <input
-              type="text" value={form.brand}
-              onChange={e => set('brand', e.target.value)}
-              className="w-full px-4 py-2 bg-white border border-stone-300 rounded-lg text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            <Autocomplete
+              value={form.brand}
+              onChange={(val, opt) => set('brand', opt?.value ?? val)}
+              onSearch={searchBrands}
               placeholder="Ej: Samsung"
             />
           </div>
@@ -164,17 +178,42 @@ export function EditProduct() {
 
         <div>
           <label className="block text-sm text-stone-500 mb-1">Categoría</label>
-          <select
-            value={form.categoryId}
-            onChange={e => set('categoryId', e.target.value)}
-            className="w-full px-4 py-2 bg-white border border-stone-300 rounded-lg text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-          >
-            <option value="">Sin categoría</option>
-            {categories.map((c: Category) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
+          <Autocomplete
+            value={categories.find((c: any) => c.id === form.categoryId)?.name ?? ''}
+            onChange={(val, opt) => set('categoryId', opt?.value ?? '')}
+            onSearch={searchCategories}
+            placeholder="Buscá una categoría..."
+          />
         </div>
+
+        {attrs.map((a: Attribute) => (
+          <div key={a.id}>
+            <label className="block text-sm text-stone-500 mb-1">
+              {a.label} {a.required && <span className="text-red-500">*</span>}
+            </label>
+            {a.type === 'select' ? (
+              <select
+                value={form[`attr_${a.name}`] ?? ''}
+                required={a.required}
+                onChange={e => set(`attr_${a.name}`, e.target.value)}
+                className="w-full px-4 py-2 bg-white border border-stone-300 rounded-lg text-stone-900"
+              >
+                <option value="">Seleccionar...</option>
+                {(a.options as string[] ?? []).map((o: string) => (
+                  <option key={o} value={o}>{o}</option>
+                ))}
+              </select>
+            ) : (
+              <input
+                type={a.type === 'number' ? 'number' : 'text'}
+                value={form[`attr_${a.name}`] ?? ''}
+                required={a.required}
+                onChange={e => set(`attr_${a.name}`, e.target.value)}
+                className="w-full px-4 py-2 bg-white border border-stone-300 rounded-lg text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+            )}
+          </div>
+        ))}
 
         <div>
           <label className="block text-sm text-stone-500 mb-1">Descripción</label>
@@ -191,7 +230,7 @@ export function EditProduct() {
           {existingImage && (
             <div className="mb-2">
               <img
-                src={existingImage.startsWith('/') ? `${API_BASE.replace('/api', '')}${existingImage}` : existingImage}
+                src={resolveImageUrl(existingImage)}
                 alt="Actual"
                 className="w-24 h-24 object-cover rounded-lg border border-stone-200"
               />

@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { normalizeName } from '../lib/normalizeName';
+import { normalizeProduct } from '../lib/format';
 import { useToast } from '../lib/toast';
 import { API_BASE, uploadImage } from '../lib/config';
+import { Autocomplete } from '../components/Autocomplete';
 
-type Category = { id: string; name: string; slug: string };
+type Category = { id: string; name: string; slug: string; parentId?: string | null };
 type Attribute = { id: string; name: string; label: string; type: string; options: any; required: boolean };
 
 export function AddProduct() {
@@ -21,17 +23,13 @@ export function AddProduct() {
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
-  const [brands, setBrands] = useState<string[]>([]);
   const [normalized, setNormalized] = useState<{ name: string; brand: string | null } | null>(null);
+  const [brandInput, setBrandInput] = useState('');
 
   useEffect(() => {
     fetch(`${API_BASE}/categories`)
       .then(r => r.json())
       .then(setCategories)
-      .catch(() => {});
-    fetch(`${API_BASE}/search/brands?q=`)
-      .then(r => r.json())
-      .then(setBrands)
       .catch(() => {});
   }, []);
 
@@ -45,7 +43,6 @@ export function AddProduct() {
 
   const set = (field: string, value: any) => setForm(f => ({ ...f, [field]: value }));
 
-  // Normalize name whenever name or category changes
   useEffect(() => {
     if (!form.name?.trim()) { setNormalized(null); return; }
     const timer = setTimeout(async () => {
@@ -63,13 +60,14 @@ export function AddProduct() {
     e.preventDefault();
     setSaving(true);
 
+    const normalized = normalizeProduct(form);
     const categoryAttrs: Record<string, any> = {};
     for (const a of attrs) {
-      const v = form[`attr_${a.name}`];
+      const v = normalized[`attr_${a.name}`];
       if (v !== undefined && v !== '') categoryAttrs[a.name] = v;
     }
 
-    let imageUrl = form.imageUrl ?? '';
+    let imageUrl = normalized.imageUrl ?? '';
     const fileInput = document.getElementById('product-image') as HTMLInputElement;
     const file = fileInput?.files?.[0];
     if (file) imageUrl = await uploadImage(file);
@@ -79,14 +77,14 @@ export function AddProduct() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          barcode: form.barcode,
-          name: form.name,
-          brand: form.brand,
-          sku: form.sku,
-          color: form.color,
-          description: form.description,
-          unit: form.unit,
-          categoryId: form.categoryId || null,
+          barcode: normalized.barcode,
+          name: normalized.name,
+          brand: normalized.brand,
+          sku: normalized.sku,
+          color: normalized.color,
+          description: normalized.description,
+          unit: normalized.unit,
+          categoryId: normalized.categoryId || null,
           imageUrl,
           attributes: categoryAttrs,
         }),
@@ -102,6 +100,22 @@ export function AddProduct() {
       setSaving(false);
     }
   };
+
+  const searchBrands = async (q: string) => {
+    const res = await fetch(`${API_BASE}/search/brands?q=${encodeURIComponent(q)}&limit=10`);
+    if (!res.ok) return [];
+    const list: string[] = await res.json();
+    return list.map(b => ({ value: b, label: b }));
+  };
+
+  const searchCategories = async (q: string) => {
+    const res = await fetch(`${API_BASE}/categories?q=${encodeURIComponent(q)}`);
+    if (!res.ok) return [];
+    const list: Category[] = await res.json();
+    return list.map(c => ({ value: c.id, label: c.name }));
+  };
+
+  const catName = (id: string) => categories.find(c => c.id === id)?.name ?? '';
 
   if (done) {
     return (
@@ -159,7 +173,7 @@ export function AddProduct() {
                 type="button"
                 onClick={() => {
                   set('name', normalized.name);
-                  if (normalized.brand && !form.brand) set('brand', normalized.brand);
+                  if (normalized.brand && !form.brand) { set('brand', normalized.brand); setBrandInput(normalized.brand); }
                   setNormalized(null);
                 }}
                 className="mt-1 text-xs text-emerald-600 hover:text-emerald-500 underline text-left"
@@ -170,31 +184,23 @@ export function AddProduct() {
           </div>
           <div>
             <label className="block text-sm text-stone-500 mb-1">Marca</label>
-            <input
-              type="text" value={form.brand}
-              onChange={e => set('brand', e.target.value)}
-              className="w-full px-4 py-2 bg-white border border-stone-300 rounded-lg text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            <Autocomplete
+              value={brandInput}
+              onChange={(val, opt) => { setBrandInput(val); set('brand', opt?.value ?? val); }}
+              onSearch={searchBrands}
               placeholder="Ej: Samsung"
-              list="brand-suggestions"
             />
-            <datalist id="brand-suggestions">
-              {brands.map(b => <option key={b} value={b} />)}
-            </datalist>
           </div>
         </div>
 
         <div>
           <label className="block text-sm text-stone-500 mb-1">Categoría</label>
-          <select
-            value={form.categoryId}
-            onChange={e => set('categoryId', e.target.value)}
-            className="w-full px-4 py-2 bg-white border border-stone-300 rounded-lg text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-          >
-            <option value="">Sin categoría</option>
-            {categories.map(c => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
+          <Autocomplete
+            value={catName(form.categoryId)}
+            onChange={(val, opt) => set('categoryId', opt?.value ?? '')}
+            onSearch={searchCategories}
+            placeholder="Buscá una categoría..."
+          />
         </div>
 
         {attrs.map(a => (

@@ -53,8 +53,10 @@ searchRouter.get('/', async (c) => {
 
 searchRouter.get('/brands', async (c) => {
   const q = c.req.query('q')?.trim() ?? '';
+  const limit = parseInt(c.req.query('limit') ?? '20');
+  const clause = q ? sql`brand ILIKE ${'%' + q + '%'}` : sql`TRUE`;
   const results: any = await db.execute(
-    sql`SELECT DISTINCT brand FROM products WHERE brand ILIKE ${`${q}%`} ORDER BY brand LIMIT 20`,
+    sql`SELECT DISTINCT brand FROM products WHERE ${clause} ORDER BY brand LIMIT ${limit}`,
   );
   return c.json(asRows(results).map((r: any) => r.brand));
 });

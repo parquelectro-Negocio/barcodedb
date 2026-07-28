@@ -1,11 +1,14 @@
 import { Hono } from 'hono';
 import { db, schema } from '../db';
-import { eq } from 'drizzle-orm';
+import { eq, like, or, and } from 'drizzle-orm';
 
 export const categoriesRouter = new Hono();
 
 categoriesRouter.get('/', async (c) => {
+  const q = c.req.query('q')?.trim();
+  const where = q ? like(schema.categories.name, `%${q}%`) : undefined;
   const cats = await db.query.categories.findMany({
+    where,
     orderBy: (c, { asc }) => asc(c.name),
   });
   return c.json(cats);
