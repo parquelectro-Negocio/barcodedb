@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { db, schema } from '../db';
 import { eq, sql } from 'drizzle-orm';
+import { getUserId } from '../middleware/user';
 
 export const productsRouter = new Hono();
 
@@ -37,6 +38,8 @@ productsRouter.post('/', async (c) => {
   }
 
   const body = parsed.data;
+  const userId = getUserId(c);
+
   const [product] = await db.insert(schema.products).values({
     barcode: body.barcode,
     name: body.name,
@@ -48,6 +51,7 @@ productsRouter.post('/', async (c) => {
     imageUrl: body.imageUrl,
     unit: body.unit,
     attributes: body.attributes,
+    createdBy: userId,
   }).returning();
 
   // Generate aliases for matching
@@ -115,6 +119,8 @@ productsRouter.post('/bulk', async (c) => {
   const created: any[] = [];
   const errors: { index: number; name: string; error: string }[] = [];
 
+  const userId = getUserId(c);
+
   for (let i = 0; i < products.length; i++) {
     const p = products[i];
     try {
@@ -123,6 +129,7 @@ productsRouter.post('/bulk', async (c) => {
         name: p.name,
         brand: p.brand,
         sku: p.sku,
+        createdBy: userId,
       }).returning();
 
       const aliases: { productId: string; alias: string; source: string }[] = [

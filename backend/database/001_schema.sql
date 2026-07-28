@@ -139,3 +139,29 @@ DO $$ BEGIN
     ALTER TABLE business_products ADD CONSTRAINT business_products_unique UNIQUE(business_id, product_id);
   END IF;
 END $$;
+
+CREATE TABLE IF NOT EXISTS users (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email         TEXT NOT NULL UNIQUE,
+  name          TEXT NOT NULL DEFAULT '',
+  avatar_url    TEXT NOT NULL DEFAULT '',
+  password_hash TEXT NOT NULL,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE businesses ADD COLUMN IF NOT EXISTS owner_id UUID REFERENCES users(id);
+ALTER TABLE products ADD COLUMN IF NOT EXISTS created_by UUID REFERENCES users(id);
+ALTER TABLE product_votes ADD CONSTRAINT product_votes_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id);
+
+CREATE TABLE IF NOT EXISTS duplicate_reports (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  reported_id   UUID NOT NULL REFERENCES products(id),
+  target_id     UUID NOT NULL REFERENCES products(id),
+  reported_by   UUID NOT NULL REFERENCES users(id),
+  status        TEXT NOT NULL DEFAULT 'pending',
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  resolved_at   TIMESTAMPTZ,
+  resolved_by   UUID REFERENCES users(id)
+);
+CREATE INDEX IF NOT EXISTS idx_duplicate_reports_status ON duplicate_reports(status);
+CREATE INDEX IF NOT EXISTS idx_duplicate_reports_reported ON duplicate_reports(reported_id);

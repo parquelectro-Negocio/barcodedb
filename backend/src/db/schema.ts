@@ -1,4 +1,13 @@
-import { pgTable, uuid, text, integer, numeric, jsonb, boolean, timestamp, uniqueIndex, foreignKey } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, integer, numeric, jsonb, boolean, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
+
+export const users = pgTable('users', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  email: text('email').notNull().unique(),
+  name: text('name').default('').notNull(),
+  avatarUrl: text('avatar_url').default('').notNull(),
+  passwordHash: text('password_hash').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
 
 export const categories = pgTable('categories', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -33,6 +42,7 @@ export const products = pgTable('products', {
   attributes: jsonb('attributes').default({}).notNull(),
   status: text('status').default('pending').notNull(),
   verificationScore: integer('verification_score').default(0).notNull(),
+  createdBy: uuid('created_by').references(() => users.id),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
@@ -53,6 +63,7 @@ export const businesses = pgTable('businesses', {
   pin: text('pin'),
   pinHint: text('pin_hint'),
   plan: text('plan').default('free').notNull(),
+  ownerId: uuid('owner_id').references(() => users.id),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
@@ -73,7 +84,7 @@ export const businessProducts = pgTable('business_products', {
 
 export const productVotes = pgTable('product_votes', {
   id: uuid('id').defaultRandom().primaryKey(),
-  userId: uuid('user_id').notNull(),
+  userId: uuid('user_id').notNull().references(() => users.id),
   productId: uuid('product_id').references(() => products.id),
   vote: text('vote').default('confirm').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
@@ -106,4 +117,15 @@ export const saleItems = pgTable('sale_items', {
   quantity: integer('quantity').default(1).notNull(),
   unitPrice: numeric('unit_price', { precision: 12, scale: 2 }).notNull(),
   total: numeric('total', { precision: 12, scale: 2 }).notNull(),
+});
+
+export const duplicateReports = pgTable('duplicate_reports', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  reportedId: uuid('reported_id').notNull().references(() => products.id),
+  targetId: uuid('target_id').notNull().references(() => products.id),
+  reportedBy: uuid('reported_by').notNull().references(() => users.id),
+  status: text('status').default('pending').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+  resolvedBy: uuid('resolved_by').references(() => users.id),
 });

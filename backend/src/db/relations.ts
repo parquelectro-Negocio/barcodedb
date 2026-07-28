@@ -34,3 +34,10 @@ export const saleItemsRelations = relations(s.saleItems, ({ one }) => ({
   sale: one(s.sales, { fields: [s.saleItems.saleId], references: [s.sales.id] }),
   businessProduct: one(s.businessProducts, { fields: [s.saleItems.businessProductId], references: [s.businessProducts.id] }),
 }));
+
+export const duplicateReportsRelations = relations(s.duplicateReports, ({ one }) => ({
+  reportedProduct: one(s.products, { fields: [s.duplicateReports.reportedId], references: [s.products.id] }),
+  targetProduct: one(s.products, { fields: [s.duplicateReports.targetId], references: [s.products.id] }),
+  reporter: one(s.users, { fields: [s.duplicateReports.reportedBy], references: [s.users.id] }),
+  resolver: one(s.users, { fields: [s.duplicateReports.resolvedBy], references: [s.users.id] }),
+}));

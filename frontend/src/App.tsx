@@ -9,7 +9,9 @@ import { POSPage } from './pages/POSPage';
 import { SalesPage } from './pages/SalesPage';
 import { EditProduct } from './pages/EditProduct';
 import { StockPage } from './pages/StockPage';
+import { LoginPage } from './pages/LoginPage';
 import { ToastProvider } from './lib/toast';
+import { AuthProvider, useAuth } from './lib/auth';
 import { useState } from 'react';
 
 const NAV_ITEMS = [
@@ -20,112 +22,148 @@ const NAV_ITEMS = [
   { path: '/stock', label: 'Stock' },
 ];
 
-export default function App() {
+function NavBar() {
   const location = useLocation();
+  const { user, logout, loading } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
 
   const isActive = (path: string) => location.pathname.startsWith(path);
 
   return (
-    <ToastProvider>
-      <div className="min-h-screen bg-stone-50 text-stone-900 font-sans antialiased">
-        <nav className="sticky top-0 z-30 bg-white/80 backdrop-blur-lg border-b border-stone-200/80 shadow-sm">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16">
-            <Link to="/" className="flex items-center gap-2.5 group shrink-0">
-              <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center text-white text-xs font-bold group-hover:bg-emerald-500 transition-colors">
-                B
-              </div>
-              <span className="text-lg font-bold text-stone-800">BarcodeDB</span>
-            </Link>
+    <nav className="sticky top-0 z-30 bg-white/80 backdrop-blur-lg border-b border-stone-200/80 shadow-sm">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16">
+        <Link to="/" className="flex items-center gap-2.5 group shrink-0">
+          <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center text-white text-xs font-bold group-hover:bg-emerald-500 transition-colors">
+            B
+          </div>
+          <span className="text-lg font-bold text-stone-800">BarcodeDB</span>
+        </Link>
 
-            <div className="hidden md:flex items-center gap-1">
-              {NAV_ITEMS.map(item => (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isActive(item.path)
-                      ? 'bg-emerald-50 text-emerald-700'
-                      : 'text-stone-500 hover:text-stone-800 hover:bg-stone-100'
-                  }`}
-                >
-                  {item.label}
-                </Link>
-              ))}
-              <div className="w-px h-6 bg-stone-200 mx-2" />
+        <div className="hidden md:flex items-center gap-1">
+          {NAV_ITEMS.map(item => (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                isActive(item.path)
+                  ? 'bg-emerald-50 text-emerald-700'
+                  : 'text-stone-500 hover:text-stone-800 hover:bg-stone-100'
+              }`}
+            >
+              {item.label}
+            </Link>
+          ))}
+          <div className="w-px h-6 bg-stone-200 mx-2" />
+          {!loading && (
+            user ? (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-stone-600 font-medium truncate max-w-[120px]">{user.name || user.email}</span>
+                <button onClick={logout} className="text-sm text-stone-400 hover:text-red-500 transition-colors" title="Cerrar sesión">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                </button>
+              </div>
+            ) : (
+              <Link to="/login" className="text-sm font-medium text-emerald-600 hover:text-emerald-700 px-2">Entrar</Link>
+            )
+          )}
+          <Link
+            to="/pos"
+            className={`ml-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              isActive('/pos')
+                ? 'bg-emerald-600 text-white'
+                : 'bg-emerald-600 hover:bg-emerald-500 text-white'
+            }`}
+          >
+            Vender
+          </Link>
+        </div>
+
+        <button
+          onClick={() => setMenuOpen(!menuOpen)}
+          className="md:hidden p-2 rounded-lg text-stone-500 hover:text-stone-800 hover:bg-stone-100"
+          aria-label="Menú"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            {menuOpen ? (
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            ) : (
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            )}
+          </svg>
+        </button>
+      </div>
+
+      {menuOpen && (
+        <div className="md:hidden border-t border-stone-200 bg-white animate-fade-in">
+          <div className="px-4 py-3 space-y-1">
+            {NAV_ITEMS.map(item => (
               <Link
-                to="/pos"
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  isActive('/pos')
-                    ? 'bg-emerald-600 text-white'
-                    : 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                key={item.path}
+                to={item.path}
+                onClick={() => setMenuOpen(false)}
+                className={`block px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  isActive(item.path)
+                    ? 'bg-emerald-50 text-emerald-700'
+                    : 'text-stone-600 hover:bg-stone-100'
                 }`}
               >
-                Vender
+                {item.label}
               </Link>
+            ))}
+            <div className="pt-2 border-t border-stone-100">
+              {user ? (
+                <div className="px-3 py-2 text-sm text-stone-500">{user.name || user.email}</div>
+              ) : (
+                <Link to="/login" onClick={() => setMenuOpen(false)} className="block px-3 py-2.5 rounded-lg text-sm font-medium text-emerald-600">Entrar</Link>
+              )}
             </div>
-
-            <button
-              onClick={() => setMenuOpen(!menuOpen)}
-              className="md:hidden p-2 rounded-lg text-stone-500 hover:text-stone-800 hover:bg-stone-100"
-              aria-label="Menú"
+            <Link
+              to="/pos"
+              onClick={() => setMenuOpen(false)}
+              className="block px-3 py-2.5 rounded-lg text-sm font-medium bg-emerald-600 text-white text-center"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                {menuOpen ? (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                ) : (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                )}
-              </svg>
-            </button>
+              Vender
+            </Link>
           </div>
+        </div>
+      )}
+    </nav>
+  );
+}
 
-          {menuOpen && (
-            <div className="md:hidden border-t border-stone-200 bg-white animate-fade-in">
-              <div className="px-4 py-3 space-y-1">
-                {NAV_ITEMS.map(item => (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    onClick={() => setMenuOpen(false)}
-                    className={`block px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                      isActive(item.path)
-                        ? 'bg-emerald-50 text-emerald-700'
-                        : 'text-stone-600 hover:bg-stone-100'
-                    }`}
-                  >
-                    {item.label}
-                  </Link>
-                ))}
-                <div className="pt-2">
-                  <Link
-                    to="/pos"
-                    onClick={() => setMenuOpen(false)}
-                    className="block px-3 py-2.5 rounded-lg text-sm font-medium bg-emerald-600 text-white text-center"
-                  >
-                    Vender
-                  </Link>
-                </div>
-              </div>
-            </div>
-          )}
-        </nav>
+function AppContent() {
+  const location = useLocation();
 
-        <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 animate-fade-in">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/search" element={<Search />} />
-            <Route path="/product/:barcode" element={<ProductDetail />} />
-            <Route path="/scan" element={<ScanPage />} />
-            <Route path="/add" element={<AddProduct />} />
-            <Route path="/import" element={<ImportPage />} />
-            <Route path="/pos" element={<POSPage />} />
-            <Route path="/sales" element={<SalesPage />} />
-            <Route path="/edit/:barcode" element={<EditProduct />} />
-            <Route path="/stock" element={<StockPage />} />
-          </Routes>
-        </main>
-      </div>
+  return (
+    <div className="min-h-screen bg-stone-50 text-stone-900 font-sans antialiased">
+      <NavBar />
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 animate-fade-in">
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/search" element={<Search />} />
+          <Route path="/product/:barcode" element={<ProductDetail />} />
+          <Route path="/scan" element={<ScanPage />} />
+          <Route path="/add" element={<AddProduct />} />
+          <Route path="/import" element={<ImportPage />} />
+          <Route path="/pos" element={<POSPage />} />
+          <Route path="/sales" element={<SalesPage />} />
+          <Route path="/edit/:barcode" element={<EditProduct />} />
+          <Route path="/stock" element={<StockPage />} />
+          <Route path="/login" element={<LoginPage />} />
+        </Routes>
+      </main>
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <ToastProvider>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
     </ToastProvider>
   );
 }
