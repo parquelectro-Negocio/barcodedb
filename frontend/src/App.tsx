@@ -1,4 +1,4 @@
-import { Routes, Route, Link } from 'react-router-dom';
+import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import { Home } from './pages/Home';
 import { Search } from './pages/Search';
 import { ProductDetail } from './pages/ProductDetail';
@@ -10,25 +10,108 @@ import { SalesPage } from './pages/SalesPage';
 import { EditProduct } from './pages/EditProduct';
 import { StockPage } from './pages/StockPage';
 import { ToastProvider } from './lib/toast';
+import { useState } from 'react';
+
+const NAV_ITEMS = [
+  { path: '/search', label: 'Buscar' },
+  { path: '/scan', label: 'Escanear' },
+  { path: '/import', label: 'Importar' },
+  { path: '/sales', label: 'Ventas' },
+  { path: '/stock', label: 'Stock' },
+];
 
 export default function App() {
+  const location = useLocation();
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const isActive = (path: string) => location.pathname.startsWith(path);
+
   return (
     <ToastProvider>
-      <div className="min-h-screen bg-stone-50 text-stone-900">
-        <nav className="border-b border-stone-200 bg-white px-6 py-5">
-          <div className="max-w-6xl mx-auto flex items-center justify-between">
-            <Link to="/" className="text-2xl font-bold text-emerald-600">BarcodeDB</Link>
-            <div className="flex gap-3">
-              <Link to="/search" className="px-4 py-2 rounded-lg text-stone-600 hover:text-emerald-700 hover:bg-emerald-50 transition-colors font-medium">Buscar</Link>
-              <Link to="/scan" className="px-4 py-2 rounded-lg text-stone-600 hover:text-emerald-700 hover:bg-emerald-50 transition-colors font-medium">Escanear</Link>
-              <Link to="/import" className="px-4 py-2 rounded-lg text-stone-600 hover:text-emerald-700 hover:bg-emerald-50 transition-colors font-medium">Importar</Link>
-              <Link to="/sales" className="px-4 py-2 rounded-lg text-stone-600 hover:text-emerald-700 hover:bg-emerald-50 transition-colors font-medium">Ventas</Link>
-              <Link to="/stock" className="px-4 py-2 rounded-lg text-stone-600 hover:text-emerald-700 hover:bg-emerald-50 transition-colors font-medium">Stock</Link>
-              <Link to="/pos" className="px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 transition-colors font-medium">Vender</Link>
+      <div className="min-h-screen bg-stone-50 text-stone-900 font-sans antialiased">
+        <nav className="sticky top-0 z-30 bg-white/80 backdrop-blur-lg border-b border-stone-200/80 shadow-sm">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16">
+            <Link to="/" className="flex items-center gap-2.5 group shrink-0">
+              <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center text-white text-xs font-bold group-hover:bg-emerald-500 transition-colors">
+                B
+              </div>
+              <span className="text-lg font-bold text-stone-800">BarcodeDB</span>
+            </Link>
+
+            <div className="hidden md:flex items-center gap-1">
+              {NAV_ITEMS.map(item => (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive(item.path)
+                      ? 'bg-emerald-50 text-emerald-700'
+                      : 'text-stone-500 hover:text-stone-800 hover:bg-stone-100'
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              ))}
+              <div className="w-px h-6 bg-stone-200 mx-2" />
+              <Link
+                to="/pos"
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  isActive('/pos')
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                }`}
+              >
+                Vender
+              </Link>
             </div>
+
+            <button
+              onClick={() => setMenuOpen(!menuOpen)}
+              className="md:hidden p-2 rounded-lg text-stone-500 hover:text-stone-800 hover:bg-stone-100"
+              aria-label="Menú"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                {menuOpen ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                )}
+              </svg>
+            </button>
           </div>
+
+          {menuOpen && (
+            <div className="md:hidden border-t border-stone-200 bg-white animate-fade-in">
+              <div className="px-4 py-3 space-y-1">
+                {NAV_ITEMS.map(item => (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    onClick={() => setMenuOpen(false)}
+                    className={`block px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                      isActive(item.path)
+                        ? 'bg-emerald-50 text-emerald-700'
+                        : 'text-stone-600 hover:bg-stone-100'
+                    }`}
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+                <div className="pt-2">
+                  <Link
+                    to="/pos"
+                    onClick={() => setMenuOpen(false)}
+                    className="block px-3 py-2.5 rounded-lg text-sm font-medium bg-emerald-600 text-white text-center"
+                  >
+                    Vender
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
         </nav>
-        <main className="max-w-6xl mx-auto px-6 py-8">
+
+        <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 animate-fade-in">
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/search" element={<Search />} />

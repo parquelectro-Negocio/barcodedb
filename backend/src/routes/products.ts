@@ -81,6 +81,85 @@ productsRouter.patch('/:id', async (c) => {
   return c.json(updated);
 });
 
+const bulkSchema = z.object({
+  name: z.string().min(1),
+  barcode: z.string().optional().default(''),
+  brand: z.string().optional().default(''),
+  sku: z.string().optional().default(''),
+  price: z.number().optional().default(0),
+  stock: z.number().int().min(0).optional().default(0),
+  cost: z.number().optional().default(0),
+});
+
+productsRouter.post('/bulk', async (c) => {
+  const raw = await c.req.json();
+  const parsed = z.object({
+    products: z.array(bulkSchema).min(1).max(500),
+    businessSlug: z.string().optional(),
+  }).safeParse(raw);
+
+  if (!parsed.success) {
+    return c.json({ error: 'validation_error', details: parsed.error.flatten() }, 400);
+  }
+
+  const { products, businessSlug } = parsed.data;
+  let business: any = null;
+
+  if (businessSlug) {
+    business = await db.query.businesses.findFirst({
+      where: eq(schema.businesses.slug, businessSlug),
+    });
+    if (!business) return c.json({ error: 'business_not_found' }, 404);
+  }
+
+  const created: any[] = [];
+  const errors: { index: number; name: string; error: string }[] = [];
+
+  for (let i = 0; i < products.length; i++) {
+    const p = products[i];
+    try {
+      const [product] = await db.insert(schema.products).values({
+        barcode: p.barcode || 'unknown',
+        name: p.name,
+        brand: p.brand,
+        sku: p.sku,
+      }).returning();
+
+      const aliases: { productId: string; alias: string; source: string }[] = [
+        { productId: product.id, alias: product.name, source: 'manual' },
+      ];
+      if (p.brand) {
+        const typeKeywords = ['auricular','parlante','cable','notebook','monitor','mouse','teclado','celular','tablet','impresora','router','alfajor','galletita','bebida','cargador','funda','memoria','disco','protector'];
+        const tokens = product.name.split(/\s+/);
+        const withoutType = tokens.filter(t => !typeKeywords.includes(t.toLowerCase())).join(' ');
+        if (withoutType && withoutType !== product.name) {
+          aliases.push({ productId: product.id, alias: withoutType, source: 'ai' });
+        }
+      }
+      await db.insert(schema.productAliases).values(aliases);
+
+      if (business && (p.price > 0 || p.stock > 0)) {
+        await db.insert(schema.businessProducts).values({
+          businessId: business.id,
+          productId: product.id,
+          stock: p.stock,
+          price: String(p.price),
+          cost: String(p.cost),
+        }).onConflictDoUpdate({
+          target: [schema.businessProducts.businessId, schema.businessProducts.productId],
+          set: { stock: p.stock, price: String(p.price), cost: String(p.cost) },
+        });
+      }
+
+      created.push(product);
+    } catch (err: any) {
+      errors.push({ index: i, name: p.name, error: err?.message ?? 'unknown error' });
+    }
+  }
+
+  return c.json({ created, errors, total: products.length }, 201);
+});
+
 productsRouter.get('/', async (c) => {
   const page = Math.max(1, parseInt(c.req.query('page') ?? '1'));
   const limit = Math.min(Math.max(1, parseInt(c.req.query('limit') ?? '20')), 100);

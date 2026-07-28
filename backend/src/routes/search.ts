@@ -156,7 +156,7 @@ searchRouter.post('/match', async (c) => {
 
   return c.json({
     matches: matches.map(m => ({ ...m.match, _itemIndex: m.index })),
-    unmatched: unmatched.map(u => u.item.name ?? u.item.barcode ?? ''),
+    unmatched: unmatched.map(u => u.item),
     items: items,
   });
 });

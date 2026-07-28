@@ -1,7 +1,6 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiHeaders } from '../lib/user';
-import { normalizeName } from '../lib/normalizeName';
 import { useToast } from '../lib/toast';
 import { API_BASE } from '../lib/config';
 import * as XLSX from 'xlsx';
@@ -42,16 +41,20 @@ export function ImportPage() {
   const [text, setText] = useState('');
   const [results, setResults] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [businessSlug, setBusinessSlug] = useState('');
+  const [businessSlug, setBusinessSlug] = useState(localStorage.getItem('biz_slug') || '');
   const [fileRows, setFileRows] = useState<FileRow[] | null>(null);
   const [fileHeaders, setFileHeaders] = useState<string[] | null>(null);
   const [fileName, setFileName] = useState('');
   const [columnMap, setColumnMap] = useState<Record<string, ColumnKey | ''>>({});
+  const [creating, setCreating] = useState(false);
+  const [createResult, setCreateResult] = useState<any>(null);
+  const [editedItems, setEditedItems] = useState<Record<number, Partial<MatchItem>>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = useCallback(async (file: File) => {
     setFileName(file.name);
     setResults(null);
+    setCreateResult(null);
 
     const ext = file.name.split('.').pop()?.toLowerCase();
     if (!['xlsx', 'xls', 'csv'].includes(ext ?? '')) {
@@ -70,7 +73,7 @@ export function ImportPage() {
 
     const headers = Object.keys(json[0]);
     setFileHeaders(headers);
-    setFileRows(json.slice(0, 100));
+    setFileRows(json);
 
     const autoMap: Record<string, ColumnKey | ''> = {};
     for (const header of headers) {
@@ -94,16 +97,10 @@ export function ImportPage() {
 
   const handleDragOver = (e: React.DragEvent) => e.preventDefault();
 
-  const handleMatch = async () => {
-    let items: MatchItem[];
-
+  const buildItems = (): MatchItem[] => {
     if (fileRows && fileHeaders) {
       const mappedCols = fileHeaders.filter(h => columnMap[h]);
-      if (!mappedCols.some(h => columnMap[h] === 'name' || columnMap[h] === 'barcode')) {
-        toast('Necesitas mapear al menos "Nombre" o "Codigo de barras" para buscar.', 'error');
-        return;
-      }
-      items = fileRows.map(row => {
+      return fileRows.map(row => {
         const item: MatchItem = {};
         for (const header of mappedCols) {
           const key = columnMap[header];
@@ -116,13 +113,27 @@ export function ImportPage() {
         }
         return item;
       }).filter(i => i.name || i.barcode);
-    } else {
-      const names = text.split('\n').map(s => s.trim()).filter(Boolean);
-      if (names.length === 0) return;
-      items = names.map(n => ({ name: n }));
+    }
+    return text.split('\n').map(s => s.trim()).filter(Boolean).map(n => ({ name: n }));
+  };
+
+  const handleMatch = async () => {
+    const items = buildItems();
+    if (items.length === 0) {
+      toast('No hay datos para buscar', 'error');
+      return;
+    }
+
+    if (fileHeaders && fileRows) {
+      const mappedCols = fileHeaders.filter(h => columnMap[h]);
+      if (!mappedCols.some(h => columnMap[h] === 'name' || columnMap[h] === 'barcode')) {
+        toast('Necesitas mapear al menos "Nombre" o "Codigo de barras" para buscar.', 'error');
+        return;
+      }
     }
 
     setLoading(true);
+    setCreateResult(null);
     try {
       const res = await fetch(`${API_BASE}/search/match`, {
         method: 'POST',
@@ -131,6 +142,7 @@ export function ImportPage() {
       });
       const data = await res.json();
       setResults(data);
+      setEditedItems({});
       toast(`Encontrados: ${data.matches.length}, Sin match: ${data.unmatched.length}`, 'info');
     } catch {
       toast('Error al procesar la lista', 'error');
@@ -141,10 +153,9 @@ export function ImportPage() {
 
   const addToBusiness = async () => {
     if (!businessSlug || !results?.matches?.length) return;
-    const matches = results.matches;
     const items: MatchItem[] = results.items ?? [];
     try {
-      for (const m of matches) {
+      for (const m of results.matches) {
         const item = items[m._itemIndex] ?? {};
         await fetch(`${API_BASE}/businesses/${businessSlug}/products`, {
           method: 'POST',
@@ -156,9 +167,54 @@ export function ImportPage() {
           }),
         });
       }
-      toast(`Agregados ${matches.length} productos a "${businessSlug}"`, 'success');
+      toast(`Agregados ${results.matches.length} productos a "${businessSlug}"`, 'success');
     } catch {
       toast('Error al agregar productos al comercio', 'error');
+    }
+  };
+
+  const createUnmatched = async () => {
+    const items: MatchItem[] = results?.items ?? [];
+    const unmatched = (results?.unmatched ?? []) as MatchItem[];
+
+    const products = unmatched.map((item, i) => {
+      const originalIndex = items.indexOf(item);
+      const edits = editedItems[i] ?? {};
+      return {
+        name: edits.name ?? item.name ?? '',
+        barcode: edits.barcode ?? item.barcode ?? '',
+        brand: edits.brand ?? item.brand ?? '',
+        price: edits.price ?? item.price ?? 0,
+        stock: edits.stock ?? item.stock ?? 0,
+      };
+    }).filter(p => p.name.trim());
+
+    if (products.length === 0) {
+      toast('No hay productos sin nombre para crear', 'error');
+      return;
+    }
+
+    setCreating(true);
+    try {
+      const res = await fetch(`${API_BASE}/products/bulk`, {
+        method: 'POST',
+        headers: apiHeaders(),
+        body: JSON.stringify({
+          products,
+          businessSlug: businessSlug || undefined,
+        }),
+      });
+      const data = await res.json();
+      setCreateResult(data);
+      if (data.errors?.length > 0) {
+        toast(`Creados ${data.created.length} de ${products.length}. ${data.errors.length} errores.`, data.errors.length > 0 ? 'error' : 'success');
+      } else {
+        toast(`Creados ${data.created.length} productos correctamente`, 'success');
+      }
+    } catch {
+      toast('Error al crear productos', 'error');
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -168,12 +224,21 @@ export function ImportPage() {
     setFileName('');
     setColumnMap({});
     setResults(null);
+    setCreateResult(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const updateEdit = (index: number, field: string, value: string | number) => {
+    setEditedItems(prev => ({
+      ...prev,
+      [index]: { ...prev[index], [field]: value },
+    }));
   };
 
   return (
     <div className="max-w-4xl mx-auto">
       <h2 className="text-2xl font-bold mb-2 text-stone-800">Importar productos</h2>
+      <p className="text-sm text-stone-500 mb-4">Subí una lista de precios en Excel o CSV. El sistema busca coincidencias y te deja crear los que falten.</p>
 
       <div
         onDrop={handleDrop}
@@ -276,87 +341,204 @@ export function ImportPage() {
         </button>
       </div>
 
-      {results && <MatchResults results={results} businessSlug={businessSlug} onAddToBusiness={addToBusiness} />}
+      {results && (
+        <MatchResults
+          results={results}
+          businessSlug={businessSlug}
+          onAddToBusiness={addToBusiness}
+          onCreateUnmatched={createUnmatched}
+          creating={creating}
+          createResult={createResult}
+          editedItems={editedItems}
+          onEdit={updateEdit}
+        />
+      )}
     </div>
   );
 }
 
-function UnmatchedItem({ name, navigate }: { name: string; navigate: any }) {
-  const [suggestion, setSuggestion] = useState<string | null>(null);
-
-  useEffect(() => {
-    normalizeName(name).then(r => {
-      if (r.name !== name) setSuggestion(r.name);
-    }).catch(() => {});
-  }, [name]);
+function UnmatchedItem({
+  item, index, edits, onEdit,
+}: {
+  item: MatchItem; index: number; edits: Partial<MatchItem>; onEdit: (i: number, f: string, v: string | number) => void;
+}) {
+  const name = edits.name ?? item.name ?? '';
+  const barcode = edits.barcode ?? item.barcode ?? '';
+  const brand = edits.brand ?? item.brand ?? '';
+  const price = edits.price ?? item.price ?? 0;
+  const stock = edits.stock ?? item.stock ?? 0;
 
   return (
-    <div className="flex items-center gap-3 bg-white border border-stone-200 rounded-lg p-3 shadow-sm">
-      <span className="text-yellow-600 text-sm shrink-0">?</span>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium truncate">{name}</p>
-        {suggestion && (
-          <p className="text-xs text-emerald-600 truncate">Sugerencia: {suggestion}</p>
-        )}
+    <div className="bg-white border border-stone-200 rounded-lg p-3 shadow-sm">
+      <div className="grid grid-cols-12 gap-2 items-center">
+        <div className="col-span-4">
+          <input
+            type="text"
+            value={name}
+            onChange={e => onEdit(index, 'name', e.target.value)}
+            placeholder="Nombre del producto"
+            className="w-full px-2 py-1 text-sm bg-stone-50 border border-stone-200 rounded focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          />
+        </div>
+        <div className="col-span-2">
+          <input
+            type="text"
+            value={barcode}
+            onChange={e => onEdit(index, 'barcode', e.target.value)}
+            placeholder="Código"
+            className="w-full px-2 py-1 text-xs font-mono bg-stone-50 border border-stone-200 rounded focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          />
+        </div>
+        <div className="col-span-2">
+          <input
+            type="text"
+            value={brand}
+            onChange={e => onEdit(index, 'brand', e.target.value)}
+            placeholder="Marca"
+            className="w-full px-2 py-1 text-xs bg-stone-50 border border-stone-200 rounded focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          />
+        </div>
+        <div className="col-span-2">
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            value={price}
+            onChange={e => onEdit(index, 'price', parseFloat(e.target.value) || 0)}
+            placeholder="Precio"
+            className="w-full px-2 py-1 text-xs font-mono bg-stone-50 border border-stone-200 rounded focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          />
+        </div>
+        <div className="col-span-2">
+          <input
+            type="number"
+            min="0"
+            value={stock}
+            onChange={e => onEdit(index, 'stock', parseInt(e.target.value) || 0)}
+            placeholder="Stock"
+            className="w-full px-2 py-1 text-xs font-mono bg-stone-50 border border-stone-200 rounded focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          />
+        </div>
       </div>
-      <button
-        onClick={() => navigate(`/add?name=${encodeURIComponent(suggestion ?? name)}`)}
-        className="text-xs px-3 py-1 bg-stone-100 hover:bg-emerald-50 rounded shrink-0 text-stone-700"
-      >
-        Agregar
-      </button>
     </div>
   );
 }
 
-function MatchResults({ results, businessSlug, onAddToBusiness }: {
+function MatchResults({ results, businessSlug, onAddToBusiness, onCreateUnmatched, creating, createResult, editedItems, onEdit }: {
   results: any; businessSlug: string; onAddToBusiness: () => void;
+  onCreateUnmatched: () => void; creating: boolean; createResult: any;
+  editedItems: Record<number, Partial<MatchItem>>; onEdit: (i: number, f: string, v: string | number) => void;
 }) {
   const matched = results.matches ?? [];
-  const unmatched = results.unmatched ?? [];
+  const unmatched = (results.unmatched ?? []) as MatchItem[];
+  const items: MatchItem[] = results.items ?? [];
   const navigate = useNavigate();
+  const hasPriceOrStock = unmatched.some(u => (u.price ?? 0) > 0 || (u.stock ?? 0) > 0);
 
   return (
     <div className="space-y-6">
+      {/* Matched */}
       <div>
         <h3 className="text-lg font-semibold mb-3 text-emerald-600">
           Encontrados ({matched.length})
         </h3>
         <div className="grid gap-2">
-          {matched.map((m: any, i: number) => (
-            <div key={i}
-              className="flex items-center gap-3 bg-slate-900 border border-slate-800 rounded-lg p-3"
-            >
-              <span className="text-emerald-400 text-sm shrink-0">&#10003;</span>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{m.name}</p>
-                <p className="text-sm text-stone-500">{m.brand} &middot; {m.barcode}</p>
-              </div>
-              <button
-                onClick={() => navigate(`/product/${m.barcode}`)}
-                className="text-xs text-stone-400 hover:text-stone-900 shrink-0"
+          {matched.map((m: any, i: number) => {
+            const item = items[m._itemIndex] ?? {};
+            return (
+              <div key={i}
+                className="flex items-center gap-3 bg-white border border-stone-200 rounded-lg p-3 shadow-sm"
               >
-                Ver
-              </button>
-            </div>
-          ))}
+                <span className="text-emerald-500 text-sm shrink-0">✓</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate text-stone-800">{m.name}</p>
+                  <p className="text-xs text-stone-400">{m.brand} &middot; {m.barcode}</p>
+                  {(item.price || item.stock) && (
+                    <p className="text-xs text-stone-400">
+                      {item.price ? `$${Number(item.price).toFixed(2)}` : ''}{item.price && item.stock ? ' · ' : ''}{item.stock ? `${item.stock} uds.` : ''}
+                    </p>
+                  )}
+                </div>
+                <button
+                  onClick={() => navigate(`/product/${m.barcode}`)}
+                  className="text-xs text-stone-400 hover:text-emerald-600 shrink-0"
+                >
+                  Ver
+                </button>
+              </div>
+            );
+          })}
         </div>
       </div>
 
+      {/* Unmatched */}
       {unmatched.length > 0 && (
         <div>
-          <h3 className="text-lg font-semibold mb-3 text-yellow-700">
-            No encontrados ({unmatched.length})
-          </h3>
-          <div className="grid gap-2">
-            {unmatched.map((item: any, i: number) => {
-              const name = typeof item === 'string' ? item : (item.name ?? item.barcode ?? '');
-              return <UnmatchedItem key={i} name={name} navigate={navigate} />;
-            })}
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-semibold text-yellow-700">
+              No encontrados ({unmatched.length})
+            </h3>
+            <span className="text-xs text-stone-400">Editá los datos antes de crear</span>
           </div>
+
+          {hasPriceOrStock && (
+            <div className="text-xs text-stone-400 mb-2 grid grid-cols-12 gap-2 px-1">
+              <span className="col-span-4">Nombre</span>
+              <span className="col-span-2">Código barras</span>
+              <span className="col-span-2">Marca</span>
+              <span className="col-span-2">Precio</span>
+              <span className="col-span-2">Stock</span>
+            </div>
+          )}
+
+          <div className="grid gap-2 mb-4">
+            {unmatched.map((item: any, i: number) => (
+              <UnmatchedItem
+                key={i}
+                item={item}
+                index={i}
+                edits={editedItems[i] ?? {}}
+                onEdit={onEdit}
+              />
+            ))}
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              onClick={onCreateUnmatched}
+              disabled={creating}
+              className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 rounded-xl font-medium text-white"
+            >
+              {creating ? 'Creando...' : `Crear ${unmatched.length} productos en BarcodeDB`}
+            </button>
+          </div>
+
+          {createResult && (
+            <div className="mt-4 bg-white border border-stone-200 rounded-xl p-4 shadow-sm">
+              <p className="text-sm font-medium text-stone-700 mb-2">
+                Creados {createResult.created.length} de {createResult.total}
+              </p>
+              {createResult.errors?.length > 0 && (
+                <div className="text-xs text-red-600 space-y-1">
+                  {createResult.errors.map((e: any, i: number) => (
+                    <p key={i}>Error en "{e.name}": {e.error}</p>
+                  ))}
+                </div>
+              )}
+              {createResult.created.length > 0 && (
+                <button
+                  onClick={() => window.location.reload()}
+                  className="mt-3 text-sm text-emerald-600 hover:text-emerald-700 underline"
+                >
+                  Recargar para ver los cambios
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
 
+      {/* Add to business */}
       {businessSlug && matched.length > 0 && (
         <button
           onClick={onAddToBusiness}
