@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { db, schema } from '../db';
-import { like, or, and, sql, eq } from 'drizzle-orm';
+import { ilike, or, and, sql, eq } from 'drizzle-orm';
 import { slugify } from '../lib/slug';
 
 export const searchRouter = new Hono();
@@ -18,10 +18,10 @@ searchRouter.get('/', async (c) => {
   if (q) {
     conditions.push(
       or(
-        like(schema.products.name, `%${q}%`),
-        like(schema.products.brand, `%${q}%`),
-        like(schema.products.barcode, `%${q}%`),
-        like(schema.products.sku, `%${q}%`),
+        ilike(schema.products.name, `%${q}%`),
+        ilike(schema.products.brand, `%${q}%`),
+        ilike(schema.products.barcode, `%${q}%`),
+        ilike(schema.products.sku, `%${q}%`),
         sql`to_tsvector('spanish', ${schema.products.name}) @@ plainto_tsquery('spanish', ${q})`,
         sql`EXISTS (SELECT 1 FROM business_products bp WHERE bp.product_id = products.id AND bp.sku ILIKE ${'%' + q.toLowerCase() + '%'})`,
       ),
