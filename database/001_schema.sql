@@ -142,6 +142,9 @@ ALTER TABLE sales ADD COLUMN IF NOT EXISTS change NUMERIC(12,2);
 ALTER TABLE product_votes DROP CONSTRAINT IF EXISTS product_votes_user_id_fkey;
 ALTER TABLE IF EXISTS businesses DROP CONSTRAINT IF EXISTS businesses_owner_id_fkey;
 ALTER TABLE IF EXISTS products DROP CONSTRAINT IF EXISTS products_created_by_fkey;
+ALTER TABLE IF EXISTS duplicate_reports DROP CONSTRAINT IF EXISTS duplicate_reports_reported_by_fkey;
+ALTER TABLE IF EXISTS duplicate_reports DROP CONSTRAINT IF EXISTS duplicate_reports_resolved_by_fkey;
+ALTER TABLE IF EXISTS product_votes DROP CONSTRAINT IF EXISTS product_votes_user_id_fkey;
 DROP TABLE IF EXISTS contributions;
 DROP TABLE IF EXISTS users;
 
