@@ -1,13 +1,14 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { db, schema } from '../db';
-import { eq, sql } from 'drizzle-orm';
+import { eq, or, sql } from 'drizzle-orm';
 import { getUserId } from '../middleware/user';
+import { slugify } from '../lib/slug';
 
 export const productsRouter = new Hono();
 
 const createSchema = z.object({
-  barcode: z.string().min(1),
+  barcode: z.string().optional().default(''),
   name: z.string().min(1),
   brand: z.string().optional().default(''),
   sku: z.string().optional().default(''),
@@ -19,10 +20,10 @@ const createSchema = z.object({
   attributes: z.record(z.any()).optional().default({}),
 });
 
-productsRouter.get('/:barcode', async (c) => {
-  const { barcode } = c.req.param();
+productsRouter.get('/:identifier', async (c) => {
+  const { identifier } = c.req.param();
   const results = await db.query.products.findMany({
-    where: eq(schema.products.barcode, barcode),
+    where: or(eq(schema.products.barcode, identifier), eq(schema.products.slug, identifier)),
     orderBy: (p, { desc }) => desc(p.verificationScore),
     with: { category: true, variants: true },
   });
@@ -40,8 +41,11 @@ productsRouter.post('/', async (c) => {
   const body = parsed.data;
   const userId = getUserId(c);
 
+  const slug = slugify(body.name + (body.brand ? '-' + body.brand : ''));
+
   const [product] = await db.insert(schema.products).values({
     barcode: body.barcode,
+    slug,
     name: body.name,
     brand: body.brand,
     sku: body.sku,
@@ -77,8 +81,12 @@ productsRouter.post('/', async (c) => {
 productsRouter.patch('/:id', async (c) => {
   const { id } = c.req.param();
   const body = await c.req.json();
+  const updates: Record<string, any> = { ...body, updatedAt: sql`now()` };
+  if (body.name) {
+    updates.slug = slugify(body.name + (body.brand ? '-' + body.brand : ''));
+  }
   const [updated] = await db.update(schema.products)
-    .set({ ...body, updatedAt: sql`now()` })
+    .set(updates)
     .where(eq(schema.products.id, id))
     .returning();
   if (!updated) return c.json({ error: 'not_found' }, 404);
@@ -124,26 +132,40 @@ productsRouter.post('/bulk', async (c) => {
   for (let i = 0; i < products.length; i++) {
     const p = products[i];
     try {
-      const [product] = await db.insert(schema.products).values({
-        barcode: p.barcode || 'unknown',
-        name: p.name,
-        brand: p.brand,
-        sku: p.sku,
-        createdBy: userId,
-      }).returning();
+      const slug = slugify(p.name + (p.brand ? '-' + p.brand : ''));
 
-      const aliases: { productId: string; alias: string; source: string }[] = [
-        { productId: product.id, alias: product.name, source: 'manual' },
-      ];
-      if (p.brand) {
-        const typeKeywords = ['auricular','parlante','cable','notebook','monitor','mouse','teclado','celular','tablet','impresora','router','alfajor','galletita','bebida','cargador','funda','memoria','disco','protector'];
-        const tokens = product.name.split(/\s+/);
-        const withoutType = tokens.filter(t => !typeKeywords.includes(t.toLowerCase())).join(' ');
-        if (withoutType && withoutType !== product.name) {
-          aliases.push({ productId: product.id, alias: withoutType, source: 'ai' });
+      const existing = p.barcode
+        ? await db.query.products.findFirst({ where: eq(schema.products.barcode, p.barcode) })
+        : await db.query.products.findFirst({ where: eq(schema.products.slug, slug) });
+
+      let product: typeof schema.products.$inferSelect;
+
+      if (existing) {
+        product = existing;
+      } else {
+        const [created] = await db.insert(schema.products).values({
+          barcode: p.barcode || '',
+          slug,
+          name: p.name,
+          brand: p.brand,
+          sku: p.sku,
+          createdBy: userId,
+        }).returning();
+        product = created;
+
+        const aliasList: { productId: string; alias: string; source: string }[] = [
+          { productId: product.id, alias: product.name, source: 'manual' },
+        ];
+        if (p.brand) {
+          const typeKeywords = ['auricular','parlante','cable','notebook','monitor','mouse','teclado','celular','tablet','impresora','router','alfajor','galletita','bebida','cargador','funda','memoria','disco','protector'];
+          const tokens = product.name.split(/\s+/);
+          const withoutType = tokens.filter(t => !typeKeywords.includes(t.toLowerCase())).join(' ');
+          if (withoutType && withoutType !== product.name) {
+            aliasList.push({ productId: product.id, alias: withoutType, source: 'ai' });
+          }
         }
+        await db.insert(schema.productAliases).values(aliasList);
       }
-      await db.insert(schema.productAliases).values(aliases);
 
       if (business && (p.price > 0 || p.stock > 0)) {
         await db.insert(schema.businessProducts).values({

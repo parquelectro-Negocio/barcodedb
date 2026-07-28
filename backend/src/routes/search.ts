@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { db, schema } from '../db';
 import { like, or, and, sql, eq } from 'drizzle-orm';
+import { slugify } from '../lib/slug';
 
 export const searchRouter = new Hono();
 
@@ -68,7 +69,7 @@ async function matchByName(trimmed: string): Promise<any> {
   // 1. Alias match
   const aliasResult: any = await db.execute(
     sql`
-      SELECT p.id, p.name, p.brand, p.barcode, p.image_url, p.verification_score, p.status
+      SELECT p.id, p.name, p.brand, p.barcode, p.slug, p.image_url, p.verification_score, p.status
       FROM products p
       JOIN product_aliases pa ON pa.product_id = p.id
       WHERE LOWER(pa.alias) = LOWER(${trimmed})
@@ -97,7 +98,7 @@ async function matchByName(trimmed: string): Promise<any> {
           SELECT DISTINCT brand FROM products
           WHERE LOWER(brand) = LOWER(${parts[0]}) OR LOWER(brand) = LOWER(${parts[1]})
         )
-        SELECT p.id, p.name, p.brand, p.barcode, p.image_url, p.verification_score, p.status
+        SELECT p.id, p.name, p.brand, p.barcode, p.slug, p.image_url, p.verification_score, p.status
         FROM products p
         WHERE p.brand IN (SELECT brand FROM possible_brands)
           AND (${sql.join(parts.map(p => sql`LOWER(p.name) LIKE ${'%' + p.toLowerCase() + '%'}`), sql` AND `)})
@@ -136,12 +137,21 @@ searchRouter.post('/match', async (c) => {
     // Try barcode match first
     if (item.barcode) {
       const barResult: any = await db.execute(
-        sql`SELECT id, name, brand, barcode, image_url, verification_score, status FROM products WHERE barcode = ${item.barcode} LIMIT 1`,
+        sql`SELECT id, name, brand, barcode, slug, image_url, verification_score, status FROM products WHERE barcode = ${item.barcode} LIMIT 1`,
       );
       found = asRows(barResult)[0];
     }
 
-    // Fall back to name match
+    // Fall back to slug match (for barcode-less products)
+    if (!found && item.name) {
+      const slug = slugify(item.name);
+      const slugResult: any = await db.execute(
+        sql`SELECT id, name, brand, barcode, slug, image_url, verification_score, status FROM products WHERE slug = ${slug} LIMIT 1`,
+      );
+      found = asRows(slugResult)[0];
+    }
+
+    // Fall back to name/alias match
     if (!found && item.name) {
       found = await matchByName(item.name.trim());
     }

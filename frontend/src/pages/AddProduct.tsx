@@ -101,7 +101,7 @@ export function AddProduct() {
       const product = await res.json();
       toast('Producto guardado', 'success');
       setDone(true);
-      setTimeout(() => navigate(`/product/${product.barcode}`), 1500);
+      setTimeout(() => navigate(`/product/${product.slug || product.barcode}`), 1500);
     } catch {
       toast('Error al guardar el producto', 'error');
     } finally {
@@ -124,12 +124,12 @@ export function AddProduct() {
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
-          <label className="block text-sm text-stone-500 mb-1">Código de barras</label>
+          <label className="block text-sm text-stone-500 mb-1">Código de barras <span className="text-stone-300">(opcional)</span></label>
             <input
               type="text" value={form.barcode}
               onChange={e => set('barcode', e.target.value)}
               className="w-full px-4 py-2 bg-white border border-stone-300 rounded-lg font-mono text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              placeholder="Ej: 7790040929604"
+              placeholder="Ej: 7790040929604. Sin código va por nombre."
             />
         </div>
 

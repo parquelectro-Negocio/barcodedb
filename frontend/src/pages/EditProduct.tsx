@@ -102,7 +102,7 @@ export function EditProduct() {
       });
       if (!res.ok) throw new Error('Error al guardar');
       toast('Producto actualizado', 'success');
-      navigate(`/product/${form.barcode}`);
+      navigate(`/product/${form.slug || form.barcode}`);
     } catch {
       toast('Error al actualizar el producto', 'error');
     } finally {

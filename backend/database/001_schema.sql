@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS products (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   barcode         TEXT NOT NULL,
   name            TEXT NOT NULL,
+  slug            TEXT NOT NULL DEFAULT '',
   brand           TEXT NOT NULL DEFAULT '',
   sku             TEXT NOT NULL DEFAULT '',
   color           TEXT NOT NULL DEFAULT '',
@@ -151,6 +152,8 @@ CREATE TABLE IF NOT EXISTS users (
 
 ALTER TABLE businesses ADD COLUMN IF NOT EXISTS owner_id UUID REFERENCES users(id);
 ALTER TABLE products ADD COLUMN IF NOT EXISTS created_by UUID REFERENCES users(id);
+ALTER TABLE products ADD COLUMN IF NOT EXISTS slug TEXT NOT NULL DEFAULT '';
+CREATE INDEX IF NOT EXISTS idx_products_slug ON products(slug);
 DO $$ BEGIN
   DELETE FROM product_votes pv WHERE pv.user_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM users u WHERE u.id = pv.user_id);
   ALTER TABLE product_votes ADD CONSTRAINT product_votes_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id);

@@ -460,7 +460,7 @@ function MatchResults({ results, businessSlug, onAddToBusiness, onCreateUnmatche
                   )}
                 </div>
                 <button
-                  onClick={() => navigate(`/product/${m.barcode}`)}
+                  onClick={() => navigate(`/product/${m.slug || m.barcode}`)}
                   className="text-xs text-stone-400 hover:text-emerald-600 shrink-0"
                 >
                   Ver

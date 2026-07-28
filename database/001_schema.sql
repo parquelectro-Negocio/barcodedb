@@ -23,11 +23,12 @@ CREATE TABLE IF NOT EXISTS category_attributes (
   sort_order    INT NOT NULL DEFAULT 0
 );
 
--- Global products (multiple entries per barcode allowed - conflicts exist in the real world)
+-- Global products (multiple entries per barcode allowed — conflicts exist in the real world)
 CREATE TABLE IF NOT EXISTS products (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   barcode         TEXT NOT NULL,
   name            TEXT NOT NULL,
+  slug            TEXT NOT NULL DEFAULT '',
   brand           TEXT NOT NULL DEFAULT '',
   sku             TEXT NOT NULL DEFAULT '',
   color           TEXT NOT NULL DEFAULT '',
@@ -167,6 +168,10 @@ ALTER TABLE businesses ADD COLUMN IF NOT EXISTS owner_id UUID REFERENCES users(i
 
 -- Migration: add created_by to products
 ALTER TABLE products ADD COLUMN IF NOT EXISTS created_by UUID REFERENCES users(id);
+
+-- Migration: add slug to products (for barcode-less matching)
+ALTER TABLE products ADD COLUMN IF NOT EXISTS slug TEXT NOT NULL DEFAULT '';
+CREATE INDEX IF NOT EXISTS idx_products_slug ON products(slug);
 
 -- Migration: link product_votes.user_id -> users (FK was dropped earlier)
 -- Use DO block to handle existing data that may reference non-existent users
