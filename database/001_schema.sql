@@ -169,7 +169,13 @@ ALTER TABLE businesses ADD COLUMN IF NOT EXISTS owner_id UUID REFERENCES users(i
 ALTER TABLE products ADD COLUMN IF NOT EXISTS created_by UUID REFERENCES users(id);
 
 -- Migration: link product_votes.user_id -> users (FK was dropped earlier)
-ALTER TABLE product_votes ADD CONSTRAINT product_votes_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id);
+-- Use DO block to handle existing data that may reference non-existent users
+DO $$ BEGIN
+  DELETE FROM product_votes pv WHERE pv.user_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM users u WHERE u.id = pv.user_id);
+  ALTER TABLE product_votes ADD CONSTRAINT product_votes_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id);
+EXCEPTION WHEN others THEN
+  RAISE NOTICE 'Could not add product_votes FK (non-critical): %', SQLERRM;
+END $$;
 
 -- Migration: duplicate reports for collaborative moderation
 CREATE TABLE IF NOT EXISTS duplicate_reports (
