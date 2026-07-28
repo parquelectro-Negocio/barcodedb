@@ -222,8 +222,6 @@ function InventorySection({ productId }: { productId: string }) {
   const [loading, setLoading] = useState(false);
   const [slug, setSlug] = useState(localStorage.getItem('biz_slug') || '');
   const [businessName, setBusinessName] = useState('');
-  const [pin, setPin] = useState('');
-  const [pinHint, setPinHint] = useState('');
   const [setupError, setSetupError] = useState('');
   const [existingBP, setExistingBP] = useState<any>(null);
   const [productsLoaded, setProductsLoaded] = useState(false);
@@ -267,7 +265,7 @@ function InventorySection({ productId }: { productId: string }) {
       const res = await fetch(`${API_BASE}/businesses`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slug: s, name: businessName || s, pin: pin || undefined, pinHint: pinHint || undefined }),
+        body: JSON.stringify({ slug: s, name: businessName || s }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -363,27 +361,7 @@ function InventorySection({ productId }: { productId: string }) {
               className="w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm font-mono text-stone-900"
             />
           </div>
-          <div>
-            <label className="block text-sm text-stone-500 mb-1">PIN (opcional) — protegé tu POS</label>
-            <p className="text-xs text-amber-600 mb-2">⚠️ No lo olvides. No hay forma de recuperarlo si lo perdés.</p>
-            <input
-              type="password" value={pin}
-              onChange={e => setPin(e.target.value)}
-              placeholder="Ej: 1234" maxLength={4}
-              className="w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm font-mono text-stone-900"
-            />
-          </div>
-          {pin && (
-            <div>
-              <label className="block text-sm text-stone-500 mb-1">Pista para recordar el PIN</label>
-              <input
-                type="text" value={pinHint}
-                onChange={e => setPinHint(e.target.value)}
-                placeholder="Ej: mi año de nacimiento"
-                className="w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm text-stone-900"
-              />
-            </div>
-          )}
+
           <div className="flex gap-3">
             <button
               onClick={() => setShowSetup(false)}

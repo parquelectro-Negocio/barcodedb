@@ -130,15 +130,12 @@ CREATE INDEX IF NOT EXISTS idx_sales_created ON sales(created_at);
 ALTER TABLE products ADD COLUMN IF NOT EXISTS sku TEXT NOT NULL DEFAULT '';
 -- Migration: add color column to products (idempotent)
 ALTER TABLE products ADD COLUMN IF NOT EXISTS color TEXT NOT NULL DEFAULT '';
--- Migration: add pin and pin_hint to businesses (idempotent)
-ALTER TABLE businesses ADD COLUMN IF NOT EXISTS pin TEXT;
-ALTER TABLE businesses ADD COLUMN IF NOT EXISTS pin_hint TEXT;
 -- Migration: add payment fields to sales (idempotent)
 ALTER TABLE sales ADD COLUMN IF NOT EXISTS payment_method TEXT;
 ALTER TABLE sales ADD COLUMN IF NOT EXISTS amount_tendered NUMERIC(12,2);
 ALTER TABLE sales ADD COLUMN IF NOT EXISTS change NUMERIC(12,2);
 
--- Migration: drop FK constraints, then drop users + contributions (no auth system, dead code)
+-- Migration: drop FKs referencing users, drop old users table, recreate with auth
 ALTER TABLE product_votes DROP CONSTRAINT IF EXISTS product_votes_user_id_fkey;
 ALTER TABLE IF EXISTS businesses DROP CONSTRAINT IF EXISTS businesses_owner_id_fkey;
 ALTER TABLE IF EXISTS products DROP CONSTRAINT IF EXISTS products_created_by_fkey;

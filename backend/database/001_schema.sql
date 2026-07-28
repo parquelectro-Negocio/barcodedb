@@ -56,8 +56,6 @@ CREATE TABLE IF NOT EXISTS businesses (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name          TEXT NOT NULL,
   slug          TEXT NOT NULL UNIQUE,
-  pin           TEXT,
-  pin_hint      TEXT,
   plan          TEXT NOT NULL DEFAULT 'free',
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -123,11 +121,11 @@ CREATE INDEX IF NOT EXISTS idx_sales_created ON sales(created_at);
 
 ALTER TABLE products ADD COLUMN IF NOT EXISTS sku TEXT NOT NULL DEFAULT '';
 ALTER TABLE products ADD COLUMN IF NOT EXISTS color TEXT NOT NULL DEFAULT '';
-ALTER TABLE businesses ADD COLUMN IF NOT EXISTS pin TEXT;
-ALTER TABLE businesses ADD COLUMN IF NOT EXISTS pin_hint TEXT;
 ALTER TABLE sales ADD COLUMN IF NOT EXISTS payment_method TEXT;
 ALTER TABLE sales ADD COLUMN IF NOT EXISTS amount_tendered NUMERIC(12,2);
 ALTER TABLE sales ADD COLUMN IF NOT EXISTS change NUMERIC(12,2);
+
+-- Migration: drop FKs referencing users, drop old users table, recreate with auth
 
 ALTER TABLE product_votes DROP CONSTRAINT IF EXISTS product_votes_user_id_fkey;
 ALTER TABLE IF EXISTS businesses DROP CONSTRAINT IF EXISTS businesses_owner_id_fkey;
