@@ -7,3 +7,27 @@ export function resolveImageUrl(url: string | undefined | null): string {
   if (url.startsWith('/')) return `${BACKEND_ORIGIN}${url}`;
   return url;
 }
+
+export async function uploadImage(file: File): Promise<string> {
+  const token = localStorage.getItem('auth_token');
+  if (!token) throw new Error('Debés iniciar sesión para subir imágenes');
+
+  const res = await fetch(`${API_BASE}/images/upload-token`, {
+    headers: { authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as any).error || 'Error al obtener token de subida');
+  }
+
+  const { uploadURL } = await res.json();
+
+  const form = new FormData();
+  form.append('file', file);
+
+  const uploadRes = await fetch(uploadURL, { method: 'POST', body: form });
+  if (!uploadRes.ok) throw new Error('Error al subir la imagen');
+
+  const uploadData: any = await uploadRes.json();
+  return uploadData.result.variants[0];
+}

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { normalizeName } from '../lib/normalizeName';
 import { useToast } from '../lib/toast';
-import { API_BASE } from '../lib/config';
+import { API_BASE, uploadImage } from '../lib/config';
 
 type Category = { id: string; name: string; slug: string };
 type Attribute = { id: string; name: string; label: string; type: string; options: any; required: boolean };
@@ -72,13 +72,7 @@ export function AddProduct() {
     let imageUrl = form.imageUrl ?? '';
     const fileInput = document.getElementById('product-image') as HTMLInputElement;
     const file = fileInput?.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      imageUrl = await new Promise<string>((resolve) => {
-        reader.onload = () => resolve(reader.result as string);
-        reader.readAsDataURL(file);
-      });
-    }
+    if (file) imageUrl = await uploadImage(file);
 
     try {
       const res = await fetch(`${API_BASE}/products`, {

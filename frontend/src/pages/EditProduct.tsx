@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { API_BASE } from '../lib/config';
+import { API_BASE, uploadImage } from '../lib/config';
 import { useToast } from '../lib/toast';
 
 type Category = { id: string; name: string; slug: string };
@@ -76,13 +76,7 @@ export function EditProduct() {
     let imageUrl = form.imageUrl || existingImage;
     const fileInput = document.getElementById('edit-product-image') as HTMLInputElement;
     const file = fileInput?.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      imageUrl = await new Promise<string>((resolve) => {
-        reader.onload = () => resolve(reader.result as string);
-        reader.readAsDataURL(file);
-      });
-    }
+    if (file) imageUrl = await uploadImage(file);
 
     try {
       const res = await fetch(`${API_BASE}/products/${productId}`, {
