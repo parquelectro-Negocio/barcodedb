@@ -130,6 +130,8 @@ ALTER TABLE sales ADD COLUMN IF NOT EXISTS amount_tendered NUMERIC(12,2);
 ALTER TABLE sales ADD COLUMN IF NOT EXISTS change NUMERIC(12,2);
 
 ALTER TABLE product_votes DROP CONSTRAINT IF EXISTS product_votes_user_id_fkey;
+ALTER TABLE IF EXISTS businesses DROP CONSTRAINT IF EXISTS businesses_owner_id_fkey;
+ALTER TABLE IF EXISTS products DROP CONSTRAINT IF EXISTS products_created_by_fkey;
 DROP TABLE IF EXISTS contributions;
 DROP TABLE IF EXISTS users;
 
