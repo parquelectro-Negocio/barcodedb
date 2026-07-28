@@ -2,6 +2,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
 import { apiHeaders } from '../lib/user';
+import { useAuth } from '../lib/auth';
 import { API_BASE, resolveImageUrl } from '../lib/config';
 
 export function ProductDetail() {
@@ -80,6 +81,38 @@ export function ProductDetail() {
 
 function ProductView({ product, barcode, onBack }: { product: any; barcode: string; onBack?: () => void }) {
   const queryClient = useQueryClient();
+  const { authHeaders } = useAuth();
+  const [showReport, setShowReport] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [selectedTarget, setSelectedTarget] = useState<any>(null);
+  const [reportError, setReportError] = useState('');
+  const [reportSent, setReportSent] = useState(false);
+  let searchTimeout: ReturnType<typeof setTimeout>;
+
+  const doSearch = async (q: string) => {
+    if (!q.trim()) { setSearchResults([]); return; }
+    setSearching(true);
+    try {
+      const res = await fetch(`${API_BASE}/search?q=${encodeURIComponent(q)}&limit=10`);
+      if (res.ok) setSearchResults((await res.json()).data ?? []);
+    } catch {} finally { setSearching(false); }
+  };
+
+  const submitReport = async () => {
+    if (!selectedTarget) return;
+    setReportError('');
+    try {
+      const res = await fetch(`${API_BASE}/duplicates/report`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ reportedId: product.id, targetId: selectedTarget.id }),
+      });
+      if (!res.ok) { const err = await res.json(); throw new Error(err.error || 'Error'); }
+      setReportSent(true);
+    } catch (e: any) { setReportError(e.message); }
+  };
 
   const { data: voteData } = useQuery({
     queryKey: ['vote', product.id],
@@ -189,6 +222,76 @@ function ProductView({ product, barcode, onBack }: { product: any; barcode: stri
         >
           {currentVote === 'flag' ? '⚑ Reportado' : 'Reportar error'}
         </button>
+      </div>
+
+      {/* Reportar duplicado */}
+      <div className="mt-6 pt-4 border-t border-stone-200">
+        {!showReport ? (
+          <button
+            onClick={() => setShowReport(true)}
+            className="text-xs text-stone-400 hover:text-stone-600 underline"
+          >
+            Reportar duplicado
+          </button>
+        ) : reportSent ? (
+          <p className="text-xs text-emerald-600">Gracias — tu reporte fue enviado. Un revisor lo va a procesar.</p>
+        ) : (
+          <div className="space-y-2">
+            <p className="text-xs text-stone-500">Buscá el producto que creés que es el mismo que este:</p>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={e => {
+                setSearchQuery(e.target.value);
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => doSearch(e.target.value), 300);
+              }}
+              placeholder="Buscá por nombre o código de barras..."
+              className="w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm text-stone-900"
+            />
+            {searching && <p className="text-xs text-stone-400">Buscando...</p>}
+            {searchResults.length > 0 && !selectedTarget && (
+              <div className="max-h-40 overflow-y-auto border border-stone-200 rounded-lg divide-y divide-stone-100">
+                {searchResults.filter((p: any) => p.id !== product.id).map((p: any) => (
+                  <button
+                    key={p.id}
+                    onClick={() => setSelectedTarget(p)}
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-stone-50 text-stone-700"
+                  >
+                    {p.name}{p.brand ? ` — ${p.brand}` : ''}
+                    {p.barcode && <span className="text-stone-400 ml-2 font-mono">{p.barcode}</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+            {selectedTarget && (
+              <div className="flex items-center justify-between bg-stone-50 rounded-lg px-3 py-2">
+                <span className="text-sm text-stone-700">
+                  {selectedTarget.name}{selectedTarget.brand ? ` — ${selectedTarget.brand}` : ''}
+                </span>
+                <button onClick={() => setSelectedTarget(null)} className="text-xs text-stone-400 hover:text-stone-600">
+                  Cambiar
+                </button>
+              </div>
+            )}
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setShowReport(false); setSearchQuery(''); setSearchResults([]); setSelectedTarget(null); setReportError(''); }}
+                className="px-3 py-1.5 bg-stone-100 hover:bg-stone-200 rounded text-xs text-stone-600"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={submitReport}
+                disabled={!selectedTarget}
+                className="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 rounded text-xs disabled:opacity-50 text-white"
+              >
+                Enviar reporte
+              </button>
+            </div>
+            {reportError && <p className="text-xs text-red-600">{reportError}</p>}
+          </div>
+        )}
       </div>
 
       {/* Variants */}
