@@ -21,6 +21,7 @@ searchRouter.get('/', async (c) => {
         like(schema.products.name, `%${q}%`),
         like(schema.products.brand, `%${q}%`),
         like(schema.products.barcode, `%${q}%`),
+        like(schema.products.sku, `%${q}%`),
         sql`to_tsvector('spanish', ${schema.products.name}) @@ plainto_tsquery('spanish', ${q})`,
         sql`EXISTS (SELECT 1 FROM business_products bp WHERE bp.product_id = products.id AND bp.sku ILIKE ${'%' + q.toLowerCase() + '%'})`,
       ),
