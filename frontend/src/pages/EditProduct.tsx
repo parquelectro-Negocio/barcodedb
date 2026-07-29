@@ -96,11 +96,14 @@ export function EditProduct() {
           imageUrl,
         }),
       });
-      if (!res.ok) throw new Error('Error al guardar');
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({ error: 'Error al guardar' }));
+        throw new Error(errBody.error || 'Error al guardar');
+      }
       toast('Producto actualizado', 'success');
       navigate(`/product/${normalized.slug || normalized.barcode}`);
-    } catch {
-      toast('Error al actualizar el producto', 'error');
+    } catch (err: any) {
+      toast(err?.message || 'Error al actualizar el producto', 'error');
     } finally {
       setSaving(false);
     }

@@ -10,11 +10,15 @@ export function resolveImageUrl(url: string | undefined | null): string {
 
 export async function uploadImage(file: File): Promise<string> {
   const token = localStorage.getItem('auth_token');
-  if (!token) throw new Error('Debés iniciar sesión para subir imágenes');
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers.authorization = `Bearer ${token}`;
+  } else {
+    const userId = localStorage.getItem('barcodedb_user_id');
+    if (userId) headers['x-user-id'] = userId;
+  }
 
-  const res = await fetch(`${API_BASE}/images/upload-token`, {
-    headers: { authorization: `Bearer ${token}` },
-  });
+  const res = await fetch(`${API_BASE}/images/upload-token`, { headers });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error((err as any).error || 'Error al obtener token de subida');
