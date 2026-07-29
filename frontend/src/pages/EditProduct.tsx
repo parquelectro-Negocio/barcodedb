@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { normalizeProduct } from '../lib/format';
 import { useToast } from '../lib/toast';
 import { API_BASE, uploadImage, resolveImageUrl } from '../lib/config';
+import { apiHeaders } from '../lib/user';
 import { Autocomplete } from '../components/Autocomplete';
 
 type Attribute = { id: string; name: string; label: string; type: string; options: any; required: boolean };
@@ -82,7 +83,7 @@ export function EditProduct() {
 
       const res = await fetch(`${API_BASE}/products/${productId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...apiHeaders() },
         body: JSON.stringify({
           barcode: normalized.barcode,
           name: normalized.name?.toUpperCase() ?? '',
@@ -129,50 +130,53 @@ export function EditProduct() {
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
-          <label className="block text-sm text-stone-500 mb-1">Código de barras</label>
+          <label className="block text-sm text-stone-500 mb-1">Nombre *</label>
           <input
-            type="text" value={form.barcode}
-            onChange={e => set('barcode', e.target.value)}
-            className="w-full px-4 py-2 bg-white border border-stone-300 rounded-lg font-mono text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            placeholder="Ej: 7790040929604"
+            type="text" value={form.name} required
+            onChange={e => set('name', e.target.value.toUpperCase())}
+            className="w-full px-4 py-2 bg-white border border-stone-300 rounded-lg text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            placeholder="Ej: CABLE HDMI 2M"
           />
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div>
+            <label className="block text-sm text-stone-500 mb-1">Marca</label>
+            <Autocomplete
+              value={form.brand}
+              onChange={(val, opt) => set('brand', (opt?.value ?? val).toUpperCase())}
+              onSearch={searchBrands}
+              placeholder="Ej: SAMSUNG"
+            />
+          </div>
+          <div>
             <label className="block text-sm text-stone-500 mb-1">SKU</label>
             <input
               type="text" value={form.sku}
-              onChange={e => set('sku', e.target.value)}
+              onChange={e => set('sku', e.target.value.toUpperCase())}
               className="w-full px-4 py-2 bg-white border border-stone-300 rounded-lg font-mono text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
               placeholder="Ej: MON-27-4K"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm text-stone-500 mb-1">Código de barras</label>
+            <input
+              type="text" value={form.barcode}
+              onChange={e => set('barcode', e.target.value.replace(/\D/g, ''))}
+              className="w-full px-4 py-2 bg-white border border-stone-300 rounded-lg font-mono text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              placeholder="Ej: 7790040929604"
             />
           </div>
           <div>
             <label className="block text-sm text-stone-500 mb-1">Color</label>
             <input
               type="text" value={form.color}
-              onChange={e => set('color', e.target.value)}
+              onChange={e => set('color', e.target.value.toUpperCase())}
               className="w-full px-4 py-2 bg-white border border-stone-300 rounded-lg text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              placeholder="Ej: Negro, Blanco, Rojo"
-            />
-          </div>
-          <div>
-            <label className="block text-sm text-stone-500 mb-1">Nombre *</label>
-            <input
-              type="text" value={form.name} required
-              onChange={e => set('name', e.target.value)}
-              className="w-full px-4 py-2 bg-white border border-stone-300 rounded-lg text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              placeholder="Ej: Cable HDMI 2m"
-            />
-          </div>
-          <div>
-            <label className="block text-sm text-stone-500 mb-1">Marca</label>
-            <Autocomplete
-              value={form.brand}
-              onChange={(val, opt) => set('brand', opt?.value ?? val)}
-              onSearch={searchBrands}
-              placeholder="Ej: Samsung"
+              placeholder="Ej: NEGRO, BLANCO, ROJO"
             />
           </div>
         </div>
@@ -250,18 +254,12 @@ export function EditProduct() {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm text-stone-500 mb-1">Unidad</label>
-            <select
-              value={form.unit}
-              onChange={e => set('unit', e.target.value)}
-              className="w-full px-4 py-2 bg-white border border-stone-300 rounded-lg text-stone-900"
-            >
-              <option value="unidad">Unidad</option>
-              <option value="kg">Kilogramo</option>
-              <option value="g">Gramo</option>
-              <option value="l">Litro</option>
-              <option value="ml">Mililitro</option>
-              <option value="m">Metro</option>
-            </select>
+            <input
+              type="text" value={form.unit}
+              onChange={e => set('unit', e.target.value.toUpperCase())}
+              className="w-full px-4 py-2 bg-white border border-stone-300 rounded-lg text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              placeholder="Ej: UNIDAD, METRO, CAJA"
+            />
           </div>
         </div>
 
