@@ -1,11 +1,28 @@
 import type { Context, Next } from 'hono';
 import jwt from 'jsonwebtoken';
+import { db, schema } from '../db';
+import { eq } from 'drizzle-orm';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
 
 export interface JwtPayload {
   userId: string;
   email: string;
+}
+
+async function ensureUser(userId: string) {
+  const exists = await db.query.users.findFirst({
+    where: eq(schema.users.id, userId),
+    columns: { id: true },
+  });
+  if (!exists) {
+    await db.insert(schema.users).values({
+      id: userId,
+      email: `${userId}@anon.local`,
+      passwordHash: 'anon',
+      name: '',
+    }).onConflictDoNothing();
+  }
 }
 
 export async function userMiddleware(c: Context, next: Next) {
@@ -23,6 +40,11 @@ export async function userMiddleware(c: Context, next: Next) {
   const legacyId = c.req.header('x-user-id');
   if (legacyId && !c.get('userId')) {
     c.set('userId', legacyId);
+  }
+
+  const userId = c.get('userId') as string | undefined;
+  if (userId) {
+    try { await ensureUser(userId); } catch { /* best-effort */ }
   }
 
   await next();

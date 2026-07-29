@@ -130,7 +130,7 @@ productsRouter.patch('/:id', async (c) => {
     if (existing) return c.json({ error: 'Ese código de barras ya está registrado en otro producto.' }, 409);
   }
 
-  const updates: Record<string, any> = { updatedAt: sql`now()` };
+  const updates: Record<string, any> = { updatedAt: new Date() };
 
   for (const [k, v] of Object.entries(rest)) {
     if (v !== undefined) updates[k] = v;

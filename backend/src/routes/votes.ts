@@ -69,7 +69,7 @@ votesRouter.post('/:productId', async (c) => {
     .set({
       verificationScore: confirmCount,
       status,
-      updatedAt: sql`now()`,
+      updatedAt: new Date(),
     })
     .where(eq(schema.products.id, productId));
 
