@@ -1,3 +1,5 @@
+import { getUserId } from './user';
+
 const PROD_API = 'https://backend-production-f446.up.railway.app';
 export const API_BASE: string = (import.meta as any).env?.VITE_API_URL ?? `${PROD_API}/api`;
 const BACKEND_ORIGIN = PROD_API;
@@ -14,8 +16,7 @@ export async function uploadImage(file: File): Promise<string> {
   if (token) {
     headers.authorization = `Bearer ${token}`;
   } else {
-    const userId = localStorage.getItem('barcodedb_user_id');
-    if (userId) headers['x-user-id'] = userId;
+    headers['x-user-id'] = getUserId();
   }
 
   const res = await fetch(`${API_BASE}/images/upload-token`, { headers });
