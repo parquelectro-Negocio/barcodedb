@@ -47,6 +47,20 @@ productsRouter.post('/', async (c) => {
   const slugParts = [body.name, body.brand, body.color, body.capacidad, body.largo, body.peso].filter(Boolean);
   const slug = slugify(slugParts.join('-'));
 
+  // If barcode exists, check if same product (slug match) or different product
+  if (body.barcode) {
+    const existing = await db.query.products.findMany({
+      where: eq(schema.products.barcode, body.barcode),
+      columns: { id: true, name: true, slug: true, brand: true },
+    });
+    if (existing.length > 0) {
+      const same = existing.find(p => p.slug === slug);
+      if (same) {
+        return c.json({ existing: same, message: 'Este producto ya existe con ese código de barras.' }, 200);
+      }
+    }
+  }
+
   const mergedAttrs = { ...body.attributes };
   if (body.capacidad) mergedAttrs.capacidad = body.capacidad;
   if (body.largo) mergedAttrs.largo = body.largo;
@@ -200,14 +214,22 @@ productsRouter.post('/bulk', async (c) => {
       const slugParts = [p.name, p.brand, p.color, p.capacidad, p.largo, p.peso].filter(Boolean);
       const slug = slugify(slugParts.join('-'));
 
-      const existing = p.barcode
-        ? await db.query.products.findFirst({ where: eq(schema.products.barcode, p.barcode) })
-        : await db.query.products.findFirst({ where: eq(schema.products.slug, slug) });
+      let product: any = null;
 
-      let product: typeof schema.products.$inferSelect;
+      if (p.barcode) {
+        const withBc = await db.query.products.findMany({
+          where: eq(schema.products.barcode, p.barcode),
+          columns: { id: true, slug: true },
+        });
+        const match = withBc.find((e: any) => e.slug === slug);
+        if (match) {
+          product = await db.query.products.findFirst({ where: eq(schema.products.id, match.id) });
+        }
+      } else {
+        product = await db.query.products.findFirst({ where: eq(schema.products.slug, slug) });
+      }
 
-      if (existing) {
-        product = existing;
+      if (product) {
       } else {
         const attrs: Record<string, string> = {};
         if (p.capacidad) attrs.capacidad = p.capacidad;
@@ -232,7 +254,7 @@ productsRouter.post('/bulk', async (c) => {
         if (p.brand) {
           const typeKeywords = ['auricular','parlante','cable','notebook','monitor','mouse','teclado','celular','tablet','impresora','router','alfajor','galletita','bebida','cargador','funda','memoria','disco','protector'];
           const tokens = product.name.split(/\s+/);
-          const withoutType = tokens.filter(t => !typeKeywords.includes(t.toLowerCase())).join(' ');
+          const withoutType = tokens.filter((t: string) => !typeKeywords.includes(t.toLowerCase())).join(' ');
           if (withoutType && withoutType !== product.name) {
             aliasList.push({ productId: product.id, alias: withoutType, source: 'ai' });
           }

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { normalizeName } from '../lib/normalizeName';
 import { normalizeProduct } from '../lib/format';
 import { useToast } from '../lib/toast';
@@ -18,13 +18,14 @@ export function AddProduct() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [attrs, setAttrs] = useState<Attribute[]>([]);
   const [form, setForm] = useState<Record<string, any>>({
-    barcode, name: prefillName, brand: '', color: '', sku: '', description: '', unit: 'unidad', categoryId: '',
+    barcode, name: prefillName, brand: '', color: '', capacidad: '', largo: '', peso: '', sku: '', description: '', unit: 'unidad', categoryId: '',
   });
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
   const [normalized, setNormalized] = useState<{ name: string; brand: string | null } | null>(null);
   const [brandInput, setBrandInput] = useState('');
+  const [existingWithBc, setExistingWithBc] = useState<any[]>([]);
 
   useEffect(() => {
     fetch(`${API_BASE}/categories`)
@@ -42,6 +43,22 @@ export function AddProduct() {
   }, [form.categoryId]);
 
   const set = (field: string, value: any) => setForm(f => ({ ...f, [field]: value }));
+
+  // When barcode changes, check for existing products
+  useEffect(() => {
+    if (!form.barcode?.trim()) { setExistingWithBc([]); return; }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`${API_BASE}/products/${form.barcode}`);
+        if (res.ok) {
+          const data = await res.json();
+          const list: any[] = data?.products ?? [];
+          setExistingWithBc(list.filter((p: any) => p.barcode === form.barcode));
+        }
+      } catch {}
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [form.barcode]);
 
   useEffect(() => {
     if (!form.name?.trim()) { setNormalized(null); return; }
@@ -89,8 +106,13 @@ export function AddProduct() {
           attributes: categoryAttrs,
         }),
       });
-      if (!res.ok) throw new Error('Error al guardar');
       const product = await res.json();
+      if (product.existing) {
+        toast('Este producto ya existe', 'info');
+        setTimeout(() => navigate(`/product/${product.existing.slug || product.existing.id}`), 1000);
+        return;
+      }
+      if (!res.ok) throw new Error('Error al guardar');
       toast('Producto guardado', 'success');
       setDone(true);
       setTimeout(() => navigate(`/product/${product.slug || product.barcode}`), 1500);
@@ -158,6 +180,33 @@ export function AddProduct() {
               onChange={e => set('color', e.target.value)}
               className="w-full px-4 py-2 bg-white border border-stone-300 rounded-lg text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
               placeholder="Ej: Negro, Blanco, Rojo"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-stone-500 mb-1">Capacidad</label>
+            <input
+              type="text" value={form.capacidad}
+              onChange={e => set('capacidad', e.target.value)}
+              className="w-full px-4 py-2 bg-white border border-stone-300 rounded-lg text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              placeholder="Ej: 1L, 500ml, 2kg"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-stone-500 mb-1">Largo</label>
+            <input
+              type="text" value={form.largo}
+              onChange={e => set('largo', e.target.value)}
+              className="w-full px-4 py-2 bg-white border border-stone-300 rounded-lg text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              placeholder="Ej: 1m, 2m, 50cm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-stone-500 mb-1">Peso</label>
+            <input
+              type="text" value={form.peso}
+              onChange={e => set('peso', e.target.value)}
+              className="w-full px-4 py-2 bg-white border border-stone-300 rounded-lg text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              placeholder="Ej: 1kg, 500g, 2.5kg"
             />
           </div>
           <div>
@@ -270,6 +319,28 @@ export function AddProduct() {
             </select>
           </div>
         </div>
+
+        {existingWithBc.length > 0 && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+            <p className="text-sm font-semibold text-amber-800 mb-2">
+              {existingWithBc.length} producto{existingWithBc.length > 1 ? 's' : ''} con este código de barras
+            </p>
+            <div className="space-y-2">
+              {existingWithBc.map(p => (
+                <Link
+                  key={p.id}
+                  to={`/product/${p.barcode || p.slug}`}
+                  className="block text-sm text-amber-700 hover:text-amber-900 underline"
+                >
+                  {p.name} {p.brand ? `· ${p.brand}` : ''}
+                </Link>
+              ))}
+            </div>
+            <p className="text-xs text-amber-600 mt-2">
+              Si es un producto diferente, completá los campos y guardá igual.
+            </p>
+          </div>
+        )}
 
         <button
           type="submit" disabled={saving}
