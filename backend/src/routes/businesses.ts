@@ -70,6 +70,7 @@ businessesRouter.get('/:slug/stats', async (c) => {
       productName: bp.product.name,
       productId: bp.productId,
       barcode: bp.product.barcode,
+      slug: bp.product.slug,
       stock: bp.stock,
       price: bp.price,
     })),

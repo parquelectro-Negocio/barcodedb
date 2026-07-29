@@ -100,7 +100,7 @@ export function Home() {
               <div className="space-y-1">
                 {stats.lowStock.map((item: any) => (
                   <div key={item.id} className="flex justify-between text-sm text-amber-700">
-                    <Link to={`/product/${item.barcode}`} className="hover:underline truncate mr-2">
+                    <Link to={`/product/${item.barcode || item.slug}`} className="hover:underline truncate mr-2">
                       {item.productName}
                     </Link>
                     <span className="font-mono shrink-0">{item.stock} uds.</span>

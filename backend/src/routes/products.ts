@@ -13,6 +13,9 @@ const createSchema = z.object({
   brand: z.string().optional().default(''),
   sku: z.string().optional().default(''),
   color: z.string().optional().default(''),
+  capacidad: z.string().optional().default(''),
+  largo: z.string().optional().default(''),
+  peso: z.string().optional().default(''),
   description: z.string().optional().default(''),
   categoryId: z.string().uuid().nullable().optional(),
   imageUrl: z.string().optional().default(''),
@@ -41,7 +44,13 @@ productsRouter.post('/', async (c) => {
   const body = parsed.data;
   const userId = getUserId(c);
 
-  const slug = slugify(body.name + (body.brand ? '-' + body.brand : ''));
+  const slugParts = [body.name, body.brand, body.color, body.capacidad, body.largo, body.peso].filter(Boolean);
+  const slug = slugify(slugParts.join('-'));
+
+  const mergedAttrs = { ...body.attributes };
+  if (body.capacidad) mergedAttrs.capacidad = body.capacidad;
+  if (body.largo) mergedAttrs.largo = body.largo;
+  if (body.peso) mergedAttrs.peso = body.peso;
 
   const [product] = await db.insert(schema.products).values({
     barcode: body.barcode,
@@ -54,7 +63,7 @@ productsRouter.post('/', async (c) => {
     categoryId: body.categoryId ?? null,
     imageUrl: body.imageUrl,
     unit: body.unit,
-    attributes: body.attributes,
+    attributes: mergedAttrs,
     createdBy: userId,
   }).returning();
 
@@ -80,11 +89,33 @@ productsRouter.post('/', async (c) => {
 
 productsRouter.patch('/:id', async (c) => {
   const { id } = c.req.param();
-  const body = await c.req.json();
-  const updates: Record<string, any> = { ...body, updatedAt: sql`now()` };
-  if (body.name) {
-    updates.slug = slugify(body.name + (body.brand ? '-' + body.brand : ''));
+  const { capacidad, largo, peso, ...rest } = await c.req.json();
+
+  const updates: Record<string, any> = { updatedAt: sql`now()` };
+
+  // Accept any camelCase drizzle column (skip known-non-columns)
+  for (const [k, v] of Object.entries(rest)) {
+    if (v !== undefined) updates[k] = v;
   }
+
+  if (rest.name) {
+    const slugParts = [rest.name, rest.brand, rest.color, capacidad, largo, peso].filter(Boolean);
+    updates.slug = slugify(slugParts.join('-'));
+  }
+
+  // Merge capacidad/largo/peso into attributes JSONB
+  if (capacidad || largo || peso) {
+    const existing = await db.query.products.findFirst({
+      where: eq(schema.products.id, id),
+      columns: { attributes: true },
+    });
+    const attrs = { ...((existing?.attributes || {}) as Record<string, string>) };
+    if (capacidad) attrs.capacidad = capacidad;
+    if (largo) attrs.largo = largo;
+    if (peso) attrs.peso = peso;
+    updates.attributes = attrs;
+  }
+
   const [updated] = await db.update(schema.products)
     .set(updates)
     .where(eq(schema.products.id, id))
@@ -98,6 +129,10 @@ const bulkSchema = z.object({
   barcode: z.string().optional().default(''),
   brand: z.string().optional().default(''),
   sku: z.string().optional().default(''),
+  color: z.string().optional().default(''),
+  capacidad: z.string().optional().default(''),
+  largo: z.string().optional().default(''),
+  peso: z.string().optional().default(''),
   price: z.number().optional().default(0),
   stock: z.number().int().min(0).optional().default(0),
   cost: z.number().optional().default(0),
@@ -132,7 +167,8 @@ productsRouter.post('/bulk', async (c) => {
   for (let i = 0; i < products.length; i++) {
     const p = products[i];
     try {
-      const slug = slugify(p.name + (p.brand ? '-' + p.brand : ''));
+      const slugParts = [p.name, p.brand, p.color, p.capacidad, p.largo, p.peso].filter(Boolean);
+      const slug = slugify(slugParts.join('-'));
 
       const existing = p.barcode
         ? await db.query.products.findFirst({ where: eq(schema.products.barcode, p.barcode) })
@@ -143,12 +179,19 @@ productsRouter.post('/bulk', async (c) => {
       if (existing) {
         product = existing;
       } else {
+        const attrs: Record<string, string> = {};
+        if (p.capacidad) attrs.capacidad = p.capacidad;
+        if (p.largo) attrs.largo = p.largo;
+        if (p.peso) attrs.peso = p.peso;
+
         const [created] = await db.insert(schema.products).values({
           barcode: p.barcode || '',
           slug,
           name: p.name,
           brand: p.brand,
           sku: p.sku,
+          color: p.color,
+          attributes: attrs,
           createdBy: userId,
         }).returning();
         product = created;
@@ -196,7 +239,7 @@ productsRouter.get('/', async (c) => {
 
   const results = await db.query.products.findMany({
     limit, offset,
-    orderBy: (p, { desc }) => desc(p.createdAt),
+    orderBy: (p, { asc }) => asc(p.name),
     with: { category: true },
   });
   return c.json({ data: results, page, limit });

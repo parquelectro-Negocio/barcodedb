@@ -129,7 +129,7 @@ export function Search() {
             {data?.data?.map((product: any) => (
               <Link
                 key={product.id}
-                to={`/product/${product.barcode}`}
+                to={`/product/${product.barcode || product.slug}`}
                 className="card p-4 flex items-center gap-4 hover:border-emerald-300 group"
               >
                 {product.imageUrl ? (
