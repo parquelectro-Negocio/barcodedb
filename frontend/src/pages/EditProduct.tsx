@@ -76,20 +76,21 @@ export function EditProduct() {
     let imageUrl = normalized.imageUrl || existingImage;
     const fileInput = document.getElementById('edit-product-image') as HTMLInputElement;
     const file = fileInput?.files?.[0];
-    if (file) imageUrl = await uploadImage(file);
 
     try {
+      if (file) imageUrl = await uploadImage(file);
+
       const res = await fetch(`${API_BASE}/products/${productId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           barcode: normalized.barcode,
-          name: normalized.name,
-          brand: normalized.brand,
-          sku: normalized.sku,
-          color: normalized.color,
+          name: normalized.name?.toUpperCase() ?? '',
+          brand: normalized.brand?.toUpperCase() ?? '',
+          sku: normalized.sku?.toUpperCase() ?? '',
+          color: normalized.color?.toUpperCase() ?? '',
           description: normalized.description,
-          unit: normalized.unit,
+          unit: normalized.unit?.toUpperCase() ?? '',
           categoryId: normalized.categoryId || null,
           imageUrl,
         }),

@@ -87,20 +87,21 @@ export function AddProduct() {
     let imageUrl = normalized.imageUrl ?? '';
     const fileInput = document.getElementById('product-image') as HTMLInputElement;
     const file = fileInput?.files?.[0];
-    if (file) imageUrl = await uploadImage(file);
 
     try {
+      if (file) imageUrl = await uploadImage(file);
+
       const res = await fetch(`${API_BASE}/products`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           barcode: normalized.barcode,
-          name: normalized.name,
-          brand: normalized.brand,
-          sku: normalized.sku,
-          color: normalized.color,
+          name: normalized.name?.toUpperCase() ?? '',
+          brand: normalized.brand?.toUpperCase() ?? '',
+          sku: normalized.sku?.toUpperCase() ?? '',
+          color: normalized.color?.toUpperCase() ?? '',
           description: normalized.description,
-          unit: normalized.unit,
+          unit: normalized.unit?.toUpperCase() ?? '',
           categoryId: normalized.categoryId || null,
           imageUrl,
           attributes: categoryAttrs,
@@ -154,90 +155,102 @@ export function AddProduct() {
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
-          <label className="block text-sm text-stone-500 mb-1">Código de barras <span className="text-stone-300">(opcional)</span></label>
-            <input
-              type="text" value={form.barcode}
-              onChange={e => set('barcode', e.target.value)}
-              className="w-full px-4 py-2 bg-white border border-stone-300 rounded-lg font-mono text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              placeholder="Ej: 7790040929604. Sin código va por nombre."
-            />
+          <label className="block text-sm text-stone-500 mb-1">Nombre *</label>
+          <input
+            type="text" value={form.name} required
+            onChange={e => set('name', e.target.value.toUpperCase())}
+            className="w-full px-4 py-2 bg-white border border-stone-300 rounded-lg text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            placeholder="Ej: CABLE HDMI 2M"
+          />
+          {normalized && (
+            <button
+              type="button"
+              onClick={() => {
+                set('name', normalized.name?.toUpperCase() ?? '');
+                if (normalized.brand && !form.brand) { set('brand', normalized.brand.toUpperCase()); setBrandInput(normalized.brand.toUpperCase()); }
+                setNormalized(null);
+              }}
+              className="mt-1 text-xs text-emerald-600 hover:text-emerald-500 underline text-left"
+            >
+              Sugerencia: {normalized.name?.toUpperCase()}{normalized.brand ? ` · ${normalized.brand?.toUpperCase()}` : ''} (click para aplicar)
+            </button>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div>
+            <label className="block text-sm text-stone-500 mb-1">Marca</label>
+            <Autocomplete
+              value={brandInput}
+              onChange={(val, opt) => { const v = (opt?.value ?? val).toUpperCase(); setBrandInput(v); set('brand', v); }}
+              onSearch={searchBrands}
+              placeholder="Ej: SAMSUNG"
+            />
+          </div>
+          <div>
             <label className="block text-sm text-stone-500 mb-1">SKU</label>
             <input
               type="text" value={form.sku}
-              onChange={e => set('sku', e.target.value)}
+              onChange={e => set('sku', e.target.value.toUpperCase())}
               className="w-full px-4 py-2 bg-white border border-stone-300 rounded-lg font-mono text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
               placeholder="Ej: MON-27-4K"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm text-stone-500 mb-1">Código de barras <span className="text-stone-300">(opcional)</span></label>
+            <input
+              type="text" value={form.barcode}
+              onChange={e => set('barcode', e.target.value.replace(/\D/g, ''))}
+              className="w-full px-4 py-2 bg-white border border-stone-300 rounded-lg font-mono text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              placeholder="Ej: 7790040929604. Sin código va por slug."
             />
           </div>
           <div>
             <label className="block text-sm text-stone-500 mb-1">Color</label>
             <input
               type="text" value={form.color}
-              onChange={e => set('color', e.target.value)}
+              onChange={e => set('color', e.target.value.toUpperCase())}
               className="w-full px-4 py-2 bg-white border border-stone-300 rounded-lg text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              placeholder="Ej: Negro, Blanco, Rojo"
+              placeholder="Ej: NEGRO, BLANCO, ROJO"
             />
           </div>
           <div>
             <label className="block text-sm text-stone-500 mb-1">Capacidad</label>
             <input
               type="text" value={form.capacidad}
-              onChange={e => set('capacidad', e.target.value)}
+              onChange={e => set('capacidad', e.target.value.toUpperCase())}
               className="w-full px-4 py-2 bg-white border border-stone-300 rounded-lg text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              placeholder="Ej: 1L, 500ml, 2kg"
+              placeholder="Ej: 1L, 500ML, 2KG"
             />
           </div>
           <div>
             <label className="block text-sm text-stone-500 mb-1">Largo</label>
             <input
               type="text" value={form.largo}
-              onChange={e => set('largo', e.target.value)}
+              onChange={e => set('largo', e.target.value.toUpperCase())}
               className="w-full px-4 py-2 bg-white border border-stone-300 rounded-lg text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              placeholder="Ej: 1m, 2m, 50cm"
+              placeholder="Ej: 1M, 2M, 50CM"
             />
           </div>
           <div>
             <label className="block text-sm text-stone-500 mb-1">Peso</label>
             <input
               type="text" value={form.peso}
-              onChange={e => set('peso', e.target.value)}
+              onChange={e => set('peso', e.target.value.toUpperCase())}
               className="w-full px-4 py-2 bg-white border border-stone-300 rounded-lg text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              placeholder="Ej: 1kg, 500g, 2.5kg"
+              placeholder="Ej: 1KG, 500G, 2.5KG"
             />
           </div>
           <div>
-            <label className="block text-sm text-stone-500 mb-1">Nombre *</label>
+            <label className="block text-sm text-stone-500 mb-1">Unidad</label>
             <input
-              type="text" value={form.name} required
-              onChange={e => set('name', e.target.value)}
-              className="w-full px-4 py-2 bg-white border border-stone-300 rounded-lg text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              placeholder="Ej: Cable HDMI 2m"
-            />
-            {normalized && (
-              <button
-                type="button"
-                onClick={() => {
-                  set('name', normalized.name);
-                  if (normalized.brand && !form.brand) { set('brand', normalized.brand); setBrandInput(normalized.brand); }
-                  setNormalized(null);
-                }}
-                className="mt-1 text-xs text-emerald-600 hover:text-emerald-500 underline text-left"
-              >
-                Sugerencia: {normalized.name}{normalized.brand ? ` · ${normalized.brand}` : ''} (click para aplicar)
-              </button>
-            )}
-          </div>
-          <div>
-            <label className="block text-sm text-stone-500 mb-1">Marca</label>
-            <Autocomplete
-              value={brandInput}
-              onChange={(val, opt) => { setBrandInput(val); set('brand', opt?.value ?? val); }}
-              onSearch={searchBrands}
-              placeholder="Ej: Samsung"
+              type="text" value={form.unit}
+              onChange={e => set('unit', e.target.value.toUpperCase())}
+              className="w-full px-4 py-2 bg-white border border-stone-300 rounded-lg text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              placeholder="Ej: UNIDAD, METRO, CAJA"
             />
           </div>
         </div>
@@ -300,24 +313,6 @@ export function AddProduct() {
             className="w-full text-sm text-stone-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg
                        file:border-0 file:bg-stone-100 file:text-stone-700 hover:file:bg-stone-200"
           />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm text-stone-500 mb-1">Unidad</label>
-            <select
-              value={form.unit}
-              onChange={e => set('unit', e.target.value)}
-              className="w-full px-4 py-2 bg-white border border-stone-300 rounded-lg text-stone-900"
-            >
-              <option value="unidad">Unidad</option>
-              <option value="kg">Kilogramo</option>
-              <option value="g">Gramo</option>
-              <option value="l">Litro</option>
-              <option value="ml">Mililitro</option>
-              <option value="m">Metro</option>
-            </select>
-          </div>
         </div>
 
         {existingWithBc.length > 0 && (
