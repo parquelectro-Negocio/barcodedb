@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { db, schema } from '../db';
-import { eq, or, sql } from 'drizzle-orm';
-import { getUserId } from '../middleware/user';
+import { eq, or, sql, and, ne } from 'drizzle-orm';
+import { getUserId, requireAuth } from '../middleware/user';
 import { slugify } from '../lib/slug';
 
 export const productsRouter = new Hono();
@@ -89,11 +89,35 @@ productsRouter.post('/', async (c) => {
 
 productsRouter.patch('/:id', async (c) => {
   const { id } = c.req.param();
+  const auth = requireAuth(c);
+  if (!auth) return c.json({ error: 'auth_required' }, 401);
+
   const { capacidad, largo, peso, ...rest } = await c.req.json();
+
+  // Fetch current product for auth check
+  const current = await db.query.products.findFirst({
+    where: eq(schema.products.id, id),
+    columns: { id: true, createdBy: true, status: true, barcode: true },
+  });
+  if (!current) return c.json({ error: 'not_found' }, 404);
+
+  const isCreator = current.createdBy === auth.userId;
+
+  // Verified products: only the creator can edit
+  if (current.status === 'verified' && !isCreator) {
+    return c.json({ error: 'Producto verificado — solo el creador puede editarlo. Si encontraste un error, usa el botón Reportar.' }, 403);
+  }
+
+  // Check barcode uniqueness if changing it
+  if (rest.barcode !== undefined && rest.barcode !== current.barcode) {
+    const existing = await db.query.products.findFirst({
+      where: and(eq(schema.products.barcode, rest.barcode), ne(schema.products.id, id)),
+    });
+    if (existing) return c.json({ error: 'Ese código de barras ya está registrado en otro producto.' }, 409);
+  }
 
   const updates: Record<string, any> = { updatedAt: sql`now()` };
 
-  // Accept any camelCase drizzle column (skip known-non-columns)
   for (const [k, v] of Object.entries(rest)) {
     if (v !== undefined) updates[k] = v;
   }
@@ -103,7 +127,6 @@ productsRouter.patch('/:id', async (c) => {
     updates.slug = slugify(slugParts.join('-'));
   }
 
-  // Merge capacidad/largo/peso into attributes JSONB
   if (capacidad || largo || peso) {
     const existing = await db.query.products.findFirst({
       where: eq(schema.products.id, id),
@@ -114,6 +137,13 @@ productsRouter.patch('/:id', async (c) => {
     if (largo) attrs.largo = largo;
     if (peso) attrs.peso = peso;
     updates.attributes = attrs;
+  }
+
+  // Non-creator editing a pending product: reset verification, transfer ownership
+  if (!isCreator) {
+    updates.verificationScore = 0;
+    updates.status = 'pending';
+    updates.createdBy = auth.userId;
   }
 
   const [updated] = await db.update(schema.products)

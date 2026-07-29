@@ -81,7 +81,7 @@ export function ProductDetail() {
 
 function ProductView({ product, barcode, onBack }: { product: any; barcode: string; onBack?: () => void }) {
   const queryClient = useQueryClient();
-  const { authHeaders } = useAuth();
+  const { user, authHeaders } = useAuth();
   const [showReport, setShowReport] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -161,9 +161,11 @@ function ProductView({ product, barcode, onBack }: { product: any; barcode: stri
           {product.brand && <p className="text-lg text-stone-500 mb-2">{product.brand}</p>}
           <p className="text-sm font-mono text-stone-400 mb-1">
             {product.barcode}
-            <Link to={`/edit/${barcode}`} className="ml-3 text-xs text-emerald-600 hover:text-emerald-700 underline font-sans">
-              Editar
-            </Link>
+            {user && (product.status !== 'verified' || product.createdBy === user.id) && (
+              <Link to={`/edit/${barcode}`} className="ml-3 text-xs text-emerald-600 hover:text-emerald-700 underline font-sans">
+                Editar
+              </Link>
+            )}
           </p>
           {product.sku && <p className="text-sm text-stone-400 mb-4">SKU: {product.sku}</p>}
           {product.color && <p className="text-sm text-stone-400 mb-4">Color: {product.color}</p>}
