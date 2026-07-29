@@ -19,7 +19,7 @@ export async function uploadImage(file: File): Promise<string> {
     headers['x-user-id'] = getUserId();
   }
 
-  const res = await fetch(`${API_BASE}/images/upload-token`, { headers });
+  const res = await fetch(`${API_BASE}/images/upload-token`, { method: 'POST', headers });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error((err as any).error || 'Error al obtener token de subida');
