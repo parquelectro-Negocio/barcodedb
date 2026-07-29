@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { normalizeProduct } from '../lib/format';
 import { useToast } from '../lib/toast';
 import { API_BASE, uploadImage, resolveImageUrl } from '../lib/config';
@@ -11,6 +12,7 @@ type Attribute = { id: string; name: string; label: string; type: string; option
 export function EditProduct() {
   const { barcode } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { toast } = useToast();
 
   const [loading, setLoading] = useState(true);
@@ -100,6 +102,7 @@ export function EditProduct() {
         const errBody = await res.json().catch(() => ({ error: 'Error al guardar' }));
         throw new Error(errBody.error || 'Error al guardar');
       }
+      queryClient.invalidateQueries({ queryKey: ['product', barcode] });
       toast('Producto actualizado', 'success');
       navigate(`/product/${normalized.slug || normalized.barcode}`);
     } catch (err: any) {
