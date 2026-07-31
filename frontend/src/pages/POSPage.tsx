@@ -65,27 +65,44 @@ export function POSPage() {
 
     try {
       const res = await fetch(`${API_BASE}/products/${barcode}`);
-      if (!res.ok) return;
+      if (!res.ok) {
+        toast(`Código ${barcode} no encontrado en la base`, 'error');
+        return;
+      }
 
       const data = await res.json();
       const product = data.products?.[0];
-      if (!product) return;
+      if (!product) {
+        toast(`Código ${barcode} no encontrado en la base`, 'error');
+        return;
+      }
 
+      // The product must be in THIS business's catalog with a real price —
+      // otherwise it would enter the cart at $0 and be sold for free.
       const bp = catalog.find((c: any) => c.productId === product.id);
-      const price = bp ? parseFloat(bp.price) : 0;
-      const stock = bp ? bp.stock : 0;
+      if (!bp) {
+        toast(`"${product.name}" no está en tu inventario. Agregalo con precio antes de venderlo.`, 'error');
+        return;
+      }
+      const price = parseFloat(bp.price) || 0;
+      if (price <= 0) {
+        toast(`"${product.name}" está sin precio. Cargalo en Stock antes de venderlo.`, 'error');
+        return;
+      }
 
       setCart(prev => [...prev, {
-        id: bp?.id ?? product.id,
+        id: bp.id,
         productName: product.name,
         barcode: product.barcode,
         price,
         quantity: 1,
         total: price,
-        stock,
+        stock: bp.stock,
       }]);
-    } catch {}
-  }, [cart, catalog]);
+    } catch {
+      toast('Error al agregar el producto', 'error');
+    }
+  }, [cart, catalog, toast]);
 
   const handleScan = (barcode: string) => {
     setScanning(false);
