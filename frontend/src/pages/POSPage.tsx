@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { apiHeaders } from '../lib/user';
 import { useToast } from '../lib/toast';
 import { API_BASE } from '../lib/config';
+import { Link } from 'react-router-dom';
 import { Scanner } from '../components/Scanner';
 
 type CartItem = {
@@ -15,6 +16,14 @@ type CartItem = {
 };
 
 type PaymentMethod = 'efectivo' | 'transferencia' | 'otro';
+
+// Distinguishing attributes for products that share a name (e.g. cable 2.5 vs 4mm)
+function variantLabel(product: any): string {
+  const attrs = product?.attributes || {};
+  return [product?.brand, product?.color, attrs.capacidad, attrs.largo, attrs.peso]
+    .filter(Boolean)
+    .join(' · ');
+}
 
 export function POSPage() {
   const { toast } = useToast();
@@ -31,6 +40,7 @@ export function POSPage() {
   const [businessError, setBusinessError] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('efectivo');
   const [amountTendered, setAmountTendered] = useState('');
+  const [search, setSearch] = useState('');
 
   const loadBusiness = async (slug: string) => {
     if (!slug.trim()) return;
@@ -54,82 +64,91 @@ export function POSPage() {
     }
   };
 
-  const addToCart = useCallback(async (barcode: string) => {
-    const existing = cart.find(i => i.barcode === barcode);
-    if (existing) {
-      setCart(prev => prev.map(i =>
-        i.barcode === barcode ? { ...i, quantity: i.quantity + 1, total: (i.quantity + 1) * i.price } : i,
-      ));
+  // Core add. Dedup by businessProduct id, NOT barcode — bulk/electro items
+  // often have no barcode ('') and would otherwise collide into one cart line.
+  const addBpToCart = useCallback((bp: any) => {
+    const price = parseFloat(bp.price) || 0;
+    if (price <= 0) {
+      toast(`"${bp.product.name}" está sin precio. Cargalo en Stock antes de venderlo.`, 'error');
       return;
     }
+    setCart(prev => {
+      const existing = prev.find(i => i.id === bp.id);
+      if (existing) {
+        return prev.map(i =>
+          i.id === bp.id ? { ...i, quantity: i.quantity + 1, total: (i.quantity + 1) * i.price } : i,
+        );
+      }
+      return [...prev, {
+        id: bp.id,
+        productName: bp.product.name,
+        barcode: bp.product.barcode ?? '',
+        price,
+        quantity: 1,
+        total: price,
+        stock: bp.stock,
+      }];
+    });
+  }, [toast]);
 
+  // Barcode path (scanner / manual code): the item must be in this shop's catalog.
+  const addByBarcode = useCallback(async (barcode: string) => {
     try {
       const res = await fetch(`${API_BASE}/products/${barcode}`);
-      if (!res.ok) {
-        toast(`Código ${barcode} no encontrado en la base`, 'error');
-        return;
-      }
-
+      if (!res.ok) { toast(`Código ${barcode} no encontrado en la base`, 'error'); return; }
       const data = await res.json();
       const product = data.products?.[0];
-      if (!product) {
-        toast(`Código ${barcode} no encontrado en la base`, 'error');
-        return;
-      }
-
-      // The product must be in THIS business's catalog with a real price —
-      // otherwise it would enter the cart at $0 and be sold for free.
+      if (!product) { toast(`Código ${barcode} no encontrado en la base`, 'error'); return; }
       const bp = catalog.find((c: any) => c.productId === product.id);
       if (!bp) {
         toast(`"${product.name}" no está en tu inventario. Agregalo con precio antes de venderlo.`, 'error');
         return;
       }
-      const price = parseFloat(bp.price) || 0;
-      if (price <= 0) {
-        toast(`"${product.name}" está sin precio. Cargalo en Stock antes de venderlo.`, 'error');
-        return;
-      }
-
-      setCart(prev => [...prev, {
-        id: bp.id,
-        productName: product.name,
-        barcode: product.barcode,
-        price,
-        quantity: 1,
-        total: price,
-        stock: bp.stock,
-      }]);
+      addBpToCart(bp);
     } catch {
       toast('Error al agregar el producto', 'error');
     }
-  }, [cart, catalog, toast]);
+  }, [catalog, toast, addBpToCart]);
 
   const handleScan = (barcode: string) => {
     setScanning(false);
-    addToCart(barcode);
+    addByBarcode(barcode);
   };
 
   const handleManualAdd = () => {
     if (manualBarcode.trim()) {
-      addToCart(manualBarcode.trim());
+      addByBarcode(manualBarcode.trim());
       setManualBarcode('');
     }
   };
 
-  const removeItem = (barcode: string) => {
-    setCart(prev => prev.filter(i => i.barcode !== barcode));
+  const removeItem = (id: string) => {
+    setCart(prev => prev.filter(i => i.id !== id));
   };
 
-  const updateQty = (barcode: string, qty: number) => {
-    if (qty <= 0) { removeItem(barcode); return; }
+  const updateQty = (id: string, qty: number) => {
+    if (qty <= 0) { removeItem(id); return; }
     setCart(prev => prev.map(i =>
-      i.barcode === barcode ? { ...i, quantity: qty, total: qty * i.price } : i,
+      i.id === id ? { ...i, quantity: qty, total: qty * i.price } : i,
     ));
   };
 
   const total = cart.reduce((sum, i) => sum + i.total, 0);
   const tendered = parseFloat(amountTendered) || 0;
   const change = paymentMethod === 'efectivo' && tendered >= total ? tendered - total : 0;
+
+  // Search the shop's own catalog by name/brand/attributes — the way to add
+  // products that have no barcode.
+  const q = search.trim().toLowerCase();
+  const searchResults = q.length >= 2
+    ? catalog.filter((bp: any) => {
+        const p = bp.product || {};
+        const a = p.attributes || {};
+        const hay = [p.name, p.brand, p.sku, p.color, p.barcode, a.capacidad, a.largo, a.peso]
+          .filter(Boolean).join(' ').toLowerCase();
+        return hay.includes(q);
+      }).slice(0, 8)
+    : [];
 
   const openPayment = () => {
     setPaymentMethod('efectivo');
@@ -335,6 +354,45 @@ export function POSPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         <div className="lg:col-span-3 space-y-4">
+          {/* Search the catalog by name/attributes — for products without a barcode */}
+          <div>
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Buscar por nombre, marca o medida..."
+              className="w-full px-4 py-3 bg-white border border-stone-300 rounded-xl text-base text-stone-900
+                         focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+            {q.length >= 2 && (
+              <div className="mt-2 border border-stone-200 rounded-xl bg-white shadow-sm divide-y divide-stone-100 max-h-72 overflow-y-auto">
+                {searchResults.length === 0 ? (
+                  <p className="px-4 py-3 text-sm text-stone-400">
+                    No está en tu inventario. <Link to="/search" className="text-emerald-600 underline">Agregalo</Link>.
+                  </p>
+                ) : searchResults.map((bp: any) => {
+                  const label = variantLabel(bp.product);
+                  return (
+                    <button
+                      key={bp.id}
+                      onClick={() => { addBpToCart(bp); setSearch(''); }}
+                      className="w-full text-left px-4 py-2.5 hover:bg-emerald-50 flex items-center justify-between gap-3"
+                    >
+                      <span className="min-w-0">
+                        <span className="block text-sm font-medium text-stone-800 truncate">{bp.product.name}</span>
+                        {label && <span className="block text-xs text-stone-400 truncate">{label}</span>}
+                      </span>
+                      <span className="shrink-0 text-right">
+                        <span className="block text-sm font-mono text-stone-700">${parseFloat(bp.price).toFixed(2)}</span>
+                        <span className="block text-xs text-stone-400">{bp.stock} uds.</span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           <div className="flex gap-3">
             <input
               type="text"
@@ -370,19 +428,19 @@ export function POSPage() {
           </h3>
           {cart.length === 0 ? (
             <p className="text-stone-300 text-sm text-center py-8">
-              Escaneá o ingresá un código de barras
+              Buscá por nombre, escaneá o ingresá un código
             </p>
           ) : (
             <div className="space-y-3 mb-4">
               {cart.map(item => (
-                <div key={item.barcode} className="bg-stone-50 rounded-lg p-3 shadow-sm">
+                <div key={item.id} className="bg-stone-50 rounded-lg p-3 shadow-sm">
                   <div className="flex justify-between items-start mb-2">
                     <div className="flex-1 min-w-0 mr-2">
                       <p className="text-sm font-medium truncate">{item.productName}</p>
-                      <p className="text-xs text-stone-400 font-mono">{item.barcode}</p>
+                      {item.barcode && <p className="text-xs text-stone-400 font-mono">{item.barcode}</p>}
                     </div>
                     <button
-                      onClick={() => removeItem(item.barcode)}
+                      onClick={() => removeItem(item.id)}
                       className="text-stone-400 hover:text-red-600 text-sm"
                     >
                       ✕
@@ -391,14 +449,14 @@ export function POSPage() {
                   <div className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => updateQty(item.barcode, item.quantity - 1)}
+                        onClick={() => updateQty(item.id, item.quantity - 1)}
                         className="w-7 h-7 bg-stone-200 rounded flex items-center justify-center hover:bg-stone-300 text-stone-700"
                       >
                         -
                       </button>
                       <span className="w-6 text-center font-mono">{item.quantity}</span>
                       <button
-                        onClick={() => updateQty(item.barcode, item.quantity + 1)}
+                        onClick={() => updateQty(item.id, item.quantity + 1)}
                         className="w-7 h-7 bg-stone-200 rounded flex items-center justify-center hover:bg-stone-300 text-stone-700"
                       >
                         +
