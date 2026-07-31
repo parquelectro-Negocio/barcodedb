@@ -26,7 +26,7 @@ const app = new Hono();
 const corsOrigins = process.env.CORS_ORIGINS?.split(',').map(s => s.trim()).filter(Boolean);
 app.use('/*', cors({ origin: corsOrigins && corsOrigins.length > 0 ? corsOrigins : '*' }));
 app.use('/api/*', userMiddleware);
-app.get('/', (c) => c.json({ ok: true, version: '0.1.1' }));
+app.get('/', (c) => c.json({ ok: true, version: '0.1.2' }));
 
 app.use('/uploads/*', serveStatic({ root: join(__dirname, '..') }));
 app.route('/api/auth', authRouter);
