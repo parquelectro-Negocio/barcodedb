@@ -62,7 +62,7 @@ searchRouter.get('/brands', async (c) => {
   return c.json(asRows(results).map((r: any) => r.brand));
 });
 
-type MatchItem = { name?: string; barcode?: string; brand?: string; price?: number; stock?: number };
+type MatchItem = { name?: string; barcode?: string; brand?: string; color?: string; capacidad?: string; largo?: string; peso?: string; price?: number; stock?: number };
 
 function asRows(r: any): any[] {
   return Array.isArray(r) ? r : (r?.rows ?? []);

@@ -5,16 +5,20 @@ import { useToast } from '../lib/toast';
 import { API_BASE } from '../lib/config';
 import * as XLSX from 'xlsx';
 
-type MatchItem = { name?: string; barcode?: string; brand?: string; price?: number; stock?: number };
+type MatchItem = { name?: string; barcode?: string; brand?: string; color?: string; capacidad?: string; largo?: string; peso?: string; price?: number; stock?: number };
 type FileRow = Record<string, string>;
 
-const COLUMN_KEYS = ['name', 'barcode', 'brand', 'price', 'stock'] as const;
+const COLUMN_KEYS = ['name', 'barcode', 'brand', 'color', 'capacidad', 'largo', 'peso', 'price', 'stock'] as const;
 type ColumnKey = typeof COLUMN_KEYS[number];
 
 const COLUMN_LABELS: Record<ColumnKey, string> = {
   name: 'Nombre / Descripcion',
   barcode: 'Codigo de barras',
   brand: 'Marca',
+  color: 'Color',
+  capacidad: 'Capacidad',
+  largo: 'Largo',
+  peso: 'Peso',
   price: 'Precio',
   stock: 'Stock',
 };
@@ -23,6 +27,10 @@ const COMMON_PATTERNS: Record<ColumnKey, string[]> = {
   barcode: ['codigo', 'codigo de barras', 'ean', 'gtin', 'barcode', 'upc'],
   name: ['nombre', 'descripcion', 'producto', 'articulo', 'detalle', 'desc'],
   brand: ['marca', 'brand', 'fabricante'],
+  color: ['color', 'colour'],
+  capacidad: ['capacidad', 'volumen', 'capacity', 'tamaño', 'contenido'],
+  largo: ['largo', 'longitud', 'length', 'medida'],
+  peso: ['peso', 'weight', 'gramos', 'kg', 'kilogramo'],
   price: ['precio', 'precio venta', 'price', 'pvp'],
   stock: ['stock', 'cantidad', 'existencia', 'inventario', 'qty'],
 };
@@ -184,6 +192,10 @@ export function ImportPage() {
         name: edits.name ?? item.name ?? '',
         barcode: edits.barcode ?? item.barcode ?? '',
         brand: edits.brand ?? item.brand ?? '',
+        color: edits.color ?? item.color ?? '',
+        capacidad: edits.capacidad ?? item.capacidad ?? '',
+        largo: edits.largo ?? item.largo ?? '',
+        peso: edits.peso ?? item.peso ?? '',
         price: edits.price ?? item.price ?? 0,
         stock: edits.stock ?? item.stock ?? 0,
       };
@@ -365,18 +377,22 @@ function UnmatchedItem({
   const name = edits.name ?? item.name ?? '';
   const barcode = edits.barcode ?? item.barcode ?? '';
   const brand = edits.brand ?? item.brand ?? '';
+  const color = edits.color ?? item.color ?? '';
+  const capacidad = edits.capacidad ?? item.capacidad ?? '';
+  const largo = edits.largo ?? item.largo ?? '';
+  const peso = edits.peso ?? item.peso ?? '';
   const price = edits.price ?? item.price ?? 0;
   const stock = edits.stock ?? item.stock ?? 0;
 
   return (
     <div className="bg-white border border-stone-200 rounded-lg p-3 shadow-sm">
       <div className="grid grid-cols-12 gap-2 items-center">
-        <div className="col-span-4">
+        <div className="col-span-2">
           <input
             type="text"
             value={name}
             onChange={e => onEdit(index, 'name', e.target.value)}
-            placeholder="Nombre del producto"
+            placeholder="Nombre"
             className="w-full px-2 py-1 text-sm bg-stone-50 border border-stone-200 rounded focus:outline-none focus:ring-1 focus:ring-emerald-500"
           />
         </div>
@@ -398,18 +414,54 @@ function UnmatchedItem({
             className="w-full px-2 py-1 text-xs bg-stone-50 border border-stone-200 rounded focus:outline-none focus:ring-1 focus:ring-emerald-500"
           />
         </div>
-        <div className="col-span-2">
+        <div className="col-span-1">
+          <input
+            type="text"
+            value={color}
+            onChange={e => onEdit(index, 'color', e.target.value)}
+            placeholder="Color"
+            className="w-full px-2 py-1 text-xs bg-stone-50 border border-stone-200 rounded focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          />
+        </div>
+        <div className="col-span-1">
+          <input
+            type="text"
+            value={capacidad}
+            onChange={e => onEdit(index, 'capacidad', e.target.value)}
+            placeholder="Cap."
+            className="w-full px-2 py-1 text-xs bg-stone-50 border border-stone-200 rounded focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          />
+        </div>
+        <div className="col-span-1">
+          <input
+            type="text"
+            value={largo}
+            onChange={e => onEdit(index, 'largo', e.target.value)}
+            placeholder="Largo"
+            className="w-full px-2 py-1 text-xs bg-stone-50 border border-stone-200 rounded focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          />
+        </div>
+        <div className="col-span-1">
+          <input
+            type="text"
+            value={peso}
+            onChange={e => onEdit(index, 'peso', e.target.value)}
+            placeholder="Peso"
+            className="w-full px-2 py-1 text-xs bg-stone-50 border border-stone-200 rounded focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          />
+        </div>
+        <div className="col-span-1">
           <input
             type="number"
             min="0"
             step="0.01"
             value={price}
             onChange={e => onEdit(index, 'price', parseFloat(e.target.value) || 0)}
-            placeholder="Precio"
+            placeholder="$"
             className="w-full px-2 py-1 text-xs font-mono bg-stone-50 border border-stone-200 rounded focus:outline-none focus:ring-1 focus:ring-emerald-500"
           />
         </div>
-        <div className="col-span-2">
+        <div className="col-span-1">
           <input
             type="number"
             min="0"
@@ -483,11 +535,15 @@ function MatchResults({ results, businessSlug, onAddToBusiness, onCreateUnmatche
 
           {hasPriceOrStock && (
             <div className="text-xs text-stone-400 mb-2 grid grid-cols-12 gap-2 px-1">
-              <span className="col-span-4">Nombre</span>
+              <span className="col-span-2">Nombre</span>
               <span className="col-span-2">Código barras</span>
               <span className="col-span-2">Marca</span>
-              <span className="col-span-2">Precio</span>
-              <span className="col-span-2">Stock</span>
+              <span className="col-span-1">Color</span>
+              <span className="col-span-1">Cap.</span>
+              <span className="col-span-1">Largo</span>
+              <span className="col-span-1">Peso</span>
+              <span className="col-span-1">Precio</span>
+              <span className="col-span-1">Stock</span>
             </div>
           )}
 
