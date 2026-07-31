@@ -156,10 +156,10 @@ function AppContent() {
           <Route path="/scan" element={<ScanPage />} />
           <Route path="/add" element={<RequireAuth><AddProduct /></RequireAuth>} />
           <Route path="/import" element={<RequireAuth><ImportPage /></RequireAuth>} />
-          <Route path="/pos" element={<POSPage />} />
-          <Route path="/sales" element={<SalesPage />} />
+          <Route path="/pos" element={<RequireAuth><POSPage /></RequireAuth>} />
+          <Route path="/sales" element={<RequireAuth><SalesPage /></RequireAuth>} />
           <Route path="/edit/:barcode" element={<RequireAuth><EditProduct /></RequireAuth>} />
-          <Route path="/stock" element={<StockPage />} />
+          <Route path="/stock" element={<RequireAuth><StockPage /></RequireAuth>} />
           <Route path="/login" element={<LoginPage />} />
         </Routes>
       </main>

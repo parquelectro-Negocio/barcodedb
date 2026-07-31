@@ -4,6 +4,7 @@ import { normalizeName } from '../lib/normalizeName';
 import { normalizeProduct } from '../lib/format';
 import { useToast } from '../lib/toast';
 import { API_BASE, uploadImage } from '../lib/config';
+import { apiHeaders } from '../lib/user';
 import { Autocomplete } from '../components/Autocomplete';
 
 type Category = { id: string; name: string; slug: string; parentId?: string | null };
@@ -93,7 +94,7 @@ export function AddProduct() {
 
       const res = await fetch(`${API_BASE}/products`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: apiHeaders(),
         body: JSON.stringify({
           barcode: normalized.barcode,
           name: normalized.name?.toUpperCase() ?? '',

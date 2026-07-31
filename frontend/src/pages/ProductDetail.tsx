@@ -345,12 +345,12 @@ function InventorySection({ productId }: { productId: string }) {
     setLoading(true);
     setProductsLoaded(false);
     try {
-      const res = await fetch(`${API_BASE}/businesses/${s}`);
+      const res = await fetch(`${API_BASE}/businesses/${s}`, { headers: apiHeaders() });
       if (res.ok) {
         const b = await res.json();
         setBusiness(b);
         localStorage.setItem('biz_slug', s);
-        const bpRes = await fetch(`${API_BASE}/businesses/${s}/products`);
+        const bpRes = await fetch(`${API_BASE}/businesses/${s}/products`, { headers: apiHeaders() });
         if (bpRes.ok) {
           const bpList = await bpRes.json();
           const match = bpList.find((bp: any) => bp.productId === productId);
@@ -377,7 +377,7 @@ function InventorySection({ productId }: { productId: string }) {
       const s = slug.trim();
       const res = await fetch(`${API_BASE}/businesses`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: apiHeaders(),
         body: JSON.stringify({ slug: s, name: businessName || s }),
       });
       if (!res.ok) {
@@ -398,7 +398,7 @@ function InventorySection({ productId }: { productId: string }) {
     mutationFn: async () => {
       const res = await fetch(`${API_BASE}/businesses/${business.slug}/products`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: apiHeaders(),
         body: JSON.stringify({ productId, price: Number(price), stock: Number(stock), cost: Number(cost) }),
       });
       if (!res.ok) {

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { API_BASE } from '../lib/config';
+import { apiHeaders } from '../lib/user';
 
 export function Home() {
   const [query, setQuery] = useState('');
@@ -15,8 +16,8 @@ export function Home() {
     setStatsLoading(true);
     try {
       const [b, s] = await Promise.all([
-        fetch(`${API_BASE}/businesses/${slug}`).then(r => r.ok ? r.json() : null),
-        fetch(`${API_BASE}/businesses/${slug}/stats`).then(r => r.ok ? r.json() : null),
+        fetch(`${API_BASE}/businesses/${slug}`, { headers: apiHeaders() }).then(r => r.ok ? r.json() : null),
+        fetch(`${API_BASE}/businesses/${slug}/stats`, { headers: apiHeaders() }).then(r => r.ok ? r.json() : null),
       ]);
       if (b) { setBusiness(b); setBusinessSlug(slug); localStorage.setItem('biz_slug', slug); }
       if (s) setStats(s);

@@ -1,7 +1,9 @@
 import { Hono } from 'hono';
+import type { Context } from 'hono';
 import { z } from 'zod';
 import { db, schema } from '../db';
-import { eq, and, sql, gte, lte, desc } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
+import { requireAuth } from '../middleware/user';
 
 export const businessesRouter = new Hono();
 
@@ -14,19 +16,54 @@ const addProductSchema = z.object({
   price: z.number().min(0),
 });
 
+// Whitelisted, typed fields for inventory edits — prevents mass assignment.
+const patchProductSchema = z.object({
+  sku: z.string().optional(),
+  stock: z.number().int().min(0).optional(),
+  price: z.union([z.string(), z.number()]).optional(),
+  cost: z.union([z.string(), z.number()]).optional(),
+}).strict();
+
+type OwnedBusiness =
+  | { ok: true; business: typeof schema.businesses.$inferSelect; userId: string }
+  | { ok: false; status: 401 | 403 | 404; error: string };
+
+// Load a business by slug and assert the authenticated caller owns it.
+// The commercial layer (stock, prices, costs, sales) is private per owner.
+async function requireOwnedBusiness(c: Context, slug: string): Promise<OwnedBusiness> {
+  const auth = requireAuth(c);
+  if (!auth) return { ok: false, status: 401, error: 'auth_required' };
+
+  const business = await db.query.businesses.findFirst({
+    where: eq(schema.businesses.slug, slug),
+  });
+  if (!business) return { ok: false, status: 404, error: 'not_found' };
+  if (business.ownerId !== auth.userId) return { ok: false, status: 403, error: 'forbidden' };
+
+  return { ok: true, business, userId: auth.userId };
+}
+
+// Create a business owned by the authenticated user
 businessesRouter.post('/', async (c) => {
+  const auth = requireAuth(c);
+  if (!auth) return c.json({ error: 'auth_required' }, 401);
+
   const { slug, name } = await c.req.json();
   if (!slug || typeof slug !== 'string') return c.json({ error: 'slug_required' }, 400);
-  const [biz] = await db.insert(schema.businesses).values({ slug, name: name || slug }).returning();
+
+  const existing = await db.query.businesses.findFirst({ where: eq(schema.businesses.slug, slug) });
+  if (existing) return c.json({ error: 'slug_taken' }, 409);
+
+  const [biz] = await db.insert(schema.businesses)
+    .values({ slug, name: name || slug, ownerId: auth.userId })
+    .returning();
   return c.json(biz, 201);
 });
 
 businessesRouter.get('/:slug/stats', async (c) => {
-  const { slug } = c.req.param();
-  const business = await db.query.businesses.findFirst({
-    where: eq(schema.businesses.slug, slug),
-  });
-  if (!business) return c.json({ error: 'not_found' }, 404);
+  const owned = await requireOwnedBusiness(c, c.req.param('slug'));
+  if (!owned.ok) return c.json({ error: owned.error }, owned.status);
+  const bizId = owned.business.id;
 
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -34,8 +71,6 @@ businessesRouter.get('/:slug/stats', async (c) => {
   weekAgo.setDate(weekAgo.getDate() - 7);
   const monthAgo = new Date(today);
   monthAgo.setMonth(monthAgo.getMonth() - 1);
-
-  const bizId = business.id;
 
   const [todayAgg] = await db.execute(
     sql`SELECT COUNT(*)::int as count, COALESCE(SUM(total)::numeric, 0) as total FROM sales WHERE business_id = ${bizId} AND created_at >= ${today}`
@@ -79,47 +114,36 @@ businessesRouter.get('/:slug/stats', async (c) => {
 });
 
 businessesRouter.get('/:slug', async (c) => {
-  const { slug } = c.req.param();
-  const business = await db.query.businesses.findFirst({
-    where: eq(schema.businesses.slug, slug),
-  });
-  if (!business) return c.json({ error: 'not_found' }, 404);
-  return c.json(business);
+  const owned = await requireOwnedBusiness(c, c.req.param('slug'));
+  if (!owned.ok) return c.json({ error: owned.error }, owned.status);
+  return c.json(owned.business);
 });
 
 businessesRouter.get('/:slug/products', async (c) => {
-  const { slug } = c.req.param();
-  const business = await db.query.businesses.findFirst({
-    where: eq(schema.businesses.slug, slug),
-  });
-  if (!business) return c.json({ error: 'not_found' }, 404);
+  const owned = await requireOwnedBusiness(c, c.req.param('slug'));
+  if (!owned.ok) return c.json({ error: owned.error }, owned.status);
 
   const products = await db.query.businessProducts.findMany({
-    where: eq(schema.businessProducts.businessId, business.id),
+    where: eq(schema.businessProducts.businessId, owned.business.id),
     with: { product: { with: { category: true } } },
   });
   return c.json(products);
 });
 
 businessesRouter.post('/:slug/products', async (c) => {
-  const { slug } = c.req.param();
-  const raw = await c.req.json();
-  const parsed = addProductSchema.safeParse(raw);
+  const owned = await requireOwnedBusiness(c, c.req.param('slug'));
+  if (!owned.ok) return c.json({ error: owned.error }, owned.status);
+
+  const parsed = addProductSchema.safeParse(await c.req.json());
   if (!parsed.success) {
     return c.json({ error: 'validation_error', details: parsed.error.flatten() }, 400);
   }
-
-  const business = await db.query.businesses.findFirst({
-    where: eq(schema.businesses.slug, slug),
-  });
-  if (!business) return c.json({ error: 'business_not_found' }, 404);
-
   const body = parsed.data;
 
   // Upsert: if product already exists for this business, update price/stock
   const existing = await db.query.businessProducts.findFirst({
     where: and(
-      eq(schema.businessProducts.businessId, business.id),
+      eq(schema.businessProducts.businessId, owned.business.id),
       eq(schema.businessProducts.productId, body.productId),
     ),
   });
@@ -138,7 +162,7 @@ businessesRouter.post('/:slug/products', async (c) => {
   }
 
   const [bp] = await db.insert(schema.businessProducts).values({
-    businessId: business.id,
+    businessId: owned.business.id,
     productId: body.productId,
     variantId: body.variantId ?? null,
     sku: body.sku,
@@ -152,21 +176,29 @@ businessesRouter.post('/:slug/products', async (c) => {
 
 businessesRouter.patch('/:slug/products/:id', async (c) => {
   const { slug, id } = c.req.param();
-  const body = await c.req.json();
+  const owned = await requireOwnedBusiness(c, slug);
+  if (!owned.ok) return c.json({ error: owned.error }, owned.status);
 
-  const business = await db.query.businesses.findFirst({
-    where: eq(schema.businesses.slug, slug),
-  });
-  if (!business) return c.json({ error: 'business_not_found' }, 404);
+  const parsed = patchProductSchema.safeParse(await c.req.json());
+  if (!parsed.success) {
+    return c.json({ error: 'validation_error', details: parsed.error.flatten() }, 400);
+  }
+
+  const updates: Record<string, any> = { updatedAt: new Date() };
+  if (parsed.data.sku !== undefined) updates.sku = parsed.data.sku;
+  if (parsed.data.stock !== undefined) updates.stock = parsed.data.stock;
+  if (parsed.data.price !== undefined) updates.price = String(parsed.data.price);
+  if (parsed.data.cost !== undefined) updates.cost = String(parsed.data.cost);
 
   const [updated] = await db.update(schema.businessProducts)
-    .set(body)
+    .set(updates)
     .where(
       and(
         eq(schema.businessProducts.id, id),
-        eq(schema.businessProducts.businessId, business.id),
+        eq(schema.businessProducts.businessId, owned.business.id),
       ),
     )
     .returning();
+  if (!updated) return c.json({ error: 'not_found' }, 404);
   return c.json(updated);
 });

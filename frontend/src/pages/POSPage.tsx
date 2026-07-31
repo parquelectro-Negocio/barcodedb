@@ -37,8 +37,8 @@ export function POSPage() {
     setLoadingBusiness(true);
     setBusinessError('');
     try {
-      const res = await fetch(`${API_BASE}/businesses/${slug}`);
-      if (!res.ok) { setBusinessError('Comercio no encontrado'); setLoadingBusiness(false); return; }
+      const res = await fetch(`${API_BASE}/businesses/${slug}`, { headers: apiHeaders() });
+      if (!res.ok) { setBusinessError(res.status === 403 ? 'Ese comercio no es tuyo' : 'Comercio no encontrado'); setLoadingBusiness(false); return; }
       const b = await res.json();
       setBusiness(b);
       localStorage.setItem('biz_slug', slug);
@@ -47,7 +47,7 @@ export function POSPage() {
   };
 
   const loadProducts = async (slug: string) => {
-    const bpRes = await fetch(`${API_BASE}/businesses/${slug}/products`);
+    const bpRes = await fetch(`${API_BASE}/businesses/${slug}/products`, { headers: apiHeaders() });
     if (bpRes.ok) {
       const bpData = await bpRes.json();
       setCatalog(Array.isArray(bpData) ? bpData : []);

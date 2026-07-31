@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { API_BASE } from '../lib/config';
+import { apiHeaders } from '../lib/user';
 
 type SaleItem = {
   id: string;
@@ -68,8 +69,8 @@ export function SalesPage() {
     if (!slug.trim()) return;
     setLoading(true);
     setBusError('');
-    const res = await fetch(`${API_BASE}/businesses/${slug}`);
-    if (!res.ok) { setBusError('Comercio no encontrado'); setLoading(false); return; }
+    const res = await fetch(`${API_BASE}/businesses/${slug}`, { headers: apiHeaders() });
+    if (!res.ok) { setBusError(res.status === 403 ? 'Ese comercio no es tuyo' : 'Comercio no encontrado'); setLoading(false); return; }
     const b = await res.json();
     setBusiness(b);
     localStorage.setItem('biz_slug', slug);
@@ -93,7 +94,7 @@ export function SalesPage() {
           else if (period === 'month') d.setMonth(d.getMonth() - 1);
           params.set('since', d.toISOString());
         }
-        const res = await fetch(`${API_BASE}/sales?businessId=${business.id}&${params}`);
+        const res = await fetch(`${API_BASE}/sales?businessId=${business.id}&${params}`, { headers: apiHeaders() });
         if (res.ok) setSales(await res.json());
       } catch { setError('Error al cargar ventas'); } finally { setLoading(false); }
     })();

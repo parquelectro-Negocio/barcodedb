@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { API_BASE } from '../lib/config';
+import { apiHeaders } from '../lib/user';
 import { useToast } from '../lib/toast';
 
 type BPItem = {
@@ -30,12 +31,12 @@ export function StockPage() {
     setLoading(true);
     setBusError('');
     try {
-      const res = await fetch(`${API_BASE}/businesses/${slug}`);
-      if (!res.ok) { setBusError('Comercio no encontrado'); setLoading(false); return; }
+      const res = await fetch(`${API_BASE}/businesses/${slug}`, { headers: apiHeaders() });
+      if (!res.ok) { setBusError(res.status === 403 ? 'Ese comercio no es tuyo' : 'Comercio no encontrado'); setLoading(false); return; }
       const b = await res.json();
       setBusiness(b);
       localStorage.setItem('biz_slug', slug);
-      const bpRes = await fetch(`${API_BASE}/businesses/${slug}/products`);
+      const bpRes = await fetch(`${API_BASE}/businesses/${slug}/products`, { headers: apiHeaders() });
       if (bpRes.ok) {
         const data = await bpRes.json();
         setItems(Array.isArray(data) ? data : []);
@@ -62,7 +63,7 @@ export function StockPage() {
     try {
       const res = await fetch(`${API_BASE}/businesses/${business!.slug}/products/${item.id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: apiHeaders(),
         body: JSON.stringify({ stock: edit.stock, price: String(edit.price), cost: String(edit.cost) }),
       });
       if (!res.ok) throw new Error();

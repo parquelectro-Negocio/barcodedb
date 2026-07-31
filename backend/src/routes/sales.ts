@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { db, schema } from '../db';
 import { eq, and, gte, inArray, sql } from 'drizzle-orm';
+import { requireAuth } from '../middleware/user';
 
 export const salesRouter = new Hono();
 
@@ -17,6 +18,9 @@ const createSaleSchema = z.object({
 
 // Create a sale (deducts stock)
 salesRouter.post('/', async (c) => {
+  const auth = requireAuth(c);
+  if (!auth) return c.json({ error: 'auth_required' }, 401);
+
   const raw = await c.req.json();
   const parsed = createSaleSchema.safeParse(raw);
   if (!parsed.success) {
@@ -25,11 +29,12 @@ salesRouter.post('/', async (c) => {
 
   const { businessId, items, paymentMethod, amountTendered } = parsed.data;
 
-  // Verify business exists
+  // Verify business exists and belongs to the caller
   const business = await db.query.businesses.findFirst({
     where: eq(schema.businesses.id, businessId),
   });
   if (!business) return c.json({ error: 'business_not_found' }, 404);
+  if (business.ownerId !== auth.userId) return c.json({ error: 'forbidden' }, 403);
 
   // Fetch all business products with prices
   const bpIds = items.map(i => i.businessProductId);
@@ -98,18 +103,28 @@ salesRouter.post('/', async (c) => {
   return c.json({ sale, items: saleItems }, 201);
 });
 
-// List sales for a business
+// List sales for a business (owner only)
 salesRouter.get('/', async (c) => {
+  const auth = requireAuth(c);
+  if (!auth) return c.json({ error: 'auth_required' }, 401);
+
   const businessId = c.req.query('businessId');
+  if (!businessId) return c.json({ error: 'businessId_required' }, 400);
+
+  const business = await db.query.businesses.findFirst({
+    where: eq(schema.businesses.id, businessId),
+  });
+  if (!business) return c.json({ error: 'business_not_found' }, 404);
+  if (business.ownerId !== auth.userId) return c.json({ error: 'forbidden' }, 403);
+
   const limit = Math.min(Math.max(1, parseInt(c.req.query('limit') ?? '50')), 100);
   const offset = Math.max(0, parseInt(c.req.query('offset') ?? '0'));
   const since = c.req.query('since');
 
-  const conditions = [];
-  if (businessId) conditions.push(eq(schema.sales.businessId, businessId!));
+  const conditions = [eq(schema.sales.businessId, businessId)];
   if (since) conditions.push(gte(schema.sales.createdAt, new Date(since)));
 
-  const where = conditions.length > 0 ? and(...conditions) : undefined;
+  const where = and(...conditions);
   const results: any = await db.query.sales.findMany({
     where,
     limit, offset,
@@ -128,8 +143,11 @@ salesRouter.get('/', async (c) => {
   return c.json(results);
 });
 
-// Get single sale
+// Get single sale (owner only)
 salesRouter.get('/:id', async (c) => {
+  const auth = requireAuth(c);
+  if (!auth) return c.json({ error: 'auth_required' }, 401);
+
   const { id } = c.req.param();
   const sale: any = await db.query.sales.findFirst({
     where: eq(schema.sales.id, id),
@@ -144,5 +162,11 @@ salesRouter.get('/:id', async (c) => {
     },
   });
   if (!sale) return c.json({ error: 'not_found' }, 404);
+
+  const business = await db.query.businesses.findFirst({
+    where: eq(schema.businesses.id, sale.businessId),
+  });
+  if (!business || business.ownerId !== auth.userId) return c.json({ error: 'forbidden' }, 403);
+
   return c.json(sale);
 });
