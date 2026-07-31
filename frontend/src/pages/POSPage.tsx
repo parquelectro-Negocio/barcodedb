@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { apiHeaders } from '../lib/user';
+import { matchesQuery } from '../lib/match';
 import { useToast } from '../lib/toast';
 import { API_BASE } from '../lib/config';
 import { Link } from 'react-router-dom';
@@ -139,14 +140,14 @@ export function POSPage() {
 
   // Search the shop's own catalog by name/brand/attributes — the way to add
   // products that have no barcode.
-  const q = search.trim().toLowerCase();
+  const q = search.trim();
   const searchResults = q.length >= 2
     ? catalog.filter((bp: any) => {
         const p = bp.product || {};
         const a = p.attributes || {};
         const hay = [p.name, p.brand, p.sku, p.color, p.barcode, a.capacidad, a.largo, a.peso]
-          .filter(Boolean).join(' ').toLowerCase();
-        return hay.includes(q);
+          .filter(Boolean).join(' ');
+        return matchesQuery(q, hay);
       }).slice(0, 8)
     : [];
 
