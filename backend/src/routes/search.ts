@@ -40,7 +40,7 @@ searchRouter.get('/', async (c) => {
   const results = await db.query.products.findMany({
     where,
     limit, offset,
-    orderBy: (p, { desc }) => desc(p.verificationScore),
+    orderBy: (p, { asc }) => asc(p.name),
     with: { category: true },
   });
 
