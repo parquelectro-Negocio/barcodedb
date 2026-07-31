@@ -1,30 +1,19 @@
 import type { Context, Next } from 'hono';
 import jwt from 'jsonwebtoken';
-import { db, schema } from '../db';
-import { eq } from 'drizzle-orm';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
+const secret = process.env.JWT_SECRET;
+if (!secret) {
+  throw new Error('JWT_SECRET is not set. The server refuses to start without a signing secret.');
+}
+export const JWT_SECRET: string = secret;
 
 export interface JwtPayload {
   userId: string;
   email: string;
 }
 
-async function ensureUser(userId: string) {
-  const exists = await db.query.users.findFirst({
-    where: eq(schema.users.id, userId),
-    columns: { id: true },
-  });
-  if (!exists) {
-    await db.insert(schema.users).values({
-      id: userId,
-      email: `${userId}@anon.local`,
-      passwordHash: 'anon',
-      name: '',
-    }).onConflictDoNothing();
-  }
-}
-
+// Identity comes ONLY from a valid JWT. There is no anonymous / header-based
+// identity: reads are public, writes require a real authenticated account.
 export async function userMiddleware(c: Context, next: Next) {
   const auth = c.req.header('authorization');
   if (auth?.startsWith('Bearer ')) {
@@ -33,20 +22,9 @@ export async function userMiddleware(c: Context, next: Next) {
       c.set('userId', payload.userId);
       c.set('userEmail', payload.email);
     } catch {
-      // token invalid or expired — continue as anonymous
+      // token invalid or expired — continue as anonymous (read-only)
     }
   }
-
-  const legacyId = c.req.header('x-user-id');
-  if (legacyId && !c.get('userId')) {
-    c.set('userId', legacyId);
-  }
-
-  const userId = c.get('userId') as string | undefined;
-  if (userId) {
-    try { await ensureUser(userId); } catch { /* best-effort */ }
-  }
-
   await next();
 }
 
@@ -60,5 +38,3 @@ export function requireAuth(c: Context): JwtPayload | null {
   if (!userId) return null;
   return { userId, email };
 }
-
-export { JWT_SECRET };

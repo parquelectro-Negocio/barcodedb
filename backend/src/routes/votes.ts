@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { db, schema } from '../db';
 import { eq, and, sql } from 'drizzle-orm';
-import { getUserId } from '../middleware/user';
+import { getUserId, requireAuth } from '../middleware/user';
 
 export const votesRouter = new Hono();
 
@@ -26,8 +26,9 @@ const voteSchema = z.object({
 });
 
 votesRouter.post('/:productId', async (c) => {
-  const userId = getUserId(c);
-  if (!userId) return c.json({ error: 'user_required' }, 400);
+  const auth = requireAuth(c);
+  if (!auth) return c.json({ error: 'auth_required' }, 401);
+  const userId = auth.userId;
 
   const productId = c.req.param('productId');
   const raw = await c.req.json();

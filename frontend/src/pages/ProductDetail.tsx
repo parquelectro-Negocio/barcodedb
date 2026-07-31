@@ -201,30 +201,38 @@ function ProductView({ product, barcode, onBack }: { product: any; barcode: stri
       </div>
 
       {/* Vote buttons */}
-      <div className="flex gap-3 mb-8">
-        <button
-          onClick={() => voteMutation.mutate('confirm')}
-          disabled={voteMutation.isPending}
-          className={`px-5 py-2 rounded-lg text-sm font-medium transition-colors ${
-            currentVote === 'confirm'
-              ? 'bg-emerald-600 text-white ring-2 ring-emerald-500'
-              : 'bg-stone-100 text-stone-700 hover:bg-emerald-50 hover:text-emerald-700'
-          }`}
-        >
-          {currentVote === 'confirm' ? '✓ Confirmado' : 'Confirmar datos'}
-        </button>
-        <button
-          onClick={() => voteMutation.mutate('flag')}
-          disabled={voteMutation.isPending}
-          className={`px-5 py-2 rounded-lg text-sm font-medium transition-colors ${
-            currentVote === 'flag'
-              ? 'bg-red-600 text-white ring-2 ring-red-500'
-              : 'bg-stone-100 text-stone-700 hover:bg-red-50 hover:text-red-700'
-          }`}
-        >
-          {currentVote === 'flag' ? '⚑ Reportado' : 'Reportar error'}
-        </button>
-      </div>
+      {user ? (
+        <div className="flex gap-3 mb-8">
+          <button
+            onClick={() => voteMutation.mutate('confirm')}
+            disabled={voteMutation.isPending}
+            className={`px-5 py-2 rounded-lg text-sm font-medium transition-colors ${
+              currentVote === 'confirm'
+                ? 'bg-emerald-600 text-white ring-2 ring-emerald-500'
+                : 'bg-stone-100 text-stone-700 hover:bg-emerald-50 hover:text-emerald-700'
+            }`}
+          >
+            {currentVote === 'confirm' ? '✓ Confirmado' : 'Confirmar datos'}
+          </button>
+          <button
+            onClick={() => voteMutation.mutate('flag')}
+            disabled={voteMutation.isPending}
+            className={`px-5 py-2 rounded-lg text-sm font-medium transition-colors ${
+              currentVote === 'flag'
+                ? 'bg-red-600 text-white ring-2 ring-red-500'
+                : 'bg-stone-100 text-stone-700 hover:bg-red-50 hover:text-red-700'
+            }`}
+          >
+            {currentVote === 'flag' ? '⚑ Reportado' : 'Reportar error'}
+          </button>
+        </div>
+      ) : (
+        <div className="mb-8">
+          <Link to="/login" className="inline-block px-5 py-2 rounded-lg text-sm font-medium bg-stone-100 text-stone-600 hover:bg-stone-200">
+            Iniciá sesión para confirmar o reportar datos
+          </Link>
+        </div>
+      )}
 
       {/* Reportar duplicado */}
       <div className="mt-6 pt-4 border-t border-stone-200">

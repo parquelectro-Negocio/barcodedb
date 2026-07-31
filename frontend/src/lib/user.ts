@@ -1,17 +1,9 @@
-const USER_KEY = 'barcodedb_user_id';
-
-export function getUserId(): string {
-  let id = localStorage.getItem(USER_KEY);
-  if (!id) {
-    id = crypto.randomUUID();
-    localStorage.setItem(USER_KEY, id);
-  }
-  return id;
-}
-
+// Authenticated request headers. Identity is the JWT issued at login/register;
+// there is no anonymous identity. Reads are public (no headers needed); writes
+// require a logged-in account, so the token is attached when present.
 export function apiHeaders(): Record<string, string> {
-  return {
-    'Content-Type': 'application/json',
-    'X-User-Id': getUserId(),
-  };
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const token = localStorage.getItem('auth_token');
+  if (token) headers.authorization = `Bearer ${token}`;
+  return headers;
 }

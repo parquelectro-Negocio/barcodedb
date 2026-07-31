@@ -1,4 +1,4 @@
-import { Routes, Route, Link, useLocation } from 'react-router-dom';
+import { Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
 import { Home } from './pages/Home';
 import { Search } from './pages/Search';
 import { ProductDetail } from './pages/ProductDetail';
@@ -12,7 +12,16 @@ import { StockPage } from './pages/StockPage';
 import { LoginPage } from './pages/LoginPage';
 import { ToastProvider } from './lib/toast';
 import { AuthProvider, useAuth } from './lib/auth';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
+
+// Gate write pages behind a real account. Reads (search, scan, product view)
+// stay public; anything that mutates the global base requires login.
+function RequireAuth({ children }: { children: ReactNode }) {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="text-center py-16 text-stone-400">Cargando...</div>;
+  if (!user) return <Navigate to="/login" replace />;
+  return <>{children}</>;
+}
 
 const NAV_ITEMS = [
   { path: '/search', label: 'Buscar' },
@@ -145,11 +154,11 @@ function AppContent() {
           <Route path="/search" element={<Search />} />
           <Route path="/product/:barcode" element={<ProductDetail />} />
           <Route path="/scan" element={<ScanPage />} />
-          <Route path="/add" element={<AddProduct />} />
-          <Route path="/import" element={<ImportPage />} />
+          <Route path="/add" element={<RequireAuth><AddProduct /></RequireAuth>} />
+          <Route path="/import" element={<RequireAuth><ImportPage /></RequireAuth>} />
           <Route path="/pos" element={<POSPage />} />
           <Route path="/sales" element={<SalesPage />} />
-          <Route path="/edit/:barcode" element={<EditProduct />} />
+          <Route path="/edit/:barcode" element={<RequireAuth><EditProduct /></RequireAuth>} />
           <Route path="/stock" element={<StockPage />} />
           <Route path="/login" element={<LoginPage />} />
         </Routes>

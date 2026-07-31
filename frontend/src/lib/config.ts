@@ -1,5 +1,3 @@
-import { getUserId } from './user';
-
 const PROD_API = 'https://backend-production-f446.up.railway.app';
 export const API_BASE: string = (import.meta as any).env?.VITE_API_URL ?? `${PROD_API}/api`;
 const BACKEND_ORIGIN = PROD_API;
@@ -13,11 +11,7 @@ export function resolveImageUrl(url: string | undefined | null): string {
 export async function uploadImage(file: File): Promise<string> {
   const token = localStorage.getItem('auth_token');
   const headers: Record<string, string> = {};
-  if (token) {
-    headers.authorization = `Bearer ${token}`;
-  } else {
-    headers['x-user-id'] = getUserId();
-  }
+  if (token) headers.authorization = `Bearer ${token}`;
 
   const res = await fetch(`${API_BASE}/images/upload-token`, { method: 'POST', headers });
   if (!res.ok) {

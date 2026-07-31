@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { db, schema } from '../db';
 import { eq, or, sql, and, ne } from 'drizzle-orm';
-import { getUserId, requireAuth } from '../middleware/user';
+import { requireAuth } from '../middleware/user';
 import { slugify } from '../lib/slug';
 
 export const productsRouter = new Hono();
@@ -41,8 +41,11 @@ productsRouter.post('/', async (c) => {
     return c.json({ error: 'validation_error', details: parsed.error.flatten() }, 400);
   }
 
+  const auth = requireAuth(c);
+  if (!auth) return c.json({ error: 'auth_required' }, 401);
+
   const body = parsed.data;
-  const userId = getUserId(c);
+  const userId = auth.userId;
 
   const slugParts = [body.name, body.brand, body.color, body.capacidad, body.largo, body.peso].filter(Boolean);
   const slug = slugify(slugParts.join('-'));
@@ -193,6 +196,9 @@ productsRouter.post('/bulk', async (c) => {
     return c.json({ error: 'validation_error', details: parsed.error.flatten() }, 400);
   }
 
+  const auth = requireAuth(c);
+  if (!auth) return c.json({ error: 'auth_required' }, 401);
+
   const { products, businessSlug } = parsed.data;
   let business: any = null;
 
@@ -206,7 +212,7 @@ productsRouter.post('/bulk', async (c) => {
   const created: any[] = [];
   const errors: { index: number; name: string; error: string }[] = [];
 
-  const userId = getUserId(c);
+  const userId = auth.userId;
 
   for (let i = 0; i < products.length; i++) {
     const p = products[i];
