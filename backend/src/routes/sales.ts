@@ -6,6 +6,14 @@ import { requireAuth } from '../middleware/user';
 
 export const salesRouter = new Hono();
 
+// Thrown inside the sale transaction when the atomic stock guard fails
+// (another sale took the last units first) — rolls the whole sale back.
+class InsufficientStockError extends Error {
+  constructor(public businessProductId: string) {
+    super('insufficient_stock');
+  }
+}
+
 const createSaleSchema = z.object({
   businessId: z.string().uuid(),
   items: z.array(z.object({
@@ -39,7 +47,7 @@ salesRouter.post('/', async (c) => {
   // Fetch all business products with prices
   const bpIds = items.map(i => i.businessProductId);
   const bpResults: any[] = await db.query.businessProducts.findMany({
-    where: inArray(schema.businessProducts.id, bpIds),
+    where: and(inArray(schema.businessProducts.id, bpIds), eq(schema.businessProducts.businessId, businessId)),
     with: { product: true },
   });
 
@@ -71,34 +79,53 @@ salesRouter.post('/', async (c) => {
     });
   }
 
-  // Create sale + items in a transaction
+  // Create sale + items in a transaction. Stock is deducted atomically with a
+  // `stock >= quantity` guard so two concurrent sales can never oversell.
   const change = paymentMethod === 'efectivo' && amountTendered ? String(amountTendered - total) : null;
-  const [sale] = await db.transaction(async (tx) => {
-    const [s] = await tx.insert(schema.sales).values({
-      businessId,
-      total: String(total),
-      paymentMethod: paymentMethod ?? null,
-      amountTendered: amountTendered ? String(amountTendered) : null,
-      change,
-    }).returning();
 
-    for (const si of saleItems) {
-      await tx.insert(schema.saleItems).values({
-        saleId: s.id,
-        businessProductId: si.businessProductId,
-        quantity: si.quantity,
-        unitPrice: si.unitPrice,
-        total: si.total,
-      });
+  let sale: any;
+  try {
+    sale = await db.transaction(async (tx) => {
+      const [s] = await tx.insert(schema.sales).values({
+        businessId,
+        total: String(total),
+        paymentMethod: paymentMethod ?? null,
+        amountTendered: amountTendered ? String(amountTendered) : null,
+        change,
+      }).returning();
 
-      // Deduct stock
-      await tx.execute(
-        sql`UPDATE business_products SET stock = stock - ${si.quantity}, updated_at = now() WHERE id = ${si.businessProductId}`,
-      );
+      for (const si of saleItems) {
+        // Atomic guarded deduction: only succeeds if enough stock is left.
+        const updated: any = await tx.execute(
+          sql`UPDATE business_products SET stock = stock - ${si.quantity}, updated_at = now()
+              WHERE id = ${si.businessProductId} AND stock >= ${si.quantity}
+              RETURNING id`,
+        );
+        const rows = Array.isArray(updated) ? updated : (updated?.rows ?? []);
+        if (rows.length === 0) throw new InsufficientStockError(si.businessProductId);
+
+        await tx.insert(schema.saleItems).values({
+          saleId: s.id,
+          businessProductId: si.businessProductId,
+          quantity: si.quantity,
+          unitPrice: si.unitPrice,
+          total: si.total,
+        });
+      }
+
+      return s;
+    });
+  } catch (err) {
+    if (err instanceof InsufficientStockError) {
+      const bp = bpMap.get(err.businessProductId);
+      return c.json({
+        error: 'insufficient_stock',
+        product: bp?.product?.name,
+        stock: bp?.stock,
+      }, 409);
     }
-
-    return [s];
-  });
+    throw err;
+  }
 
   return c.json({ sale, items: saleItems }, 201);
 });
