@@ -21,7 +21,10 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = new Hono();
 
-app.use('/*', cors());
+// Restrict CORS to an allowlist when CORS_ORIGINS is set (comma-separated).
+// Falls back to permissive in dev / until the env is configured in prod.
+const corsOrigins = process.env.CORS_ORIGINS?.split(',').map(s => s.trim()).filter(Boolean);
+app.use('/*', cors({ origin: corsOrigins && corsOrigins.length > 0 ? corsOrigins : '*' }));
 app.use('/api/*', userMiddleware);
 app.get('/', (c) => c.json({ ok: true, version: '0.1.1' }));
 

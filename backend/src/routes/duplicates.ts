@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { db, schema } from '../db';
 import { eq, and, inArray } from 'drizzle-orm';
-import { requireAuth } from '../middleware/user';
+import { requireAuth, isModerator } from '../middleware/user';
 
 export const duplicatesRouter = new Hono();
 
@@ -39,6 +39,10 @@ duplicatesRouter.post('/report', async (c) => {
 });
 
 duplicatesRouter.get('/', async (c) => {
+  const auth = requireAuth(c);
+  if (!auth) return c.json({ error: 'auth_required' }, 401);
+  if (!(await isModerator(auth.userId))) return c.json({ error: 'forbidden_moderator_only' }, 403);
+
   const status = c.req.query('status') || 'pending';
   const rows = await db.query.duplicateReports.findMany({
     where: eq(schema.duplicateReports.status, status),
@@ -55,6 +59,7 @@ duplicatesRouter.get('/', async (c) => {
 duplicatesRouter.post('/:id/reject', async (c) => {
   const payload = requireAuth(c);
   if (!payload) return c.json({ error: 'unauthorized' }, 401);
+  if (!(await isModerator(payload.userId))) return c.json({ error: 'forbidden_moderator_only' }, 403);
 
   const { id } = c.req.param();
   const [updated] = await db.update(schema.duplicateReports)
@@ -68,6 +73,7 @@ duplicatesRouter.post('/:id/reject', async (c) => {
 duplicatesRouter.post('/:id/merge', async (c) => {
   const payload = requireAuth(c);
   if (!payload) return c.json({ error: 'unauthorized' }, 401);
+  if (!(await isModerator(payload.userId))) return c.json({ error: 'forbidden_moderator_only' }, 403);
 
   const { id } = c.req.param();
   const report = await db.query.duplicateReports.findFirst({

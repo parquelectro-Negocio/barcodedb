@@ -6,6 +6,7 @@ export const users = pgTable('users', {
   name: text('name').default('').notNull(),
   avatarUrl: text('avatar_url').default('').notNull(),
   passwordHash: text('password_hash').notNull(),
+  isModerator: boolean('is_moderator').default(false).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 

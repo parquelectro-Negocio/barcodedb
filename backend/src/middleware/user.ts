@@ -1,5 +1,7 @@
 import type { Context, Next } from 'hono';
 import jwt from 'jsonwebtoken';
+import { eq } from 'drizzle-orm';
+import { db, schema } from '../db';
 
 const secret = process.env.JWT_SECRET;
 if (!secret) {
@@ -37,4 +39,14 @@ export function requireAuth(c: Context): JwtPayload | null {
   const email = c.get('userEmail');
   if (!userId) return null;
   return { userId, email };
+}
+
+// Moderator check for destructive global-catalog actions (merge/delete).
+// Reads the flag from the DB, not the token, so revoking access is immediate.
+export async function isModerator(userId: string): Promise<boolean> {
+  const user = await db.query.users.findFirst({
+    where: eq(schema.users.id, userId),
+    columns: { isModerator: true },
+  });
+  return !!user?.isModerator;
 }

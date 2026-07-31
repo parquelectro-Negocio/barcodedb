@@ -144,6 +144,8 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash TEXT NOT NULL,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- Migration: moderator flag for destructive global-catalog actions (merge/delete)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_moderator BOOLEAN NOT NULL DEFAULT false;
 
 -- Migration: replace (business_id, product_id, variant_id) unique with (business_id, product_id)
 ALTER TABLE business_products DROP CONSTRAINT IF EXISTS business_products_business_id_product_id_variant_id_key;
