@@ -27,6 +27,7 @@ export function AddProduct() {
   const [normalized, setNormalized] = useState<{ name: string; brand: string | null } | null>(null);
   const [brandInput, setBrandInput] = useState('');
   const [existingWithBc, setExistingWithBc] = useState<any[]>([]);
+  const [imageName, setImageName] = useState('');
 
   useEffect(() => {
     fetch(`${API_BASE}/categories`)
@@ -106,6 +107,9 @@ export function AddProduct() {
           brand: normalized.brand?.toUpperCase() ?? '',
           sku: normalized.sku?.toUpperCase() ?? '',
           color: normalized.color?.toUpperCase() ?? '',
+          capacidad: normalized.capacidad ?? '',
+          largo: normalized.largo ?? '',
+          peso: normalized.peso ?? '',
           description: normalized.description,
           unit: normalized.unit?.toUpperCase() ?? '',
           categoryId: normalized.categoryId || null,
@@ -319,9 +323,23 @@ export function AddProduct() {
             id="product-image"
             type="file"
             accept="image/jpeg,image/png,image/webp,image/gif"
+            onChange={e => setImageName(e.target.files?.[0]?.name ?? '')}
             className="w-full text-sm text-stone-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg
                        file:border-0 file:bg-stone-100 file:text-stone-700 hover:file:bg-stone-200"
           />
+          {imageName && (
+            <button
+              type="button"
+              onClick={() => {
+                const el = document.getElementById('product-image') as HTMLInputElement;
+                if (el) el.value = '';
+                setImageName('');
+              }}
+              className="mt-2 text-xs text-red-500 hover:text-red-600 underline"
+            >
+              Quitar imagen ({imageName})
+            </button>
+          )}
         </div>
 
         {existingWithBc.length > 0 && (

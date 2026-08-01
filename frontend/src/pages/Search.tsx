@@ -111,7 +111,7 @@ export function Search() {
           <p className="text-stone-500 mb-2">No encontramos resultados para "{q}"</p>
           <p className="text-sm text-stone-400 mb-6">¿El producto no está registrado? Agregalo.</p>
           <Link
-            to={`/add?name=${encodeURIComponent(q)}`}
+            to={`/add?${/^\d{6,}$/.test(q.trim()) ? 'barcode' : 'name'}=${encodeURIComponent(q.trim())}`}
             className="btn-primary"
           >
             Agregar producto
