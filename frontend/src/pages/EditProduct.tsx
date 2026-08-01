@@ -80,9 +80,14 @@ export function EditProduct() {
     const fileInput = document.getElementById('edit-product-image') as HTMLInputElement;
     const file = fileInput?.files?.[0];
 
-    try {
-      if (file) imageUrl = await uploadImage(file);
+    // The image is optional — a failed upload must not block saving the product.
+    let imageFailed = false;
+    if (file) {
+      try { imageUrl = await uploadImage(file); }
+      catch { imageFailed = true; }
+    }
 
+    try {
       const res = await fetch(`${API_BASE}/products/${productId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', ...apiHeaders() },
@@ -103,7 +108,10 @@ export function EditProduct() {
         throw new Error(errBody.error || 'Error al guardar');
       }
       queryClient.invalidateQueries({ queryKey: ['product', barcode] });
-      toast('Producto actualizado', 'success');
+      toast(
+        imageFailed ? 'Producto actualizado (la imagen no se pudo subir)' : 'Producto actualizado',
+        imageFailed ? 'info' : 'success',
+      );
       navigate(`/product/${normalized.slug || normalized.barcode}`);
     } catch (err: any) {
       toast(err?.message || 'Error al actualizar el producto', 'error');

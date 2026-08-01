@@ -89,9 +89,14 @@ export function AddProduct() {
     const fileInput = document.getElementById('product-image') as HTMLInputElement;
     const file = fileInput?.files?.[0];
 
-    try {
-      if (file) imageUrl = await uploadImage(file);
+    // The image is optional metadata — a failed upload must not block cataloging.
+    let imageFailed = false;
+    if (file) {
+      try { imageUrl = await uploadImage(file); }
+      catch { imageFailed = true; }
+    }
 
+    try {
       const res = await fetch(`${API_BASE}/products`, {
         method: 'POST',
         headers: apiHeaders(),
@@ -115,7 +120,10 @@ export function AddProduct() {
         return;
       }
       if (!res.ok) throw new Error('Error al guardar');
-      toast('Producto guardado', 'success');
+      toast(
+        imageFailed ? 'Producto guardado (la imagen no se pudo subir — agregala después)' : 'Producto guardado',
+        imageFailed ? 'info' : 'success',
+      );
       setDone(true);
       setTimeout(() => navigate(`/product/${product.slug || product.barcode}`), 1500);
     } catch {
