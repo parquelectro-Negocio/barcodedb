@@ -5,16 +5,17 @@ import { useToast } from '../lib/toast';
 import { API_BASE } from '../lib/config';
 import * as XLSX from 'xlsx';
 
-type MatchItem = { name?: string; barcode?: string; brand?: string; color?: string; capacidad?: string; largo?: string; peso?: string; price?: number; stock?: number };
+type MatchItem = { name?: string; barcode?: string; brand?: string; category?: string; color?: string; capacidad?: string; largo?: string; peso?: string; price?: number; stock?: number };
 type FileRow = Record<string, string>;
 
-const COLUMN_KEYS = ['name', 'barcode', 'brand', 'color', 'capacidad', 'largo', 'peso', 'price', 'stock'] as const;
+const COLUMN_KEYS = ['name', 'barcode', 'brand', 'category', 'color', 'capacidad', 'largo', 'peso', 'price', 'stock'] as const;
 type ColumnKey = typeof COLUMN_KEYS[number];
 
 const COLUMN_LABELS: Record<ColumnKey, string> = {
   name: 'Nombre / Descripcion',
   barcode: 'Codigo de barras',
   brand: 'Marca',
+  category: 'Categoria',
   color: 'Color',
   capacidad: 'Capacidad',
   largo: 'Largo',
@@ -27,6 +28,7 @@ const COMMON_PATTERNS: Record<ColumnKey, string[]> = {
   barcode: ['codigo', 'codigo de barras', 'ean', 'gtin', 'barcode', 'upc'],
   name: ['nombre', 'descripcion', 'producto', 'articulo', 'detalle', 'desc'],
   brand: ['marca', 'brand', 'fabricante'],
+  category: ['categoria', 'category', 'rubro', 'familia', 'seccion'],
   color: ['color', 'colour'],
   capacidad: ['capacidad', 'volumen', 'capacity', 'tamaño', 'contenido'],
   largo: ['largo', 'longitud', 'length', 'medida'],
@@ -192,6 +194,7 @@ export function ImportPage() {
         name: edits.name ?? item.name ?? '',
         barcode: edits.barcode ?? item.barcode ?? '',
         brand: edits.brand ?? item.brand ?? '',
+        category: edits.category ?? item.category ?? '',
         color: edits.color ?? item.color ?? '',
         capacidad: edits.capacidad ?? item.capacidad ?? '',
         largo: edits.largo ?? item.largo ?? '',

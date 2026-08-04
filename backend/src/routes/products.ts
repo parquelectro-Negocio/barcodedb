@@ -175,6 +175,7 @@ const bulkSchema = z.object({
   name: z.string().min(1),
   barcode: z.string().optional().default(''),
   brand: z.string().optional().default(''),
+  category: z.string().optional().default(''),
   sku: z.string().optional().default(''),
   color: z.string().optional().default(''),
   capacidad: z.string().optional().default(''),
@@ -214,6 +215,17 @@ productsRouter.post('/bulk', async (c) => {
 
   const userId = auth.userId;
 
+  // Resolve import category text -> category_id against the existing tree.
+  // No match means no category (we never auto-create categories from imports).
+  const allCats = await db.query.categories.findMany({ columns: { id: true, name: true, slug: true } });
+  const catByKey = new Map<string, string>();
+  for (const cat of allCats) {
+    catByKey.set(cat.name.toLowerCase().trim(), cat.id);
+    catByKey.set(cat.slug.toLowerCase().trim(), cat.id);
+  }
+  const resolveCategory = (text?: string): string | null =>
+    text ? (catByKey.get(text.toLowerCase().trim()) ?? null) : null;
+
   for (let i = 0; i < products.length; i++) {
     const p = products[i];
     try {
@@ -249,6 +261,7 @@ productsRouter.post('/bulk', async (c) => {
           brand: p.brand,
           sku: p.sku,
           color: p.color,
+          categoryId: resolveCategory(p.category),
           attributes: attrs,
           createdBy: userId,
         }).returning();
