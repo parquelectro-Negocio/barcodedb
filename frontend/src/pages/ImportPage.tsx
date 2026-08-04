@@ -46,6 +46,19 @@ function detectColumn(headers: string[], key: ColumnKey): string | null {
   return null;
 }
 
+// A supplier "section title" row (e.g. "Energía /UPS") — not a product. It has
+// no barcode, no price, and a short "Sector /Subcategoría" style name.
+function isHeaderRow(item: MatchItem): boolean {
+  const name = (item.name ?? '').trim();
+  if (!name || item.barcode || (item.price ?? 0) > 0) return false;
+  return name.includes(' /') && name.split(/\s+/).length <= 5;
+}
+
+// The category a section header points to (the sector, before the first slash).
+function headerCategory(name: string): string {
+  return (name.split('/')[0] ?? '').trim();
+}
+
 export function ImportPage() {
   const { toast } = useToast();
   const [text, setText] = useState('');
@@ -107,10 +120,13 @@ export function ImportPage() {
 
   const handleDragOver = (e: React.DragEvent) => e.preventDefault();
 
-  const buildItems = (): MatchItem[] => {
+  const buildItems = (): { items: MatchItem[]; skipped: number } => {
     if (fileRows && fileHeaders) {
       const mappedCols = fileHeaders.filter(h => columnMap[h]);
-      return fileRows.map(row => {
+      const items: MatchItem[] = [];
+      let skipped = 0;
+      let currentCategory = '';
+      for (const row of fileRows) {
         const item: MatchItem = {};
         for (const header of mappedCols) {
           const key = columnMap[header];
@@ -121,14 +137,26 @@ export function ImportPage() {
           else if (key === 'stock') item.stock = parseInt(val) || 0;
           else item[key] = val;
         }
-        return item;
-      }).filter(i => i.name || i.barcode);
+        // Section header: not a product. Remember its category for the rows
+        // below, then skip it.
+        if (isHeaderRow(item)) {
+          currentCategory = headerCategory(item.name!);
+          skipped++;
+          continue;
+        }
+        if (!item.name && !item.barcode) continue;
+        // Inherit the current section's category if the row didn't map one.
+        if (!item.category && currentCategory) item.category = currentCategory;
+        items.push(item);
+      }
+      return { items, skipped };
     }
-    return text.split('\n').map(s => s.trim()).filter(Boolean).map(n => ({ name: n }));
+    const items = text.split('\n').map(s => s.trim()).filter(Boolean).map(n => ({ name: n }));
+    return { items, skipped: 0 };
   };
 
   const handleMatch = async () => {
-    const items = buildItems();
+    const { items, skipped } = buildItems();
     if (items.length === 0) {
       toast('No hay datos para buscar', 'error');
       return;
@@ -153,7 +181,11 @@ export function ImportPage() {
       const data = await res.json();
       setResults(data);
       setEditedItems({});
-      toast(`Encontrados: ${data.matches.length}, Sin match: ${data.unmatched.length}`, 'info');
+      toast(
+        `Encontrados: ${data.matches.length}, Sin match: ${data.unmatched.length}` +
+          (skipped > 0 ? ` · ${skipped} encabezados ignorados` : ''),
+        'info',
+      );
     } catch {
       toast('Error al procesar la lista', 'error');
     } finally {
