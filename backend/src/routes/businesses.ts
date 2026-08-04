@@ -65,6 +65,18 @@ businessesRouter.post('/', async (c) => {
   return c.json(biz, 201);
 });
 
+// The authenticated user's own businesses (loaded from the account, not localStorage).
+// Registered before /:slug so "mine" isn't treated as a slug.
+businessesRouter.get('/mine', async (c) => {
+  const auth = requireAuth(c);
+  if (!auth) return c.json({ error: 'auth_required' }, 401);
+  const mine = await db.query.businesses.findMany({
+    where: eq(schema.businesses.ownerId, auth.userId),
+    orderBy: (b, { asc }) => asc(b.createdAt),
+  });
+  return c.json(mine);
+});
+
 businessesRouter.get('/:slug/stats', async (c) => {
   const owned = await requireOwnedBusiness(c, c.req.param('slug'));
   if (!owned.ok) return c.json({ error: owned.error }, owned.status);

@@ -26,7 +26,12 @@ export function Home() {
   };
 
   useEffect(() => {
-    if (businessSlug) loadStats(businessSlug);
+    if (businessSlug) { loadStats(businessSlug); return; }
+    // No business remembered on this browser — load one from the logged-in account.
+    fetch(`${API_BASE}/businesses/mine`, { headers: apiHeaders() })
+      .then(r => r.ok ? r.json() : [])
+      .then((mine: any[]) => { if (Array.isArray(mine) && mine.length > 0) loadStats(mine[0].slug); })
+      .catch(() => {});
   }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -176,10 +181,16 @@ export function Home() {
           </div>
         </form>
 
-        <div className="flex flex-wrap gap-2 justify-center mb-8 text-sm text-stone-400">
-          <span className="px-3 py-1.5 bg-white border border-stone-200 rounded-lg">Ej: 7790040929604</span>
-          <span className="px-3 py-1.5 bg-white border border-stone-200 rounded-lg">Samsung Galaxy</span>
-          <span className="px-3 py-1.5 bg-white border border-stone-200 rounded-lg">Terrabusi</span>
+        <div className="flex flex-wrap gap-2 justify-center mb-8 text-sm">
+          {['Motherboard', 'RTX 5060', 'Logitech'].map(ej => (
+            <button
+              key={ej}
+              onClick={() => navigate(`/search?q=${encodeURIComponent(ej)}`)}
+              className="px-3 py-1.5 bg-white border border-stone-200 rounded-lg text-stone-500 hover:border-emerald-300 hover:text-emerald-700 transition-colors"
+            >
+              {ej}
+            </button>
+          ))}
         </div>
 
         <div className="flex gap-3">
