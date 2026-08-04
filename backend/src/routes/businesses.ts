@@ -24,6 +24,11 @@ const patchProductSchema = z.object({
   cost: z.union([z.string(), z.number()]).optional(),
 }).strict();
 
+const updateBusinessSchema = z.object({
+  name: z.string().min(1).optional(),
+  sectors: z.array(z.string()).optional(),
+}).strict();
+
 type OwnedBusiness =
   | { ok: true; business: typeof schema.businesses.$inferSelect; userId: string }
   | { ok: false; status: 401 | 403 | 404; error: string };
@@ -117,6 +122,28 @@ businessesRouter.get('/:slug', async (c) => {
   const owned = await requireOwnedBusiness(c, c.req.param('slug'));
   if (!owned.ok) return c.json({ error: owned.error }, owned.status);
   return c.json(owned.business);
+});
+
+// Update the business (name / sectors) — owner only.
+businessesRouter.patch('/:slug', async (c) => {
+  const owned = await requireOwnedBusiness(c, c.req.param('slug'));
+  if (!owned.ok) return c.json({ error: owned.error }, owned.status);
+
+  const parsed = updateBusinessSchema.safeParse(await c.req.json());
+  if (!parsed.success) {
+    return c.json({ error: 'validation_error', details: parsed.error.flatten() }, 400);
+  }
+
+  const updates: Record<string, any> = {};
+  if (parsed.data.name !== undefined) updates.name = parsed.data.name;
+  if (parsed.data.sectors !== undefined) updates.sectors = parsed.data.sectors;
+  if (Object.keys(updates).length === 0) return c.json(owned.business);
+
+  const [updated] = await db.update(schema.businesses)
+    .set(updates)
+    .where(eq(schema.businesses.id, owned.business.id))
+    .returning();
+  return c.json(updated);
 });
 
 businessesRouter.get('/:slug/products', async (c) => {

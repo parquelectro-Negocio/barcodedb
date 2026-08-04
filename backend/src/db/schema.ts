@@ -63,6 +63,7 @@ export const businesses = pgTable('businesses', {
   name: text('name').notNull(),
   slug: text('slug').notNull().unique(),
   plan: text('plan').default('free').notNull(),
+  sectors: text('sectors').array(),
   ownerId: uuid('owner_id').references(() => users.id),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });

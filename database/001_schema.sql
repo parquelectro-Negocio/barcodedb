@@ -159,6 +159,9 @@ END $$;
 -- Migration: add owner_id to businesses
 ALTER TABLE businesses ADD COLUMN IF NOT EXISTS owner_id UUID REFERENCES users(id);
 
+-- Migration: business sectors (top-level category slugs the shop operates in)
+ALTER TABLE businesses ADD COLUMN IF NOT EXISTS sectors TEXT[] NOT NULL DEFAULT '{}';
+
 -- Migration: add created_by to products
 ALTER TABLE products ADD COLUMN IF NOT EXISTS created_by UUID REFERENCES users(id);
 

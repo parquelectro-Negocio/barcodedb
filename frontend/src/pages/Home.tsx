@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { API_BASE } from '../lib/config';
+import { SectorPicker } from '../components/SectorPicker';
 import { apiHeaders } from '../lib/user';
 
 export function Home() {
@@ -67,6 +68,12 @@ export function Home() {
               </button>
             </div>
           )}
+
+          <SectorPicker
+            slug={business.slug}
+            sectors={business.sectors ?? []}
+            onChange={s => setBusiness({ ...business, sectors: s })}
+          />
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
             <div className="card p-4">

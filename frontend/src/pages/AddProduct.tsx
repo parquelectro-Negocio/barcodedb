@@ -28,11 +28,22 @@ export function AddProduct() {
   const [brandInput, setBrandInput] = useState('');
   const [existingWithBc, setExistingWithBc] = useState<any[]>([]);
   const [imageName, setImageName] = useState('');
+  const [bizSectors, setBizSectors] = useState<string[]>([]);
 
   useEffect(() => {
     fetch(`${API_BASE}/categories`)
       .then(r => r.json())
       .then(setCategories)
+      .catch(() => {});
+  }, []);
+
+  // Load the current shop's sectors so its categories surface as quick picks.
+  useEffect(() => {
+    const slug = localStorage.getItem('biz_slug');
+    if (!slug) return;
+    fetch(`${API_BASE}/businesses/${slug}`, { headers: apiHeaders() })
+      .then(r => r.ok ? r.json() : null)
+      .then(b => { if (Array.isArray(b?.sectors)) setBizSectors(b.sectors); })
       .catch(() => {});
   }, []);
 
@@ -153,6 +164,14 @@ export function AddProduct() {
 
   const catName = (id: string) => categories.find(c => c.id === id)?.name ?? '';
 
+  // Categories that belong to the shop's sectors — shown as one-tap chips.
+  const relevantCats = bizSectors.length > 0
+    ? categories.filter(c => {
+        const parent = categories.find(p => p.id === c.parentId);
+        return parent && bizSectors.includes(parent.slug);
+      })
+    : [];
+
   if (done) {
     return (
       <div className="text-center py-16">
@@ -270,11 +289,27 @@ export function AddProduct() {
 
         <div>
           <label className="block text-sm text-stone-500 mb-1">Categoría</label>
+          {relevantCats.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {relevantCats.map(c => (
+                <button
+                  type="button"
+                  key={c.id}
+                  onClick={() => set('categoryId', c.id)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
+                    form.categoryId === c.id ? 'bg-emerald-600 text-white' : 'bg-stone-100 text-stone-600 hover:bg-emerald-50'
+                  }`}
+                >
+                  {c.name}
+                </button>
+              ))}
+            </div>
+          )}
           <Autocomplete
             value={catName(form.categoryId)}
             onChange={(val, opt) => set('categoryId', opt?.value ?? '')}
             onSearch={searchCategories}
-            placeholder="Buscá una categoría..."
+            placeholder="Buscá otra categoría..."
           />
         </div>
 
