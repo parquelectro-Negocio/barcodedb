@@ -4,6 +4,7 @@ import { db, schema } from '../db';
 import { eq, or, sql, and, ne } from 'drizzle-orm';
 import { requireAuth } from '../middleware/user';
 import { slugify } from '../lib/slug';
+import { categorize } from '../lib/categorize';
 
 export const productsRouter = new Hono();
 
@@ -69,6 +70,19 @@ productsRouter.post('/', async (c) => {
   if (body.largo) mergedAttrs.largo = body.largo;
   if (body.peso) mergedAttrs.peso = body.peso;
 
+  // Auto-categorize by name when the user didn't pick a category.
+  let categoryId = body.categoryId ?? null;
+  if (!categoryId) {
+    const slugGuess = categorize(body.name);
+    if (slugGuess) {
+      const cat = await db.query.categories.findFirst({
+        where: eq(schema.categories.slug, slugGuess),
+        columns: { id: true },
+      });
+      categoryId = cat?.id ?? null;
+    }
+  }
+
   const [product] = await db.insert(schema.products).values({
     barcode: body.barcode,
     slug,
@@ -77,7 +91,7 @@ productsRouter.post('/', async (c) => {
     sku: body.sku,
     color: body.color,
     description: body.description,
-    categoryId: body.categoryId ?? null,
+    categoryId,
     imageUrl: body.imageUrl,
     unit: body.unit,
     attributes: mergedAttrs,
@@ -225,6 +239,9 @@ productsRouter.post('/bulk', async (c) => {
   }
   const resolveCategory = (text?: string): string | null =>
     text ? (catByKey.get(text.toLowerCase().trim()) ?? null) : null;
+  // Fallback: auto-categorize by product name when no category was given/matched.
+  const autoCategory = (name: string): string | null =>
+    catByKey.get(categorize(name) ?? '') ?? null;
 
   for (let i = 0; i < products.length; i++) {
     const p = products[i];
@@ -261,7 +278,7 @@ productsRouter.post('/bulk', async (c) => {
           brand: p.brand,
           sku: p.sku,
           color: p.color,
-          categoryId: resolveCategory(p.category),
+          categoryId: resolveCategory(p.category) ?? autoCategory(p.name),
           attributes: attrs,
           createdBy: userId,
         }).returning();
