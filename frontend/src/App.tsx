@@ -23,10 +23,14 @@ function RequireAuth({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
-const NAV_ITEMS = [
+// The collaborative base — public / contribute (available to anyone).
+const BASE_NAV = [
   { path: '/search', label: 'Buscar' },
   { path: '/scan', label: 'Escanear' },
   { path: '/import', label: 'Importar' },
+];
+// Your shop — private, only shown when logged in.
+const SHOP_NAV = [
   { path: '/sales', label: 'Ventas' },
   { path: '/stock', label: 'Stock' },
 ];
@@ -49,7 +53,7 @@ function NavBar() {
         </Link>
 
         <div className="hidden md:flex items-center gap-1">
-          {NAV_ITEMS.map(item => (
+          {BASE_NAV.map(item => (
             <Link
               key={item.path}
               to={item.path}
@@ -62,6 +66,32 @@ function NavBar() {
               {item.label}
             </Link>
           ))}
+
+          {!loading && user && (
+            <>
+              <div className="w-px h-6 bg-stone-200 mx-2" />
+              {SHOP_NAV.map(item => (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive(item.path)
+                      ? 'bg-emerald-50 text-emerald-700'
+                      : 'text-stone-500 hover:text-stone-800 hover:bg-stone-100'
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              ))}
+              <Link
+                to="/pos"
+                className="ml-1 px-4 py-2 rounded-lg text-sm font-medium bg-emerald-600 hover:bg-emerald-500 text-white transition-colors"
+              >
+                Vender
+              </Link>
+            </>
+          )}
+
           <div className="w-px h-6 bg-stone-200 mx-2" />
           {!loading && (
             user ? (
@@ -74,19 +104,9 @@ function NavBar() {
                 </button>
               </div>
             ) : (
-              <Link to="/login" className="text-sm font-medium text-emerald-600 hover:text-emerald-700 px-2">Entrar</Link>
+              <Link to="/login" className="px-4 py-2 rounded-lg text-sm font-medium bg-emerald-600 hover:bg-emerald-500 text-white transition-colors">Entrar</Link>
             )
           )}
-          <Link
-            to="/pos"
-            className={`ml-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              isActive('/pos')
-                ? 'bg-emerald-600 text-white'
-                : 'bg-emerald-600 hover:bg-emerald-500 text-white'
-            }`}
-          >
-            Vender
-          </Link>
         </div>
 
         <button
@@ -107,7 +127,7 @@ function NavBar() {
       {menuOpen && (
         <div className="md:hidden border-t border-stone-200 bg-white animate-fade-in">
           <div className="px-4 py-3 space-y-1">
-            {NAV_ITEMS.map(item => (
+            {BASE_NAV.map(item => (
               <Link
                 key={item.path}
                 to={item.path}
@@ -121,20 +141,44 @@ function NavBar() {
                 {item.label}
               </Link>
             ))}
-            <div className="pt-2 border-t border-stone-100">
+
+            {user && (
+              <>
+                <p className="px-3 pt-3 pb-1 text-xs font-semibold text-stone-400 uppercase tracking-wide">Mi comercio</p>
+                {SHOP_NAV.map(item => (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    onClick={() => setMenuOpen(false)}
+                    className={`block px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                      isActive(item.path)
+                        ? 'bg-emerald-50 text-emerald-700'
+                        : 'text-stone-600 hover:bg-stone-100'
+                    }`}
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+                <Link
+                  to="/pos"
+                  onClick={() => setMenuOpen(false)}
+                  className="block px-3 py-2.5 rounded-lg text-sm font-medium bg-emerald-600 text-white text-center"
+                >
+                  Vender
+                </Link>
+              </>
+            )}
+
+            <div className="pt-2 mt-2 border-t border-stone-100">
               {user ? (
-                <div className="px-3 py-2 text-sm text-stone-500">{user.name || user.email}</div>
+                <div className="px-3 py-2 flex items-center justify-between text-sm text-stone-500">
+                  <span className="truncate mr-2">{user.name || user.email}</span>
+                  <button onClick={() => { logout(); setMenuOpen(false); }} className="text-red-500 hover:text-red-600 text-xs font-medium shrink-0">Salir</button>
+                </div>
               ) : (
-                <Link to="/login" onClick={() => setMenuOpen(false)} className="block px-3 py-2.5 rounded-lg text-sm font-medium text-emerald-600">Entrar</Link>
+                <Link to="/login" onClick={() => setMenuOpen(false)} className="block px-3 py-2.5 rounded-lg text-sm font-medium bg-emerald-600 text-white text-center">Entrar</Link>
               )}
             </div>
-            <Link
-              to="/pos"
-              onClick={() => setMenuOpen(false)}
-              className="block px-3 py-2.5 rounded-lg text-sm font-medium bg-emerald-600 text-white text-center"
-            >
-              Vender
-            </Link>
           </div>
         </div>
       )}
