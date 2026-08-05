@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { db, schema } from '../db';
 import { eq, and, sql } from 'drizzle-orm';
 import { requireAuth } from '../middleware/user';
+import { slugify } from '../lib/slug';
 
 export const businessesRouter = new Hono();
 
@@ -53,14 +54,22 @@ businessesRouter.post('/', async (c) => {
   const auth = requireAuth(c);
   if (!auth) return c.json({ error: 'auth_required' }, 401);
 
-  const { slug, name } = await c.req.json();
-  if (!slug || typeof slug !== 'string') return c.json({ error: 'slug_required' }, 400);
+  const parsed = z.object({
+    name: z.string().min(1),
+    slug: z.string().optional(),
+    sectors: z.array(z.string()).optional(),
+  }).safeParse(await c.req.json());
+  if (!parsed.success) return c.json({ error: 'validation_error', details: parsed.error.flatten() }, 400);
+
+  const name = parsed.data.name.trim();
+  const slug = slugify(parsed.data.slug || name);
+  if (!slug) return c.json({ error: 'slug_required' }, 400);
 
   const existing = await db.query.businesses.findFirst({ where: eq(schema.businesses.slug, slug) });
   if (existing) return c.json({ error: 'slug_taken' }, 409);
 
   const [biz] = await db.insert(schema.businesses)
-    .values({ slug, name: name || slug, ownerId: auth.userId })
+    .values({ slug, name, ownerId: auth.userId, sectors: parsed.data.sectors ?? [] })
     .returning();
   return c.json(biz, 201);
 });

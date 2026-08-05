@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { API_BASE } from '../lib/config';
 import { SectorPicker } from '../components/SectorPicker';
+import { CreateBusinessCard } from '../components/CreateBusinessCard';
 import { apiHeaders } from '../lib/user';
 
 export function Home() {
@@ -12,6 +13,7 @@ export function Home() {
   const [stats, setStats] = useState<any>(null);
   const [statsLoading, setStatsLoading] = useState(false);
   const [showBizInput, setShowBizInput] = useState(false);
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
 
   const loadStats = async (slug: string) => {
     setStatsLoading(true);
@@ -27,10 +29,14 @@ export function Home() {
 
   useEffect(() => {
     if (businessSlug) { loadStats(businessSlug); return; }
-    // No business remembered on this browser — load one from the logged-in account.
+    // No business remembered on this browser — check the logged-in account.
     fetch(`${API_BASE}/businesses/mine`, { headers: apiHeaders() })
-      .then(r => r.ok ? r.json() : [])
-      .then((mine: any[]) => { if (Array.isArray(mine) && mine.length > 0) loadStats(mine[0].slug); })
+      .then(r => r.ok ? r.json() : null)
+      .then((mine: any[] | null) => {
+        if (mine === null) return;                    // not logged in
+        if (mine.length > 0) loadStats(mine[0].slug); // has a shop → load it
+        else setNeedsOnboarding(true);                // logged in, no shop yet → onboard
+      })
       .catch(() => {});
   }, []);
 
@@ -41,6 +47,10 @@ export function Home() {
 
   return (
     <div>
+      {needsOnboarding && !business && (
+        <CreateBusinessCard onCreated={slug => { setNeedsOnboarding(false); loadStats(slug); }} />
+      )}
+
       {/* Business dashboard */}
       {business && stats && (
         <div className="mb-10 animate-slide-up">
