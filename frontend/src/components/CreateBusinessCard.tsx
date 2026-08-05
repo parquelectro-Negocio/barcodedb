@@ -58,7 +58,7 @@ export function CreateBusinessCard({ onCreated }: { onCreated: (slug: string) =>
         value={name}
         onChange={e => setName(e.target.value)}
         onKeyDown={e => e.key === 'Enter' && create()}
-        placeholder="Ej: Parquelectro"
+        placeholder="Ej: Mi Kiosco"
         className="input mb-4"
         autoFocus
       />

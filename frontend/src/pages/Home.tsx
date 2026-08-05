@@ -15,21 +15,8 @@ export function Home() {
   const [showBizInput, setShowBizInput] = useState(false);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
 
-  const loadStats = async (slug: string) => {
-    setStatsLoading(true);
-    try {
-      const [b, s] = await Promise.all([
-        fetch(`${API_BASE}/businesses/${slug}`, { headers: apiHeaders() }).then(r => r.ok ? r.json() : null),
-        fetch(`${API_BASE}/businesses/${slug}/stats`, { headers: apiHeaders() }).then(r => r.ok ? r.json() : null),
-      ]);
-      if (b) { setBusiness(b); setBusinessSlug(slug); localStorage.setItem('biz_slug', slug); }
-      if (s) setStats(s);
-    } catch {} finally { setStatsLoading(false); }
-  };
-
-  useEffect(() => {
-    if (businessSlug) { loadStats(businessSlug); return; }
-    // No business remembered on this browser — check the logged-in account.
+  // Ask the account what shops it owns: load the first, or onboard if it has none.
+  const checkMine = () => {
     fetch(`${API_BASE}/businesses/mine`, { headers: apiHeaders() })
       .then(r => r.ok ? r.json() : null)
       .then((mine: any[] | null) => {
@@ -38,6 +25,30 @@ export function Home() {
         else setNeedsOnboarding(true);                // logged in, no shop yet → onboard
       })
       .catch(() => {});
+  };
+
+  const loadStats = async (slug: string) => {
+    setStatsLoading(true);
+    try {
+      const bRes = await fetch(`${API_BASE}/businesses/${slug}`, { headers: apiHeaders() });
+      if (!bRes.ok) {
+        // Remembered shop isn't accessible (e.g. it belongs to a previous account).
+        // Drop the stale pointer and fall back to what this account actually owns.
+        localStorage.removeItem('biz_slug');
+        setBusinessSlug('');
+        checkMine();
+        return;
+      }
+      const b = await bRes.json();
+      setBusiness(b); setBusinessSlug(slug); localStorage.setItem('biz_slug', slug);
+      const s = await fetch(`${API_BASE}/businesses/${slug}/stats`, { headers: apiHeaders() }).then(r => r.ok ? r.json() : null);
+      if (s) setStats(s);
+    } catch {} finally { setStatsLoading(false); }
+  };
+
+  useEffect(() => {
+    if (businessSlug) { loadStats(businessSlug); return; }
+    checkMine(); // No business remembered on this browser — check the logged-in account.
   }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -45,12 +56,29 @@ export function Home() {
     if (query.trim()) navigate(`/search?q=${encodeURIComponent(query.trim())}`);
   };
 
+  // First run: a logged-in account with no shop yet gets a focused, single-screen
+  // create flow — no landing hero to scroll past, no redundant "configure" button.
+  if (needsOnboarding && !business) {
+    return (
+      <div className="min-h-[75vh] flex flex-col items-center justify-center py-8">
+        <div className="text-center mb-6">
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-50 border border-emerald-200 rounded-full text-xs font-medium text-emerald-700 mb-4">
+            Bienvenido a BarcodeDB
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-stone-900 tracking-tight mb-2">
+            Empecemos por tu comercio
+          </h1>
+          <p className="text-stone-500 max-w-md mx-auto">
+            Creá tu comercio para cargar inventario, vender y llevar el control de tus ventas.
+          </p>
+        </div>
+        <CreateBusinessCard onCreated={slug => { setNeedsOnboarding(false); loadStats(slug); }} />
+      </div>
+    );
+  }
+
   return (
     <div>
-      {needsOnboarding && !business && (
-        <CreateBusinessCard onCreated={slug => { setNeedsOnboarding(false); loadStats(slug); }} />
-      )}
-
       {/* Business dashboard */}
       {business && stats && (
         <div className="mb-10 animate-slide-up">

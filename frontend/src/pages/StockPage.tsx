@@ -32,7 +32,13 @@ export function StockPage() {
     setBusError('');
     try {
       const res = await fetch(`${API_BASE}/businesses/${slug}`, { headers: apiHeaders() });
-      if (!res.ok) { setBusError(res.status === 403 ? 'Ese comercio no es tuyo' : 'Comercio no encontrado'); setLoading(false); return; }
+      if (!res.ok) {
+        // Stale pointer to a shop this account doesn't own — forget it so it won't auto-load again.
+        if (res.status === 403) { localStorage.removeItem('biz_slug'); setBusinessSlug(''); }
+        setBusError(res.status === 403 ? 'Ese comercio no es tuyo' : 'Comercio no encontrado');
+        setLoading(false);
+        return;
+      }
       const b = await res.json();
       setBusiness(b);
       localStorage.setItem('biz_slug', slug);
