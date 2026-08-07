@@ -23,6 +23,16 @@ export function HelpDrawer() {
 
   return (
     <>
+      {/* Always-present, unobtrusive re-entry (works even if the floating button was dismissed) */}
+      <div className="mt-2 mb-6 text-center">
+        <button
+          onClick={() => setOpen(true)}
+          className="text-sm text-stone-400 hover:text-emerald-600 underline underline-offset-2 transition-colors"
+        >
+          ¿Cómo usar BarcodeDB?
+        </button>
+      </div>
+
       {/* Floating trigger (dismissable) */}
       {!hidden && (
         <div className="fixed bottom-5 right-5 z-30">
