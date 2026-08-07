@@ -52,7 +52,7 @@ export function Search() {
   return (
     <div>
       <form onSubmit={handleSubmit} className="mb-6">
-        <div className="relative max-w-xl">
+        <div className="relative">
           <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
@@ -142,7 +142,7 @@ export function Search() {
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold truncate text-stone-900 group-hover:text-emerald-700 transition-colors">{product.name}</p>
+                  <p className="font-semibold line-clamp-2 text-stone-900 group-hover:text-emerald-700 transition-colors">{product.name}</p>
                   <div className="flex items-center gap-3 text-sm text-stone-400 mt-0.5">
                     {product.brand && <span>{product.brand}</span>}
                     <span className="font-mono text-xs">{product.barcode}</span>

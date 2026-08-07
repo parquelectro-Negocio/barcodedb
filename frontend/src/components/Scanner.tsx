@@ -8,9 +8,30 @@ type Props = {
 export function Scanner({ onDetect, onClose }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const trackRef = useRef<MediaStreamTrack | null>(null);
   const detectedRef = useRef(false);
   const [error, setError] = useState('');
   const [detecting, setDetecting] = useState(false);
+  const [hasTorch, setHasTorch] = useState(false);
+  const [torchOn, setTorchOn] = useState(false);
+  const [zoomRange, setZoomRange] = useState<{ min: number; max: number; step: number } | null>(null);
+  const [zoom, setZoom] = useState(1);
+
+  const toggleTorch = async () => {
+    const track = trackRef.current;
+    if (!track) return;
+    try {
+      await track.applyConstraints({ advanced: [{ torch: !torchOn } as any] });
+      setTorchOn(v => !v);
+    } catch { /* torch unsupported on this device */ }
+  };
+
+  const applyZoom = async (v: number) => {
+    const track = trackRef.current;
+    if (!track) return;
+    setZoom(v);
+    try { await track.applyConstraints({ advanced: [{ zoom: v } as any] }); } catch { /* ignore */ }
+  };
 
   useEffect(() => {
     let quagga: any;
@@ -31,13 +52,20 @@ export function Scanner({ onDetect, onClose }: Props) {
 
         // Nudge the camera into continuous autofocus when supported (modern
         // Android/Samsung). Small barcodes up close need constant re-focusing.
+        // Also expose torch/zoom controls when the device reports them.
         try {
           const track = streamRef.current.getVideoTracks()[0];
-          const caps: any = track?.getCapabilities?.();
-          if (caps?.focusMode?.includes('continuous')) {
+          trackRef.current = track;
+          const caps: any = track?.getCapabilities?.() ?? {};
+          if (caps.focusMode?.includes('continuous')) {
             await track.applyConstraints({ advanced: [{ focusMode: 'continuous' } as any] });
           }
-        } catch { /* focus hint is best-effort */ }
+          if (caps.torch) setHasTorch(true);
+          if (caps.zoom && caps.zoom.max > caps.zoom.min) {
+            setZoomRange({ min: caps.zoom.min, max: caps.zoom.max, step: caps.zoom.step || 0.1 });
+            setZoom(caps.zoom.min);
+          }
+        } catch { /* capability hints are best-effort */ }
       } catch {
         setError('No se pudo acceder a la cámara.');
         return;
@@ -158,19 +186,51 @@ export function Scanner({ onDetect, onClose }: Props) {
             <p className="text-red-400 text-lg">{error}</p>
           </div>
         )}
+        {hasTorch && (
+          <button
+            onClick={toggleTorch}
+            aria-label="Linterna"
+            className={`absolute top-4 right-4 w-12 h-12 rounded-full flex items-center justify-center transition-colors ${
+              torchOn ? 'bg-amber-400 text-stone-900' : 'bg-black/50 text-white'
+            }`}
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          </button>
+        )}
         {!error && (
           <p className="absolute bottom-24 text-slate-300 text-sm bg-black/40 px-3 py-1.5 rounded-lg">
             {detecting ? 'Apuntá al código dentro del recuadro' : 'Iniciando cámara...'}
           </p>
         )}
       </div>
-      <div className="p-6 flex justify-center">
-        <button
-          onClick={onClose}
-          className="px-8 py-3 bg-stone-800 rounded-xl text-white text-lg font-medium"
-        >
-          Cancelar
-        </button>
+      <div className="px-6 pb-6 pt-2 space-y-4">
+        {zoomRange && (
+          <div className="flex items-center gap-3 max-w-sm mx-auto">
+            <svg className="w-5 h-5 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7" />
+            </svg>
+            <input
+              type="range"
+              min={zoomRange.min}
+              max={zoomRange.max}
+              step={zoomRange.step}
+              value={zoom}
+              onChange={e => applyZoom(parseFloat(e.target.value))}
+              className="flex-1 accent-emerald-500"
+              aria-label="Zoom"
+            />
+          </div>
+        )}
+        <div className="flex justify-center">
+          <button
+            onClick={onClose}
+            className="px-8 py-3 bg-stone-800 rounded-xl text-white text-lg font-medium"
+          >
+            Cancelar
+          </button>
+        </div>
       </div>
     </div>
   );
