@@ -4,6 +4,7 @@ import { API_BASE } from '../lib/config';
 import { SectorPicker } from '../components/SectorPicker';
 import { CreateBusinessCard } from '../components/CreateBusinessCard';
 import { BarcodeStrip } from '../components/BarcodeStrip';
+import { HelpDrawer } from '../components/HelpDrawer';
 import { apiHeaders } from '../lib/user';
 
 export function Home() {
@@ -265,35 +266,6 @@ export function Home() {
         </Link>
       </div>
 
-      {/* Guide */}
-      <details className="card overflow-hidden open:ring-1 open:ring-emerald-500/30 mb-6">
-        <summary className="px-5 py-4 font-semibold text-emerald-700 cursor-pointer select-none hover:bg-stone-50 transition-colors">
-          Como usar BarcodeDB
-        </summary>
-        <div className="px-5 pb-5 space-y-4 text-sm text-stone-600 border-t border-stone-100 pt-4">
-          <div>
-            <p className="font-medium text-stone-800 mb-1">1. Buscar un producto</p>
-            <p>Escribí el nombre, la marca o el código de barras en la barra de búsqueda. Si el código no está registrado, te da la opción de agregarlo.</p>
-          </div>
-          <div>
-            <p className="font-medium text-stone-800 mb-1">2. Escanear con la cámara</p>
-            <p>Andá a <Link to="/scan" className="text-emerald-600 underline">Escanear</Link> y apuntá la cámara al código de barras. Te lleva directo al producto.</p>
-          </div>
-          <div>
-            <p className="font-medium text-stone-800 mb-1">3. Agregar un producto nuevo</p>
-            <p>Si un producto no existe, toca <Link to="/add" className="text-emerald-600 underline">Agregar producto</Link>. Completá nombre, marca, SKU, categoría y una foto.</p>
-          </div>
-          <div>
-            <p className="font-medium text-stone-800 mb-1">4. Armar tu inventario</p>
-            <p>Cuando ves un producto, podés ponerle tu precio y stock para tener tu catálogo personal. Después usalo en <Link to="/pos" className="text-emerald-600 underline">Vender</Link>.</p>
-          </div>
-          <div>
-            <p className="font-medium text-stone-800 mb-1">5. Importar desde Excel</p>
-            <p>Andá a <Link to="/import" className="text-emerald-600 underline">Importar</Link> y subí un archivo con tu lista de productos. El sistema busca coincidencias y crea los que falten.</p>
-          </div>
-        </div>
-      </details>
-
       {/* Not configured state */}
       {!business && !statsLoading && (
         <div className="text-center">
@@ -321,6 +293,8 @@ export function Home() {
           )}
         </div>
       )}
+
+      <HelpDrawer />
     </div>
   );
 }
