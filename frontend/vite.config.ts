@@ -18,8 +18,8 @@ export default defineConfig({
         name: 'BarcodeDB',
         short_name: 'BarcodeDB',
         description: 'Base colaborativa de productos por código de barras',
-        theme_color: '#0f172a',
-        background_color: '#0f172a',
+        theme_color: '#059669',
+        background_color: '#fafaf9',
         display: 'standalone',
         start_url: '/',
         icons: [
