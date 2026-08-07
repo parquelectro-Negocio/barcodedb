@@ -18,8 +18,15 @@ export default {
         'fade-in': 'fadeIn 0.2s ease-out',
         'scale-in': 'scaleIn 0.2s ease-out',
         'shimmer': 'shimmer 2s infinite linear',
+        'scan': 'scan 2.8s ease-in-out infinite',
       },
       keyframes: {
+        scan: {
+          '0%': { left: '-3rem', opacity: '0' },
+          '4%': { opacity: '1' },
+          '96%': { opacity: '1' },
+          '100%': { left: '100%', opacity: '0' },
+        },
         slideUp: {
           '0%': { transform: 'translateY(1rem)', opacity: '0' },
           '100%': { transform: 'translateY(0)', opacity: '1' },

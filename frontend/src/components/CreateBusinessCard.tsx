@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { API_BASE } from '../lib/config';
 import { apiHeaders } from '../lib/user';
 import { useToast } from '../lib/toast';
+import { BarcodeStrip } from './BarcodeStrip';
 
 type Cat = { id: string; name: string; slug: string; parentId: string | null };
 
@@ -48,6 +49,7 @@ export function CreateBusinessCard({ onCreated }: { onCreated: (slug: string) =>
 
   return (
     <div className="max-w-lg mx-auto card p-6 mb-8">
+      <BarcodeStrip />
       <h2 className="text-xl font-bold text-stone-800 mb-1">Creá tu comercio</h2>
       <p className="text-sm text-stone-500 mb-5">
         En 2 minutos: ponele nombre, elegí qué vendés y empezá a cargar tu inventario.
