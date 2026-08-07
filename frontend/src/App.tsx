@@ -11,6 +11,7 @@ import { EditProduct } from './pages/EditProduct';
 import { StockPage } from './pages/StockPage';
 import { LoginPage } from './pages/LoginPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { PwaUpdatePrompt } from './components/PwaUpdatePrompt';
 import { ToastProvider } from './lib/toast';
 import { AuthProvider, useAuth } from './lib/auth';
 import { resolveImageUrl } from './lib/config';
@@ -224,6 +225,7 @@ function AppContent() {
           <Route path="/login" element={<LoginPage />} />
         </Routes>
       </main>
+      <PwaUpdatePrompt />
     </div>
   );
 }
