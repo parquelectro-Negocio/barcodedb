@@ -20,9 +20,23 @@ export function Scanner({ onDetect, onClose }: Props) {
     const start = async () => {
       try {
         streamRef.current = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment' },
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+          },
         });
         if (videoRef.current) videoRef.current.srcObject = streamRef.current;
+
+        // Nudge the camera into continuous autofocus when supported (modern
+        // Android/Samsung). Small barcodes up close need constant re-focusing.
+        try {
+          const track = streamRef.current.getVideoTracks()[0];
+          const caps: any = track?.getCapabilities?.();
+          if (caps?.focusMode?.includes('continuous')) {
+            await track.applyConstraints({ advanced: [{ focusMode: 'continuous' } as any] });
+          }
+        } catch { /* focus hint is best-effort */ }
       } catch {
         setError('No se pudo acceder a la cámara.');
         return;
