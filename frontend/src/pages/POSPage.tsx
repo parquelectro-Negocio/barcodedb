@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { apiHeaders } from '../lib/user';
 import { matchesQuery } from '../lib/match';
 import { useToast } from '../lib/toast';
-import { API_BASE } from '../lib/config';
+import { API_BASE, resolveImageUrl } from '../lib/config';
 import { Link } from 'react-router-dom';
 import { Scanner } from '../components/Scanner';
 
@@ -208,6 +208,10 @@ export function POSPage() {
   if (receipt) {
     return (
       <div className="max-w-md mx-auto text-center py-8">
+        {business?.logoUrl && (
+          <img src={resolveImageUrl(business.logoUrl)} alt="" className="w-16 h-16 rounded-xl object-cover mx-auto mb-2" />
+        )}
+        {business?.name && <p className="font-semibold text-stone-800 mb-3">{business.name}</p>}
         <div className="text-emerald-600 text-5xl mb-4">✓</div>
         <h2 className="text-2xl font-bold mb-2">Venta registrada</h2>
         <p className="text-stone-500 mb-6 font-mono text-sm">{receipt.sale.id.slice(0, 8)}...</p>
@@ -348,6 +352,9 @@ export function POSPage() {
 
       <div className="mb-6">
         <div className="flex gap-3 items-center">
+          {business?.logoUrl && (
+            <img src={resolveImageUrl(business.logoUrl)} alt="" className="w-8 h-8 rounded-lg object-cover shrink-0" />
+          )}
           <p className="text-sm text-emerald-600 font-medium">{business?.name}</p>
           <button
             onClick={() => { setBusiness(null); setCatalog([]); setCart([]); setBusinessSlug(''); }}

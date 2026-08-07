@@ -99,12 +99,10 @@ function NavBar() {
             user ? (
               <div className="flex items-center gap-2">
                 <Link to="/profile" className="flex items-center gap-2 group" title="Mi perfil">
-                  <div className="w-8 h-8 rounded-full overflow-hidden bg-emerald-100 flex items-center justify-center text-emerald-700 text-xs font-bold shrink-0">
-                    {user.avatarUrl
-                      ? <img src={resolveImageUrl(user.avatarUrl)} alt="" className="w-full h-full object-cover" />
-                      : (user.name || user.email).slice(0, 2).toUpperCase()}
-                  </div>
-                  <span className="text-sm text-stone-600 group-hover:text-stone-900 font-medium truncate max-w-[110px] transition-colors">{user.name || user.email}</span>
+                  {user.avatarUrl && (
+                    <img src={resolveImageUrl(user.avatarUrl)} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
+                  )}
+                  <span className="text-sm text-stone-600 group-hover:text-stone-900 font-medium truncate max-w-[140px] transition-colors">{user.name || user.email}</span>
                 </Link>
                 <button onClick={logout} className="text-sm text-stone-400 hover:text-red-500 transition-colors" title="Cerrar sesión">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

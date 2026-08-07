@@ -27,6 +27,7 @@ export function Scanner({ onDetect, onClose }: Props) {
           },
         });
         if (videoRef.current) videoRef.current.srcObject = streamRef.current;
+        setDetecting(true); // camera is live — drop the "Iniciando cámara" hint
 
         // Nudge the camera into continuous autofocus when supported (modern
         // Android/Samsung). Small barcodes up close need constant re-focusing.
@@ -43,6 +44,11 @@ export function Scanner({ onDetect, onClose }: Props) {
       }
 
       const Quagga = await import('quagga');
+
+      // Confirm a code only after reading the SAME value a few times in a row.
+      // A single frame can misdecode (wrong digits); consecutive agreement filters that out.
+      let lastCode = '';
+      let sameCount = 0;
 
       // Try native BarcodeDetector first
       if ('BarcodeDetector' in window) {
@@ -69,10 +75,15 @@ export function Scanner({ onDetect, onClose }: Props) {
             const codes = await bd.detect(canvas);
             for (const code of codes) {
               if (code.rawValue) {
-                detectedRef.current = true;
-                cleanup();
-                onDetect(code.rawValue);
-                return;
+                if (code.rawValue === lastCode) sameCount++;
+                else { lastCode = code.rawValue; sameCount = 1; }
+                if (sameCount >= 2) {
+                  detectedRef.current = true;
+                  cleanup();
+                  onDetect(code.rawValue);
+                  return;
+                }
+                break; // one candidate per frame
               }
             }
           } catch { /* frame skip */ }
@@ -104,7 +115,11 @@ export function Scanner({ onDetect, onClose }: Props) {
       Quagga.default.onDetected((data: any) => {
         if (detectedRef.current) return;
         const code = data?.codeResult?.code;
-        if (code) {
+        if (!code) return;
+        // Quagga is noisier than the native detector — require 3 agreeing reads.
+        if (code === lastCode) sameCount++;
+        else { lastCode = code; sameCount = 1; }
+        if (sameCount >= 3) {
           detectedRef.current = true;
           cleanup();
           onDetect(code);
@@ -143,8 +158,10 @@ export function Scanner({ onDetect, onClose }: Props) {
             <p className="text-red-400 text-lg">{error}</p>
           </div>
         )}
-        {!detecting && !error && (
-          <p className="absolute bottom-24 text-slate-400 text-sm">Iniciando cámara...</p>
+        {!error && (
+          <p className="absolute bottom-24 text-slate-300 text-sm bg-black/40 px-3 py-1.5 rounded-lg">
+            {detecting ? 'Apuntá al código dentro del recuadro' : 'Iniciando cámara...'}
+          </p>
         )}
       </div>
       <div className="p-6 flex justify-center">

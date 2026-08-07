@@ -15,6 +15,7 @@ export function ProfilePage() {
 
   const [currentPw, setCurrentPw] = useState('');
   const [newPw, setNewPw] = useState('');
+  const [confirmPw, setConfirmPw] = useState('');
   const [changingPw, setChangingPw] = useState(false);
 
   const [business, setBusiness] = useState<any>(null);
@@ -67,6 +68,7 @@ export function ProfilePage() {
 
   const changePassword = async () => {
     if (newPw.length < 6) { toast('La nueva contraseña debe tener al menos 6 caracteres', 'error'); return; }
+    if (newPw !== confirmPw) { toast('Las contraseñas nuevas no coinciden', 'error'); return; }
     setChangingPw(true);
     try {
       const res = await fetch(`${API_BASE}/auth/change-password`, {
@@ -78,7 +80,7 @@ export function ProfilePage() {
         toast(data.error === 'invalid_current_password' ? 'La contraseña actual no es correcta' : 'No se pudo cambiar la contraseña', 'error');
         return;
       }
-      setCurrentPw(''); setNewPw('');
+      setCurrentPw(''); setNewPw(''); setConfirmPw('');
       toast('Contraseña actualizada', 'success');
     } catch { toast('Error al cambiar la contraseña', 'error'); }
     finally { setChangingPw(false); }
@@ -161,8 +163,10 @@ export function ProfilePage() {
         <label className="label">Contraseña actual</label>
         <input type="password" value={currentPw} onChange={e => setCurrentPw(e.target.value)} className="input mb-3" autoComplete="current-password" />
         <label className="label">Nueva contraseña</label>
-        <input type="password" value={newPw} onChange={e => setNewPw(e.target.value)} className="input mb-4" autoComplete="new-password" placeholder="Mínimo 6 caracteres" />
-        <button onClick={changePassword} disabled={changingPw || !currentPw || !newPw} className="btn-primary">
+        <input type="password" value={newPw} onChange={e => setNewPw(e.target.value)} className="input mb-3" autoComplete="new-password" placeholder="Mínimo 6 caracteres" />
+        <label className="label">Repetir nueva contraseña</label>
+        <input type="password" value={confirmPw} onChange={e => setConfirmPw(e.target.value)} className={`input mb-4 ${confirmPw && confirmPw !== newPw ? 'ring-2 ring-red-400' : ''}`} autoComplete="new-password" placeholder="Repetí la nueva contraseña" />
+        <button onClick={changePassword} disabled={changingPw || !currentPw || !newPw || !confirmPw} className="btn-primary">
           {changingPw ? 'Cambiando...' : 'Cambiar contraseña'}
         </button>
       </div>
