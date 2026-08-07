@@ -10,8 +10,10 @@ import { SalesPage } from './pages/SalesPage';
 import { EditProduct } from './pages/EditProduct';
 import { StockPage } from './pages/StockPage';
 import { LoginPage } from './pages/LoginPage';
+import { ProfilePage } from './pages/ProfilePage';
 import { ToastProvider } from './lib/toast';
 import { AuthProvider, useAuth } from './lib/auth';
+import { resolveImageUrl } from './lib/config';
 import { useState, type ReactNode } from 'react';
 
 // Gate write pages behind a real account. Reads (search, scan, product view)
@@ -96,7 +98,14 @@ function NavBar() {
           {!loading && (
             user ? (
               <div className="flex items-center gap-2">
-                <span className="text-sm text-stone-600 font-medium truncate max-w-[120px]">{user.name || user.email}</span>
+                <Link to="/profile" className="flex items-center gap-2 group" title="Mi perfil">
+                  <div className="w-8 h-8 rounded-full overflow-hidden bg-emerald-100 flex items-center justify-center text-emerald-700 text-xs font-bold shrink-0">
+                    {user.avatarUrl
+                      ? <img src={resolveImageUrl(user.avatarUrl)} alt="" className="w-full h-full object-cover" />
+                      : (user.name || user.email).slice(0, 2).toUpperCase()}
+                  </div>
+                  <span className="text-sm text-stone-600 group-hover:text-stone-900 font-medium truncate max-w-[110px] transition-colors">{user.name || user.email}</span>
+                </Link>
                 <button onClick={logout} className="text-sm text-stone-400 hover:text-red-500 transition-colors" title="Cerrar sesión">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -171,10 +180,19 @@ function NavBar() {
 
             <div className="pt-2 mt-2 border-t border-stone-100">
               {user ? (
-                <div className="px-3 py-2 flex items-center justify-between text-sm text-stone-500">
-                  <span className="truncate mr-2">{user.name || user.email}</span>
-                  <button onClick={() => { logout(); setMenuOpen(false); }} className="text-red-500 hover:text-red-600 text-xs font-medium shrink-0">Salir</button>
-                </div>
+                <>
+                  <Link
+                    to="/profile"
+                    onClick={() => setMenuOpen(false)}
+                    className="block px-3 py-2.5 rounded-lg text-sm font-medium text-stone-600 hover:bg-stone-100"
+                  >
+                    Mi perfil
+                  </Link>
+                  <div className="px-3 py-2 flex items-center justify-between text-sm text-stone-500">
+                    <span className="truncate mr-2">{user.name || user.email}</span>
+                    <button onClick={() => { logout(); setMenuOpen(false); }} className="text-red-500 hover:text-red-600 text-xs font-medium shrink-0">Salir</button>
+                  </div>
+                </>
               ) : (
                 <Link to="/login" onClick={() => setMenuOpen(false)} className="block px-3 py-2.5 rounded-lg text-sm font-medium bg-emerald-600 text-white text-center">Entrar</Link>
               )}
@@ -204,6 +222,7 @@ function AppContent() {
           <Route path="/sales" element={<RequireAuth><SalesPage /></RequireAuth>} />
           <Route path="/edit/:barcode" element={<RequireAuth><EditProduct /></RequireAuth>} />
           <Route path="/stock" element={<RequireAuth><StockPage /></RequireAuth>} />
+          <Route path="/profile" element={<RequireAuth><ProfilePage /></RequireAuth>} />
           <Route path="/login" element={<LoginPage />} />
         </Routes>
       </main>

@@ -15,6 +15,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name?: string) => Promise<void>;
   logout: () => void;
+  updateUser: (patch: Partial<User>) => void;
   authHeaders: () => Record<string, string>;
 }
 
@@ -71,8 +72,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
+  const updateUser = useCallback((patch: Partial<User>) => {
+    setUser(prev => (prev ? { ...prev, ...patch } : prev));
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout, authHeaders }}>
+    <AuthContext.Provider value={{ user, token, loading, login, register, logout, updateUser, authHeaders }}>
       {children}
     </AuthContext.Provider>
   );

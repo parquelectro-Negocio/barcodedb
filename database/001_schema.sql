@@ -191,3 +191,6 @@ CREATE TABLE IF NOT EXISTS duplicate_reports (
 );
 CREATE INDEX IF NOT EXISTS idx_duplicate_reports_status ON duplicate_reports(status);
 CREATE INDEX IF NOT EXISTS idx_duplicate_reports_reported ON duplicate_reports(reported_id);
+
+-- Migration: business logo
+ALTER TABLE businesses ADD COLUMN IF NOT EXISTS logo_url TEXT NOT NULL DEFAULT '';

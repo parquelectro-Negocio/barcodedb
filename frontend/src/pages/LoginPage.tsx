@@ -12,6 +12,7 @@ export function LoginPage() {
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [showForgot, setShowForgot] = useState(false);
 
   if (user) {
     navigate('/', { replace: true });
@@ -123,6 +124,19 @@ export function LoginPage() {
               <>¿Ya tenés cuenta?{' '}<button type="button" onClick={() => { setMode('login'); setError(''); }} className="text-emerald-600 font-medium hover:text-emerald-500">Iniciá sesión</button></>
             )}
           </p>
+
+          {mode === 'login' && (
+            <div className="text-center">
+              <button type="button" onClick={() => setShowForgot(v => !v)} className="text-xs text-stone-400 hover:text-stone-600">
+                ¿Olvidaste tu contraseña?
+              </button>
+              {showForgot && (
+                <p className="text-xs text-stone-500 mt-2 bg-stone-50 border border-stone-100 rounded-lg px-3 py-2 text-left">
+                  Por ahora el restablecimiento es asistido: escribile al administrador y te genera una nueva. Pronto vas a poder recuperarla solo.
+                </p>
+              )}
+            </div>
+          )}
         </form>
       </div>
     </div>

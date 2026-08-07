@@ -28,6 +28,7 @@ const patchProductSchema = z.object({
 const updateBusinessSchema = z.object({
   name: z.string().min(1).optional(),
   sectors: z.array(z.string()).optional(),
+  logoUrl: z.string().url().or(z.literal('')).optional(),
 }).strict();
 
 type OwnedBusiness =
@@ -158,6 +159,7 @@ businessesRouter.patch('/:slug', async (c) => {
   const updates: Record<string, any> = {};
   if (parsed.data.name !== undefined) updates.name = parsed.data.name;
   if (parsed.data.sectors !== undefined) updates.sectors = parsed.data.sectors;
+  if (parsed.data.logoUrl !== undefined) updates.logoUrl = parsed.data.logoUrl;
   if (Object.keys(updates).length === 0) return c.json(owned.business);
 
   const [updated] = await db.update(schema.businesses)
