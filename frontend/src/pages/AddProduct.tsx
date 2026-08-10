@@ -29,6 +29,7 @@ export function AddProduct() {
   const [existingWithBc, setExistingWithBc] = useState<any[]>([]);
   const [imageName, setImageName] = useState('');
   const [bizSectors, setBizSectors] = useState<string[]>([]);
+  const [aiLoading, setAiLoading] = useState(false);
 
   useEffect(() => {
     fetch(`${API_BASE}/categories`)
@@ -56,6 +57,38 @@ export function AddProduct() {
   }, [form.categoryId]);
 
   const set = (field: string, value: any) => setForm(f => ({ ...f, [field]: value }));
+
+  // Ask the backend (Gemini) to fill brand/category/description/color from the
+  // name. Only fills fields the user left empty — never overwrites their input.
+  const enrichWithAI = async () => {
+    if (!form.name?.trim()) { toast('Escribí un nombre primero', 'error'); return; }
+    setAiLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/products/ai-enrich`, {
+        method: 'POST',
+        headers: apiHeaders(),
+        body: JSON.stringify({ name: form.name, barcode: form.barcode }),
+      });
+      if (res.status === 503) { toast('La IA todavía no está configurada', 'info'); return; }
+      if (!res.ok) { toast('La IA no pudo completar los datos', 'error'); return; }
+      const d = await res.json();
+      setForm(f => {
+        const next = { ...f };
+        if (d.brand && !f.brand) next.brand = d.brand.toUpperCase();
+        if (d.color && !f.color) next.color = d.color.toUpperCase();
+        if (d.capacidad && !f.capacidad) next.capacidad = d.capacidad.toUpperCase();
+        if (d.description && !f.description) next.description = d.description;
+        if (d.category && !f.categoryId) {
+          const cat = categories.find(c => c.name.toLowerCase() === String(d.category).toLowerCase());
+          if (cat) next.categoryId = cat.id;
+        }
+        return next;
+      });
+      if (d.brand && !form.brand) setBrandInput(d.brand.toUpperCase());
+      toast('Datos sugeridos por IA — revisalos antes de guardar', 'success');
+    } catch { toast('Error al conectar con la IA', 'error'); }
+    finally { setAiLoading(false); }
+  };
 
   // When barcode changes, check for existing products
   useEffect(() => {
@@ -207,6 +240,16 @@ export function AddProduct() {
               Sugerencia: {normalized.name?.toUpperCase()}{normalized.brand ? ` · ${normalized.brand?.toUpperCase()}` : ''} (click para aplicar)
             </button>
           )}
+          <div className="mt-2">
+            <button
+              type="button"
+              onClick={enrichWithAI}
+              disabled={aiLoading || !form.name?.trim()}
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg px-3 py-1.5 disabled:opacity-50 transition-colors"
+            >
+              ✨ {aiLoading ? 'Completando...' : 'Autocompletar con IA'}
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4">

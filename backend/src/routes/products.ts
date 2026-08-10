@@ -35,6 +35,70 @@ productsRouter.get('/:identifier', async (c) => {
   return c.json({ products: results, conflict: results.length > 1 });
 });
 
+// AI-assisted enrichment: given a product name (+ optional barcode), ask Gemini
+// to fill brand/category/description/color. Optional feature — returns 503 when
+// GEMINI_API_KEY isn't set, so the app works fine without it.
+productsRouter.post('/ai-enrich', async (c) => {
+  const auth = requireAuth(c);
+  if (!auth) return c.json({ error: 'auth_required' }, 401);
+
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) return c.json({ error: 'ai_not_configured' }, 503);
+
+  const body = await c.req.json().catch(() => ({}));
+  const name = typeof body.name === 'string' ? body.name.trim() : '';
+  const barcode = typeof body.barcode === 'string' ? body.barcode.trim() : '';
+  if (!name) return c.json({ error: 'name_required' }, 400);
+
+  const cats = await db.query.categories.findMany({ columns: { name: true } });
+  const catNames = [...new Set(cats.map(x => x.name))];
+
+  const prompt =
+    `Sos un asistente para un catálogo de productos en Argentina. ` +
+    `Completá los datos del producto a partir de su nombre${barcode ? ' y su código de barras' : ''}. ` +
+    `Para "category" elegí EXACTAMENTE UNA opción de la lista provista; si ninguna encaja dejala vacía. ` +
+    `"description" es una frase corta en español. Si no sabés un campo, devolvé "".\n` +
+    `Nombre: ${name}\n${barcode ? `Código de barras: ${barcode}\n` : ''}`;
+
+  const responseSchema = {
+    type: 'object',
+    properties: {
+      brand: { type: 'string' },
+      category: { type: 'string', enum: catNames },
+      description: { type: 'string' },
+      color: { type: 'string' },
+      capacidad: { type: 'string' },
+    },
+  };
+
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { responseMimeType: 'application/json', responseSchema, temperature: 0.2 },
+        }),
+      },
+    );
+    if (!res.ok) return c.json({ error: 'ai_error' }, 502);
+    const data: any = await res.json();
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '{}';
+    const f = JSON.parse(text);
+    return c.json({
+      brand: f.brand ?? '',
+      category: f.category ?? '',
+      description: f.description ?? '',
+      color: f.color ?? '',
+      capacidad: f.capacidad ?? '',
+    });
+  } catch {
+    return c.json({ error: 'ai_error' }, 502);
+  }
+});
+
 productsRouter.post('/', async (c) => {
   const raw = await c.req.json();
   const parsed = createSchema.safeParse(raw);
