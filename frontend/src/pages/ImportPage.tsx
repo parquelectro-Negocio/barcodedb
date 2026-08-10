@@ -5,10 +5,10 @@ import { useToast } from '../lib/toast';
 import { API_BASE } from '../lib/config';
 import * as XLSX from 'xlsx';
 
-type MatchItem = { name?: string; barcode?: string; brand?: string; category?: string; color?: string; capacidad?: string; largo?: string; peso?: string; price?: number; stock?: number };
+type MatchItem = { name?: string; barcode?: string; brand?: string; category?: string; color?: string; capacidad?: string; largo?: string; peso?: string; cost?: number; price?: number; stock?: number };
 type FileRow = Record<string, string>;
 
-const COLUMN_KEYS = ['name', 'barcode', 'brand', 'category', 'color', 'capacidad', 'largo', 'peso', 'price', 'stock'] as const;
+const COLUMN_KEYS = ['name', 'barcode', 'brand', 'category', 'color', 'capacidad', 'largo', 'peso', 'cost', 'price', 'stock'] as const;
 type ColumnKey = typeof COLUMN_KEYS[number];
 
 const COLUMN_LABELS: Record<ColumnKey, string> = {
@@ -20,6 +20,7 @@ const COLUMN_LABELS: Record<ColumnKey, string> = {
   capacidad: 'Capacidad',
   largo: 'Largo',
   peso: 'Peso',
+  cost: 'Costo',
   price: 'Precio',
   stock: 'Stock',
 };
@@ -33,7 +34,8 @@ const COMMON_PATTERNS: Record<ColumnKey, string[]> = {
   capacidad: ['capacidad', 'volumen', 'capacity', 'tamaño', 'contenido'],
   largo: ['largo', 'longitud', 'length', 'medida'],
   peso: ['peso', 'weight', 'gramos', 'kg', 'kilogramo'],
-  price: ['precio', 'precio venta', 'price', 'pvp'],
+  cost: ['costo', 'cost', 'compra', 'neto', 'precio compra', 'costo compra'],
+  price: ['precio', 'precio venta', 'price', 'pvp', 'venta'],
   stock: ['stock', 'cantidad', 'existencia', 'inventario', 'qty'],
 };
 
@@ -134,6 +136,7 @@ export function ImportPage() {
           const val = row[header]?.trim();
           if (!val) continue;
           if (key === 'price') item.price = parseFloat(val.replace(/[$,]/g, '')) || 0;
+          else if (key === 'cost') item.cost = parseFloat(val.replace(/[$,]/g, '')) || 0;
           else if (key === 'stock') item.stock = parseInt(val) || 0;
           else item[key] = val;
         }
@@ -204,6 +207,7 @@ export function ImportPage() {
           headers: apiHeaders(),
           body: JSON.stringify({
             productId: m.id,
+            cost: item.cost ?? 0,
             price: item.price ?? 0,
             stock: item.stock ?? 0,
           }),
@@ -231,6 +235,7 @@ export function ImportPage() {
         capacidad: edits.capacidad ?? item.capacidad ?? '',
         largo: edits.largo ?? item.largo ?? '',
         peso: edits.peso ?? item.peso ?? '',
+        cost: edits.cost ?? item.cost ?? 0,
         price: edits.price ?? item.price ?? 0,
         stock: edits.stock ?? item.stock ?? 0,
       };
@@ -416,6 +421,7 @@ function UnmatchedItem({
   const capacidad = edits.capacidad ?? item.capacidad ?? '';
   const largo = edits.largo ?? item.largo ?? '';
   const peso = edits.peso ?? item.peso ?? '';
+  const cost = edits.cost ?? item.cost ?? 0;
   const price = edits.price ?? item.price ?? 0;
   const stock = edits.stock ?? item.stock ?? 0;
 
@@ -440,7 +446,7 @@ function UnmatchedItem({
             className="w-full px-2 py-1 text-xs font-mono bg-stone-50 border border-stone-200 rounded focus:outline-none focus:ring-1 focus:ring-emerald-500"
           />
         </div>
-        <div className="col-span-2">
+        <div className="col-span-1">
           <input
             type="text"
             value={brand}
@@ -490,9 +496,20 @@ function UnmatchedItem({
             type="number"
             min="0"
             step="0.01"
+            value={cost}
+            onChange={e => onEdit(index, 'cost', parseFloat(e.target.value) || 0)}
+            placeholder="Costo"
+            className="w-full px-2 py-1 text-xs font-mono bg-stone-50 border border-stone-200 rounded focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          />
+        </div>
+        <div className="col-span-1">
+          <input
+            type="number"
+            min="0"
+            step="0.01"
             value={price}
             onChange={e => onEdit(index, 'price', parseFloat(e.target.value) || 0)}
-            placeholder="$"
+            placeholder="$ Venta"
             className="w-full px-2 py-1 text-xs font-mono bg-stone-50 border border-stone-200 rounded focus:outline-none focus:ring-1 focus:ring-emerald-500"
           />
         </div>
@@ -520,7 +537,7 @@ function MatchResults({ results, businessSlug, onAddToBusiness, onCreateUnmatche
   const unmatched = (results.unmatched ?? []) as MatchItem[];
   const items: MatchItem[] = results.items ?? [];
   const navigate = useNavigate();
-  const hasPriceOrStock = unmatched.some(u => (u.price ?? 0) > 0 || (u.stock ?? 0) > 0);
+  const hasPriceOrStock = unmatched.some(u => (u.price ?? 0) > 0 || (u.stock ?? 0) > 0 || (u.cost ?? 0) > 0);
 
   return (
     <div className="space-y-6">
@@ -572,11 +589,12 @@ function MatchResults({ results, businessSlug, onAddToBusiness, onCreateUnmatche
             <div className="text-xs text-stone-400 mb-2 grid grid-cols-12 gap-2 px-1">
               <span className="col-span-2">Nombre</span>
               <span className="col-span-2">Código barras</span>
-              <span className="col-span-2">Marca</span>
+              <span className="col-span-1">Marca</span>
               <span className="col-span-1">Color</span>
               <span className="col-span-1">Cap.</span>
               <span className="col-span-1">Largo</span>
               <span className="col-span-1">Peso</span>
+              <span className="col-span-1">Costo</span>
               <span className="col-span-1">Precio</span>
               <span className="col-span-1">Stock</span>
             </div>

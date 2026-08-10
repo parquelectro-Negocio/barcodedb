@@ -298,7 +298,7 @@ productsRouter.post('/bulk', async (c) => {
         await db.insert(schema.productAliases).values(aliasList);
       }
 
-      if (business && (p.price > 0 || p.stock > 0)) {
+      if (business && (p.price > 0 || p.stock > 0 || p.cost > 0)) {
         await db.insert(schema.businessProducts).values({
           businessId: business.id,
           productId: product.id,
