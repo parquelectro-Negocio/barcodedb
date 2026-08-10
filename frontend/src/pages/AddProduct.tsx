@@ -30,6 +30,7 @@ export function AddProduct() {
   const [imageName, setImageName] = useState('');
   const [bizSectors, setBizSectors] = useState<string[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
+  const [aiUsed, setAiUsed] = useState(false);
 
   useEffect(() => {
     fetch(`${API_BASE}/categories`)
@@ -85,6 +86,7 @@ export function AddProduct() {
         return next;
       });
       if (d.brand && !form.brand) setBrandInput(d.brand.toUpperCase());
+      setAiUsed(true);
       toast('Datos sugeridos por IA — revisalos antes de guardar', 'success');
     } catch { toast('Error al conectar con la IA', 'error'); }
     finally { setAiLoading(false); }
@@ -244,11 +246,12 @@ export function AddProduct() {
             <button
               type="button"
               onClick={enrichWithAI}
-              disabled={aiLoading || !form.name?.trim()}
+              disabled={aiLoading}
               className="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg px-3 py-1.5 disabled:opacity-50 transition-colors"
             >
               ✨ {aiLoading ? 'Completando...' : 'Autocompletar con IA'}
             </button>
+            <span className="ml-2 text-xs text-stone-400">Escribí el nombre y la IA completa el resto</span>
           </div>
         </div>
 
@@ -439,6 +442,13 @@ export function AddProduct() {
             <p className="text-xs text-amber-600 mt-2">
               Si es un producto diferente, completá los campos y guardá igual.
             </p>
+          </div>
+        )}
+
+        {aiUsed && (
+          <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+            <span className="shrink-0">⚠️</span>
+            <p>Algunos datos los completó la IA. <strong>Verificá que sean correctos</strong> (marca, categoría, descripción) antes de guardar — a veces se equivoca.</p>
           </div>
         )}
 

@@ -112,16 +112,23 @@ businessesRouter.get('/:slug/stats', async (c) => {
   // Estimated profit per period: (sale price − current product cost) × qty.
   // Uses the product's CURRENT cost (sale-time cost isn't stored), so it's an
   // estimate; it's only meaningful for products that have a cost loaded.
-  const [profitAgg]: any = await db.execute(
-    sql`SELECT
-          COALESCE(SUM(CASE WHEN s.created_at >= ${today}    THEN (si.unit_price - bp.cost) * si.quantity END)::numeric, 0) AS today,
-          COALESCE(SUM(CASE WHEN s.created_at >= ${weekAgo}  THEN (si.unit_price - bp.cost) * si.quantity END)::numeric, 0) AS week,
-          COALESCE(SUM(CASE WHEN s.created_at >= ${monthAgo} THEN (si.unit_price - bp.cost) * si.quantity END)::numeric, 0) AS month
-        FROM sales s
-        JOIN sale_items si ON si.sale_id = s.id
-        JOIN business_products bp ON bp.id = si.business_product_id
-        WHERE s.business_id = ${bizId} AND s.created_at >= ${monthAgo}`
-  );
+  // Wrapped so a profit-calc failure never breaks the whole dashboard.
+  let profit = { today: '0', week: '0', month: '0' };
+  try {
+    const [profitAgg]: any = await db.execute(
+      sql`SELECT
+            COALESCE(SUM(CASE WHEN s.created_at >= ${today}    THEN (si.unit_price - bp.cost) * si.quantity END)::numeric, 0) AS today,
+            COALESCE(SUM(CASE WHEN s.created_at >= ${weekAgo}  THEN (si.unit_price - bp.cost) * si.quantity END)::numeric, 0) AS week,
+            COALESCE(SUM(CASE WHEN s.created_at >= ${monthAgo} THEN (si.unit_price - bp.cost) * si.quantity END)::numeric, 0) AS month
+          FROM sales s
+          JOIN sale_items si ON si.sale_id = s.id
+          JOIN business_products bp ON bp.id = si.business_product_id
+          WHERE s.business_id = ${bizId} AND s.created_at >= ${monthAgo}`
+    );
+    profit = { today: profitAgg.today, week: profitAgg.week, month: profitAgg.month };
+  } catch (err) {
+    console.error(`[stats] profit query failed for ${bizId}:`, err);
+  }
 
   const lowStock = await db.query.businessProducts.findMany({
     where: and(
@@ -141,7 +148,7 @@ businessesRouter.get('/:slug/stats', async (c) => {
     today: todayAgg,
     week: weekAgg,
     month: monthAgg,
-    profit: { today: profitAgg.today, week: profitAgg.week, month: profitAgg.month },
+    profit,
     lowStock: lowStock.map((bp: any) => ({
       id: bp.id,
       productName: bp.product.name,
