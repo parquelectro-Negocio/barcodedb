@@ -39,6 +39,13 @@ app.route('/api/categories', categoriesRouter);
 app.route('/api/votes', votesRouter);
 app.route('/api/sales', salesRouter);
 
+// Global error handler: log method + path + stack so a 500 in production is
+// immediately traceable in the logs (Hono's default logs a context-free error).
+app.onError((err, c) => {
+  console.error(`[500] ${c.req.method} ${c.req.path} —`, err);
+  return c.json({ error: 'internal_error' }, 500);
+});
+
 const ssl = process.env.SSL === 'true';
 const port = parseInt(process.env.PORT ?? (ssl ? '3443' : '3001'));
 

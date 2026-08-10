@@ -109,6 +109,20 @@ businessesRouter.get('/:slug/stats', async (c) => {
     sql`SELECT COUNT(*)::int as count, COALESCE(SUM(total)::numeric, 0) as total FROM sales WHERE business_id = ${bizId} AND created_at >= ${monthAgo}`
   );
 
+  // Estimated profit per period: (sale price − current product cost) × qty.
+  // Uses the product's CURRENT cost (sale-time cost isn't stored), so it's an
+  // estimate; it's only meaningful for products that have a cost loaded.
+  const [profitAgg]: any = await db.execute(
+    sql`SELECT
+          COALESCE(SUM(CASE WHEN s.created_at >= ${today}    THEN (si.unit_price - bp.cost) * si.quantity END)::numeric, 0) AS today,
+          COALESCE(SUM(CASE WHEN s.created_at >= ${weekAgo}  THEN (si.unit_price - bp.cost) * si.quantity END)::numeric, 0) AS week,
+          COALESCE(SUM(CASE WHEN s.created_at >= ${monthAgo} THEN (si.unit_price - bp.cost) * si.quantity END)::numeric, 0) AS month
+        FROM sales s
+        JOIN sale_items si ON si.sale_id = s.id
+        JOIN business_products bp ON bp.id = si.business_product_id
+        WHERE s.business_id = ${bizId} AND s.created_at >= ${monthAgo}`
+  );
+
   const lowStock = await db.query.businessProducts.findMany({
     where: and(
       eq(schema.businessProducts.businessId, bizId),
@@ -127,6 +141,7 @@ businessesRouter.get('/:slug/stats', async (c) => {
     today: todayAgg,
     week: weekAgg,
     month: monthAgg,
+    profit: { today: profitAgg.today, week: profitAgg.week, month: profitAgg.month },
     lowStock: lowStock.map((bp: any) => ({
       id: bp.id,
       productName: bp.product.name,

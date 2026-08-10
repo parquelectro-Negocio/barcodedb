@@ -125,16 +125,19 @@ export function Home() {
               <p className="text-xs text-stone-400 uppercase tracking-wider mb-1">Ventas hoy</p>
               <p className="text-2xl font-bold text-stone-800">${parseFloat(stats.today.total || '0').toFixed(2)}</p>
               <p className="text-xs text-stone-400 mt-0.5">{stats.today.count} ventas</p>
+              {stats.profit && <p className="text-xs text-emerald-600 font-medium mt-0.5">Ganancia ${parseFloat(stats.profit.today || '0').toFixed(2)}</p>}
             </div>
             <div className="card p-4">
               <p className="text-xs text-stone-400 uppercase tracking-wider mb-1">Esta semana</p>
               <p className="text-2xl font-bold text-stone-800">${parseFloat(stats.week.total || '0').toFixed(2)}</p>
               <p className="text-xs text-stone-400 mt-0.5">{stats.week.count} ventas</p>
+              {stats.profit && <p className="text-xs text-emerald-600 font-medium mt-0.5">Ganancia ${parseFloat(stats.profit.week || '0').toFixed(2)}</p>}
             </div>
             <div className="card p-4">
               <p className="text-xs text-stone-400 uppercase tracking-wider mb-1">Este mes</p>
               <p className="text-2xl font-bold text-stone-800">${parseFloat(stats.month.total || '0').toFixed(2)}</p>
               <p className="text-xs text-stone-400 mt-0.5">{stats.month.count} ventas</p>
+              {stats.profit && <p className="text-xs text-emerald-600 font-medium mt-0.5">Ganancia ${parseFloat(stats.profit.month || '0').toFixed(2)}</p>}
             </div>
             <div className="card p-4">
               <p className="text-xs text-stone-400 uppercase tracking-wider mb-1">Productos</p>
