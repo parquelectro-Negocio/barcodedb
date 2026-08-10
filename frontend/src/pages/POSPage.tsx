@@ -195,7 +195,9 @@ export function POSPage() {
       }
 
       const data = await res.json();
-      setReceipt(data);
+      // Snapshot the cart (with product names) before clearing it, so the
+      // receipt and the shareable ticket can list what was actually sold.
+      setReceipt({ ...data, lines: cart.map(i => ({ name: i.productName, quantity: i.quantity, total: i.price * i.quantity })) });
       setCart([]);
       setShowPayment(false);
     } catch {
@@ -203,6 +205,36 @@ export function POSPage() {
     } finally {
       setCheckingOut(false);
     }
+  };
+
+  const shareReceipt = async () => {
+    const r = receipt;
+    const lines = (r.lines ?? []).map((l: any) => `${l.quantity}x ${l.name} — $${l.total.toFixed(2)}`).join('\n');
+    const pay = r.sale.paymentMethod === 'efectivo' ? 'Efectivo'
+      : r.sale.paymentMethod === 'transferencia' ? 'Transferencia'
+      : r.sale.paymentMethod ? 'Otro' : '';
+    const text = [
+      business?.name ?? 'Comprobante',
+      `Comprobante #${r.sale.id.slice(0, 8)}`,
+      r.sale.createdAt ? new Date(r.sale.createdAt).toLocaleString('es-AR') : '',
+      '',
+      lines,
+      '',
+      `Total: $${parseFloat(r.sale.total).toFixed(2)}`,
+      pay ? `Pago: ${pay}` : '',
+      r.sale.change ? `Vuelto: $${parseFloat(r.sale.change).toFixed(2)}` : '',
+      '',
+      '¡Gracias por tu compra!',
+    ].filter(l => l !== undefined && l !== null).join('\n');
+
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: `Comprobante ${business?.name ?? ''}`.trim(), text });
+      } else {
+        await navigator.clipboard.writeText(text);
+        toast('Comprobante copiado al portapapeles', 'success');
+      }
+    } catch { /* user dismissed the share sheet */ }
   };
 
   if (receipt) {
@@ -216,10 +248,10 @@ export function POSPage() {
         <h2 className="text-2xl font-bold mb-2">Venta registrada</h2>
         <p className="text-stone-500 mb-6 font-mono text-sm">{receipt.sale.id.slice(0, 8)}...</p>
         <div className="bg-white border border-stone-200 rounded-xl p-6 mb-6 text-left shadow-sm">
-          {receipt.items.map((item: any, i: number) => (
-            <div key={i} className="flex justify-between text-sm py-1">
-              <span>{item.quantity}x</span>
-              <span className="text-stone-700">${parseFloat(item.total).toFixed(2)}</span>
+          {(receipt.lines ?? receipt.items).map((item: any, i: number) => (
+            <div key={i} className="flex justify-between text-sm py-1 gap-3">
+              <span className="text-stone-700">{item.quantity}x {item.name ?? ''}</span>
+              <span className="text-stone-700 shrink-0">${parseFloat(item.total).toFixed(2)}</span>
             </div>
           ))}
           <div className="border-t border-stone-200 mt-3 pt-3 flex justify-between font-bold">
@@ -234,12 +266,23 @@ export function POSPage() {
             </div>
           )}
         </div>
-        <button
-          onClick={() => setReceipt(null)}
-          className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 rounded-xl font-medium"
-        >
-          Nueva venta
-        </button>
+        <div className="flex gap-3 justify-center">
+          <button
+            onClick={shareReceipt}
+            className="px-5 py-3 bg-white border border-emerald-300 text-emerald-700 hover:bg-emerald-50 rounded-xl font-medium flex items-center gap-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+            </svg>
+            Compartir
+          </button>
+          <button
+            onClick={() => setReceipt(null)}
+            className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-medium"
+          >
+            Nueva venta
+          </button>
+        </div>
       </div>
     );
   }
