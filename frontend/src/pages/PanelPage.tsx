@@ -147,6 +147,17 @@ export function PanelPage() {
             </div>
           </div>
 
+          {stats.profit && (
+            <div className="flex items-start gap-2 text-xs text-stone-500 bg-stone-50 border border-stone-200 rounded-lg p-3 mb-5">
+              <span className="shrink-0">💡</span>
+              <p>
+                La <strong>ganancia</strong> es estimada: se calcula como <strong>precio de venta − costo</strong>.
+                Cargá el <strong>costo</strong> de cada producto (en <strong>Stock</strong> o al importar tu lista) para que sea real.
+                Un producto sin costo cuenta toda su venta como ganancia, así que el número te va a quedar inflado.
+              </p>
+            </div>
+          )}
+
           {stats.lowStock.length > 0 && (
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5">
               <p className="text-sm font-semibold text-amber-800 mb-2">
