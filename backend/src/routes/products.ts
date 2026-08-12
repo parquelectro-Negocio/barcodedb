@@ -35,6 +35,36 @@ productsRouter.get('/:identifier', async (c) => {
   return c.json({ products: results, conflict: results.length > 1 });
 });
 
+// Google keeps retiring named models for new keys, so instead of hardcoding one
+// we ask the API which models THIS key can use and pick a flash-class one that
+// supports generateContent. Cached after the first successful resolution.
+let cachedGeminiModel: string | null = null;
+
+async function resolveGeminiModel(key: string): Promise<string | null> {
+  if (cachedGeminiModel) return cachedGeminiModel;
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}&pageSize=200`);
+    if (!res.ok) {
+      console.error(`[ai-enrich] ListModels HTTP ${res.status}: ${(await res.text().catch(() => '')).slice(0, 400)}`);
+      return null;
+    }
+    const data: any = await res.json();
+    const usable: any[] = (data.models ?? []).filter((m: any) => (m.supportedGenerationMethods ?? []).includes('generateContent'));
+    const flash = usable.find((m: any) => /flash/i.test(m.name) && !/vision|thinking|image|tts|live/i.test(m.name));
+    const pick: string | undefined = (flash ?? usable[0])?.name;
+    if (pick) {
+      cachedGeminiModel = pick.replace(/^models\//, '');
+      console.log(`[ai-enrich] using Gemini model: ${cachedGeminiModel}`);
+    } else {
+      console.error('[ai-enrich] no generateContent-capable model available to this key');
+    }
+    return cachedGeminiModel;
+  } catch (err) {
+    console.error('[ai-enrich] ListModels failed:', err);
+    return null;
+  }
+}
+
 // AI-assisted enrichment: given a product name (+ optional barcode), ask Gemini
 // to fill brand/category/description/color. Optional feature — returns 503 when
 // GEMINI_API_KEY isn't set, so the app works fine without it.
@@ -65,9 +95,12 @@ productsRouter.post('/ai-enrich', async (c) => {
     `- Completá SOLO los campos que correspondan al producto; el resto dejalo como "".\n` +
     `Nombre: ${name}\n${barcode ? `Código de barras: ${barcode}\n` : ''}`;
 
+  const model = await resolveGeminiModel(key);
+  if (!model) return c.json({ error: 'ai_no_model' }, 502);
+
   try {
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
       {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -79,7 +112,8 @@ productsRouter.post('/ai-enrich', async (c) => {
     );
     if (!res.ok) {
       const errBody = await res.text().catch(() => '');
-      console.error(`[ai-enrich] Gemini HTTP ${res.status}: ${errBody.slice(0, 600)}`);
+      console.error(`[ai-enrich] Gemini (${model}) HTTP ${res.status}: ${errBody.slice(0, 600)}`);
+      if (res.status === 404) cachedGeminiModel = null; // model went away — re-resolve next time
       return c.json({ error: 'ai_error', status: res.status }, 502);
     }
     const data: any = await res.json();
