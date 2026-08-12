@@ -100,13 +100,13 @@ businessesRouter.get('/:slug/stats', async (c) => {
   monthAgo.setMonth(monthAgo.getMonth() - 1);
 
   const [todayAgg] = await db.execute(
-    sql`SELECT COUNT(*)::int as count, COALESCE(SUM(total)::numeric, 0) as total FROM sales WHERE business_id = ${bizId} AND created_at >= ${today}`
+    sql`SELECT COUNT(*)::int as count, COALESCE(SUM(total)::numeric, 0) as total FROM sales WHERE business_id = ${bizId} AND created_at >= ${today.toISOString()}`
   );
   const [weekAgg] = await db.execute(
-    sql`SELECT COUNT(*)::int as count, COALESCE(SUM(total)::numeric, 0) as total FROM sales WHERE business_id = ${bizId} AND created_at >= ${weekAgo}`
+    sql`SELECT COUNT(*)::int as count, COALESCE(SUM(total)::numeric, 0) as total FROM sales WHERE business_id = ${bizId} AND created_at >= ${weekAgo.toISOString()}`
   );
   const [monthAgg] = await db.execute(
-    sql`SELECT COUNT(*)::int as count, COALESCE(SUM(total)::numeric, 0) as total FROM sales WHERE business_id = ${bizId} AND created_at >= ${monthAgo}`
+    sql`SELECT COUNT(*)::int as count, COALESCE(SUM(total)::numeric, 0) as total FROM sales WHERE business_id = ${bizId} AND created_at >= ${monthAgo.toISOString()}`
   );
 
   // Estimated profit per period: (sale price − current product cost) × qty.
@@ -117,13 +117,13 @@ businessesRouter.get('/:slug/stats', async (c) => {
   try {
     const [profitAgg]: any = await db.execute(
       sql`SELECT
-            COALESCE(SUM(CASE WHEN s.created_at >= ${today}    THEN (si.unit_price - bp.cost) * si.quantity END)::numeric, 0) AS today,
-            COALESCE(SUM(CASE WHEN s.created_at >= ${weekAgo}  THEN (si.unit_price - bp.cost) * si.quantity END)::numeric, 0) AS week,
-            COALESCE(SUM(CASE WHEN s.created_at >= ${monthAgo} THEN (si.unit_price - bp.cost) * si.quantity END)::numeric, 0) AS month
+            COALESCE(SUM(CASE WHEN s.created_at >= ${today.toISOString()}    THEN (si.unit_price - bp.cost) * si.quantity END)::numeric, 0) AS today,
+            COALESCE(SUM(CASE WHEN s.created_at >= ${weekAgo.toISOString()}  THEN (si.unit_price - bp.cost) * si.quantity END)::numeric, 0) AS week,
+            COALESCE(SUM(CASE WHEN s.created_at >= ${monthAgo.toISOString()} THEN (si.unit_price - bp.cost) * si.quantity END)::numeric, 0) AS month
           FROM sales s
           JOIN sale_items si ON si.sale_id = s.id
           JOIN business_products bp ON bp.id = si.business_product_id
-          WHERE s.business_id = ${bizId} AND s.created_at >= ${monthAgo}`
+          WHERE s.business_id = ${bizId} AND s.created_at >= ${monthAgo.toISOString()}`
     );
     profit = { today: profitAgg.today, week: profitAgg.week, month: profitAgg.month };
   } catch (err) {
