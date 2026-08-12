@@ -55,21 +55,15 @@ productsRouter.post('/ai-enrich', async (c) => {
 
   const prompt =
     `Sos un asistente para un catálogo de productos en Argentina. ` +
-    `Completá los datos del producto a partir de su nombre${barcode ? ' y su código de barras' : ''}. ` +
-    `Para "category" elegí EXACTAMENTE UNA opción de la lista provista; si ninguna encaja dejala vacía. ` +
-    `"description" es una frase corta en español. Si no sabés un campo, devolvé "".\n` +
+    `A partir del nombre del producto${barcode ? ' y su código de barras' : ''}, devolvé SOLO un objeto JSON con esta forma exacta:\n` +
+    `{"brand": "", "category": "", "description": "", "color": "", "capacidad": "", "largo": "", "peso": ""}\n` +
+    `- "category": elegí EXACTAMENTE UNA de esta lista, o "" si ninguna encaja: ${catNames.join(', ')}\n` +
+    `- "description": una frase corta en español.\n` +
+    `- "capacidad": capacidad/volumen/memoria si aplica (ej: "128GB", "500ml"), sino "".\n` +
+    `- "largo": longitud/medida si aplica (ej: "2m", "50cm"), sino "".\n` +
+    `- "peso": peso si aplica (ej: "1kg", "500g"), sino "".\n` +
+    `- Completá SOLO los campos que correspondan al producto; el resto dejalo como "".\n` +
     `Nombre: ${name}\n${barcode ? `Código de barras: ${barcode}\n` : ''}`;
-
-  const responseSchema = {
-    type: 'object',
-    properties: {
-      brand: { type: 'string' },
-      category: { type: 'string', enum: catNames },
-      description: { type: 'string' },
-      color: { type: 'string' },
-      capacidad: { type: 'string' },
-    },
-  };
 
   try {
     const res = await fetch(
@@ -79,22 +73,30 @@ productsRouter.post('/ai-enrich', async (c) => {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { responseMimeType: 'application/json', responseSchema, temperature: 0.2 },
+          generationConfig: { responseMimeType: 'application/json', temperature: 0.2 },
         }),
       },
     );
-    if (!res.ok) return c.json({ error: 'ai_error' }, 502);
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => '');
+      console.error(`[ai-enrich] Gemini HTTP ${res.status}: ${errBody.slice(0, 600)}`);
+      return c.json({ error: 'ai_error', status: res.status }, 502);
+    }
     const data: any = await res.json();
     const text = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '{}';
     const f = JSON.parse(text);
+    const category = catNames.find(n => n.toLowerCase() === String(f.category ?? '').toLowerCase()) ?? '';
     return c.json({
       brand: f.brand ?? '',
-      category: f.category ?? '',
+      category,
       description: f.description ?? '',
       color: f.color ?? '',
       capacidad: f.capacidad ?? '',
+      largo: f.largo ?? '',
+      peso: f.peso ?? '',
     });
-  } catch {
+  } catch (err) {
+    console.error('[ai-enrich] failed:', err);
     return c.json({ error: 'ai_error' }, 502);
   }
 });

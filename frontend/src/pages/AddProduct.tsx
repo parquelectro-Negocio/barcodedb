@@ -78,6 +78,8 @@ export function AddProduct() {
         if (d.brand && !f.brand) next.brand = d.brand.toUpperCase();
         if (d.color && !f.color) next.color = d.color.toUpperCase();
         if (d.capacidad && !f.capacidad) next.capacidad = d.capacidad.toUpperCase();
+        if (d.largo && !f.largo) next.largo = d.largo.toUpperCase();
+        if (d.peso && !f.peso) next.peso = d.peso.toUpperCase();
         if (d.description && !f.description) next.description = d.description;
         if (d.category && !f.categoryId) {
           const cat = categories.find(c => c.name.toLowerCase() === String(d.category).toLowerCase());
