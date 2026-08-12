@@ -10,6 +10,7 @@ import { SalesPage } from './pages/SalesPage';
 import { EditProduct } from './pages/EditProduct';
 import { StockPage } from './pages/StockPage';
 import { LoginPage } from './pages/LoginPage';
+import { PanelPage } from './pages/PanelPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { PwaUpdatePrompt } from './components/PwaUpdatePrompt';
 import { ToastProvider } from './lib/toast';
@@ -34,6 +35,7 @@ const BASE_NAV = [
 ];
 // Your shop — private, only shown when logged in.
 const SHOP_NAV = [
+  { path: '/panel', label: 'Panel' },
   { path: '/sales', label: 'Ventas' },
   { path: '/stock', label: 'Stock' },
 ];
@@ -221,6 +223,7 @@ function AppContent() {
           <Route path="/sales" element={<RequireAuth><SalesPage /></RequireAuth>} />
           <Route path="/edit/:barcode" element={<RequireAuth><EditProduct /></RequireAuth>} />
           <Route path="/stock" element={<RequireAuth><StockPage /></RequireAuth>} />
+          <Route path="/panel" element={<RequireAuth><PanelPage /></RequireAuth>} />
           <Route path="/profile" element={<RequireAuth><ProfilePage /></RequireAuth>} />
           <Route path="/login" element={<LoginPage />} />
         </Routes>
