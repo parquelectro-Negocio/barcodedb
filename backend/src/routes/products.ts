@@ -35,33 +35,34 @@ productsRouter.get('/:identifier', async (c) => {
   return c.json({ products: results, conflict: results.length > 1 });
 });
 
-// Google keeps retiring named models for new keys, so instead of hardcoding one
-// we ask the API which models THIS key can use and pick a flash-class one that
-// supports generateContent. Cached after the first successful resolution.
+// Google's ListModels lists models that aren't actually callable via
+// generateContent for new keys (they 404), so we build an ordered candidate
+// list and TRY them at call time, caching the first that truly responds.
 let cachedGeminiModel: string | null = null;
+let cachedCandidates: string[] | null = null;
 
-async function resolveGeminiModel(key: string): Promise<string | null> {
-  if (cachedGeminiModel) return cachedGeminiModel;
+async function getCandidateModels(key: string): Promise<string[]> {
+  if (cachedCandidates) return cachedCandidates;
   try {
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}&pageSize=200`);
     if (!res.ok) {
-      console.error(`[ai-enrich] ListModels HTTP ${res.status}: ${(await res.text().catch(() => '')).slice(0, 400)}`);
-      return null;
+      console.error(`[ai-enrich] ListModels HTTP ${res.status}: ${(await res.text().catch(() => '')).slice(0, 300)}`);
+      return [];
     }
     const data: any = await res.json();
-    const usable: any[] = (data.models ?? []).filter((m: any) => (m.supportedGenerationMethods ?? []).includes('generateContent'));
-    const flash = usable.find((m: any) => /flash/i.test(m.name) && !/vision|thinking|image|tts|live/i.test(m.name));
-    const pick: string | undefined = (flash ?? usable[0])?.name;
-    if (pick) {
-      cachedGeminiModel = pick.replace(/^models\//, '');
-      console.log(`[ai-enrich] using Gemini model: ${cachedGeminiModel}`);
-    } else {
-      console.error('[ai-enrich] no generateContent-capable model available to this key');
-    }
-    return cachedGeminiModel;
+    const models: string[] = (data.models ?? [])
+      .filter((m: any) => (m.supportedGenerationMethods ?? []).includes('generateContent'))
+      .map((m: any) => String(m.name).replace(/^models\//, ''))
+      .filter((n: string) => !/vision|thinking|image|tts|audio|live|embedding|aqa/i.test(n));
+    // Prefer "-latest" aliases and flash/lite (fast, free-tier friendly).
+    const rank = (n: string) => (/latest/i.test(n) ? 0 : 1) + (/flash|lite/i.test(n) ? 0 : 2);
+    models.sort((a, b) => rank(a) - rank(b));
+    cachedCandidates = models;
+    console.log(`[ai-enrich] ${models.length} candidate models: ${models.slice(0, 15).join(', ')}`);
+    return models;
   } catch (err) {
     console.error('[ai-enrich] ListModels failed:', err);
-    return null;
+    return [];
   }
 }
 
@@ -95,44 +96,56 @@ productsRouter.post('/ai-enrich', async (c) => {
     `- Completá SOLO los campos que correspondan al producto; el resto dejalo como "".\n` +
     `Nombre: ${name}\n${barcode ? `Código de barras: ${barcode}\n` : ''}`;
 
-  const model = await resolveGeminiModel(key);
-  if (!model) return c.json({ error: 'ai_no_model' }, 502);
+  const candidates = cachedGeminiModel ? [cachedGeminiModel] : await getCandidateModels(key);
+  if (candidates.length === 0) return c.json({ error: 'ai_no_model' }, 502);
 
-  try {
+  const reqBody = JSON.stringify({
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: { responseMimeType: 'application/json', temperature: 0.2 },
+  });
+
+  let lastStatus = 0;
+  let lastBody = '';
+  // Try candidates until one actually returns a response; cache the winner.
+  for (const model of candidates.slice(0, 12)) {
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
-      {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { responseMimeType: 'application/json', temperature: 0.2 },
-        }),
-      },
-    );
-    if (!res.ok) {
-      const errBody = await res.text().catch(() => '');
-      console.error(`[ai-enrich] Gemini (${model}) HTTP ${res.status}: ${errBody.slice(0, 600)}`);
-      if (res.status === 404) cachedGeminiModel = null; // model went away — re-resolve next time
-      return c.json({ error: 'ai_error', status: res.status }, 502);
+      { method: 'POST', headers: { 'content-type': 'application/json' }, body: reqBody },
+    ).catch(() => null);
+    if (!res) continue;
+
+    if (res.ok) {
+      cachedGeminiModel = model;
+      console.log(`[ai-enrich] model OK: ${model}`);
+      try {
+        const data: any = await res.json();
+        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '{}';
+        const f = JSON.parse(text);
+        const category = catNames.find(n => n.toLowerCase() === String(f.category ?? '').toLowerCase()) ?? '';
+        return c.json({
+          brand: f.brand ?? '',
+          category,
+          description: f.description ?? '',
+          color: f.color ?? '',
+          capacidad: f.capacidad ?? '',
+          largo: f.largo ?? '',
+          peso: f.peso ?? '',
+        });
+      } catch (err) {
+        console.error('[ai-enrich] parse failed:', err);
+        return c.json({ error: 'ai_error' }, 502);
+      }
     }
-    const data: any = await res.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '{}';
-    const f = JSON.parse(text);
-    const category = catNames.find(n => n.toLowerCase() === String(f.category ?? '').toLowerCase()) ?? '';
-    return c.json({
-      brand: f.brand ?? '',
-      category,
-      description: f.description ?? '',
-      color: f.color ?? '',
-      capacidad: f.capacidad ?? '',
-      largo: f.largo ?? '',
-      peso: f.peso ?? '',
-    });
-  } catch (err) {
-    console.error('[ai-enrich] failed:', err);
-    return c.json({ error: 'ai_error' }, 502);
+
+    lastStatus = res.status;
+    lastBody = (await res.text().catch(() => '')).slice(0, 300);
+    if (res.status !== 404) break; // auth/quota/etc — another model won't help
+    // 404 → this model isn't callable for this key, try the next candidate
   }
+
+  cachedGeminiModel = null;
+  console.error(`[ai-enrich] no working model. last HTTP ${lastStatus}: ${lastBody}`);
+  return c.json({ error: 'ai_error', status: lastStatus }, 502);
 });
 
 productsRouter.post('/', async (c) => {
