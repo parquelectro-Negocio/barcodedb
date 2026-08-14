@@ -6,6 +6,7 @@ interface User {
   email: string;
   name: string;
   avatarUrl?: string;
+  isModerator?: boolean;
 }
 
 interface AuthContextType {

@@ -76,7 +76,7 @@ authRouter.get('/me', async (c) => {
 
   const user = await db.query.users.findFirst({
     where: eq(schema.users.id, payload.userId),
-    columns: { id: true, email: true, name: true, avatarUrl: true, createdAt: true },
+    columns: { id: true, email: true, name: true, avatarUrl: true, isModerator: true, createdAt: true },
   });
   if (!user) return c.json({ error: 'not_found' }, 404);
 

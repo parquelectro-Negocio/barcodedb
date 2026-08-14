@@ -22,6 +22,11 @@ export function ProfilePage() {
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const logoInput = useRef<HTMLInputElement>(null);
 
+  // Admin: reset another user's password (moderator only).
+  const [adminEmail, setAdminEmail] = useState('');
+  const [adminNewPw, setAdminNewPw] = useState('');
+  const [adminResetting, setAdminResetting] = useState(false);
+
   const jsonHeaders = () => ({ ...authHeaders(), 'content-type': 'application/json' });
 
   useEffect(() => { setName(user?.name || ''); }, [user]);
@@ -100,6 +105,30 @@ export function ProfilePage() {
       toast('Logo actualizado', 'success');
     } catch { toast('Error al subir el logo', 'error'); }
     finally { setUploadingLogo(false); }
+  };
+
+  const adminReset = async () => {
+    if (!adminEmail.trim() || adminNewPw.length < 6) {
+      toast('Poné el email del usuario y una contraseña de al menos 6 caracteres', 'error');
+      return;
+    }
+    setAdminResetting(true);
+    try {
+      const res = await fetch(`${API_BASE}/auth/admin/reset-password`, {
+        method: 'POST', headers: jsonHeaders(),
+        body: JSON.stringify({ email: adminEmail.trim(), newPassword: adminNewPw }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast(data.error === 'user_not_found' ? 'No hay ningún usuario con ese email'
+          : data.error === 'forbidden' ? 'No tenés permisos de moderador'
+          : 'No se pudo resetear la contraseña', 'error');
+        return;
+      }
+      setAdminEmail(''); setAdminNewPw('');
+      toast(`Contraseña de ${data.email} restablecida`, 'success');
+    } catch { toast('Error al resetear la contraseña', 'error'); }
+    finally { setAdminResetting(false); }
   };
 
   if (!user) return null;
@@ -195,6 +224,38 @@ export function ProfilePage() {
             </div>
           </div>
           <p className="text-xs text-stone-400 mt-3">El logo aparece en el comprobante de venta.</p>
+        </div>
+      )}
+
+      {/* Admin: reset a user's password (moderator only). The universal
+          recovery path — no setup or pre-linking required from the user. */}
+      {user.isModerator && (
+        <div className="card p-6 ring-1 ring-amber-200">
+          <h2 className="text-lg font-semibold text-stone-800 mb-1">Administración</h2>
+          <p className="text-sm text-stone-500 mb-4">
+            Restablecé la contraseña de un usuario que quedó afuera. Elegí una temporal, reseteala acá y pasásela por un canal seguro (WhatsApp, en persona).
+          </p>
+          <label className="label">Email del usuario</label>
+          <input
+            type="email"
+            value={adminEmail}
+            onChange={e => setAdminEmail(e.target.value)}
+            className="input mb-3"
+            placeholder="cliente@email.com"
+            autoComplete="off"
+          />
+          <label className="label">Nueva contraseña temporal</label>
+          <input
+            type="text"
+            value={adminNewPw}
+            onChange={e => setAdminNewPw(e.target.value)}
+            className="input mb-4"
+            placeholder="Mínimo 6 caracteres"
+            autoComplete="off"
+          />
+          <button onClick={adminReset} disabled={adminResetting || !adminEmail || !adminNewPw} className="btn-primary">
+            {adminResetting ? 'Restableciendo...' : 'Restablecer contraseña'}
+          </button>
         </div>
       )}
     </div>
