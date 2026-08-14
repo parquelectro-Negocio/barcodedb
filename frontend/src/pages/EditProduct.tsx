@@ -260,6 +260,7 @@ export function EditProduct() {
             id="edit-product-image"
             type="file"
             accept="image/jpeg,image/png,image/webp,image/gif"
+            capture="environment"
             className="w-full text-sm text-stone-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg
                        file:border-0 file:bg-stone-100 file:text-stone-700 hover:file:bg-stone-200"
           />

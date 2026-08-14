@@ -1,9 +1,9 @@
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { apiHeaders } from '../lib/user';
 import { useAuth } from '../lib/auth';
-import { API_BASE, resolveImageUrl } from '../lib/config';
+import { API_BASE, resolveImageUrl, uploadImage } from '../lib/config';
 
 export function ProductDetail() {
   const { barcode } = useParams();
@@ -89,7 +89,23 @@ function ProductView({ product, barcode, onBack }: { product: any; barcode: stri
   const [selectedTarget, setSelectedTarget] = useState<any>(null);
   const [reportError, setReportError] = useState('');
   const [reportSent, setReportSent] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const photoInput = useRef<HTMLInputElement>(null);
   let searchTimeout: ReturnType<typeof setTimeout>;
+
+  // Anyone logged in can contribute a photo to a product that has none.
+  const contributePhoto = async (file: File) => {
+    setUploadingPhoto(true);
+    try {
+      const url = await uploadImage(file);
+      const res = await fetch(`${API_BASE}/products/${product.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ imageUrl: url }),
+      });
+      if (res.ok) queryClient.invalidateQueries({ queryKey: ['product', barcode] });
+    } catch {} finally { setUploadingPhoto(false); }
+  };
 
   const doSearch = async (q: string) => {
     if (!q.trim()) { setSearchResults([]); return; }
@@ -151,8 +167,21 @@ function ProductView({ product, barcode, onBack }: { product: any; barcode: stri
         {product.imageUrl ? (
           <img src={resolveImageUrl(product.imageUrl)} alt="" className="w-48 h-48 object-cover rounded-xl shadow-sm" />
         ) : (
-          <div className="w-48 h-48 bg-stone-100 rounded-xl flex items-center justify-center text-stone-400 text-lg">
-            Sin imagen
+          <div className="w-48 h-48 bg-stone-100 rounded-xl flex flex-col items-center justify-center text-stone-400 text-sm gap-2">
+            <span>Sin imagen</span>
+            {user && (
+              <>
+                <button
+                  onClick={() => photoInput.current?.click()}
+                  disabled={uploadingPhoto}
+                  className="text-xs text-emerald-600 hover:text-emerald-700 underline disabled:opacity-50"
+                >
+                  {uploadingPhoto ? 'Subiendo...' : '+ Aportar foto'}
+                </button>
+                <input ref={photoInput} type="file" accept="image/*" capture="environment" className="hidden"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) contributePhoto(f); e.target.value = ''; }} />
+              </>
+            )}
           </div>
         )}
 

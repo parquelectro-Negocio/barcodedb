@@ -406,6 +406,7 @@ export function AddProduct() {
             id="product-image"
             type="file"
             accept="image/jpeg,image/png,image/webp,image/gif"
+            capture="environment"
             onChange={e => setImageName(e.target.files?.[0]?.name ?? '')}
             className="w-full text-sm text-stone-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg
                        file:border-0 file:bg-stone-100 file:text-stone-700 hover:file:bg-stone-200"
