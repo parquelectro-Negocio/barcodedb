@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
-import { normalizeName } from '../lib/normalizeName';
 import { normalizeProduct } from '../lib/format';
 import { useToast } from '../lib/toast';
 import { API_BASE, uploadImage } from '../lib/config';
@@ -25,7 +24,7 @@ export function AddProduct() {
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
-  const [normalized, setNormalized] = useState<{ name: string; brand: string | null } | null>(null);
+  const [similar, setSimilar] = useState<any[]>([]);
   const [brandInput, setBrandInput] = useState('');
   const [existingWithBc, setExistingWithBc] = useState<any[]>([]);
   const [imageName, setImageName] = useState('');
@@ -161,18 +160,19 @@ export function AddProduct() {
     return () => clearTimeout(timer);
   }, [form.barcode]);
 
+  // Live duplicate guard: as you type the name, surface existing products so
+  // you add to one instead of creating a differently-worded duplicate.
   useEffect(() => {
-    if (!form.name?.trim()) { setNormalized(null); return; }
+    const q = form.name?.trim() ?? '';
+    if (q.length < 3) { setSimilar([]); return; }
     const timer = setTimeout(async () => {
-      const result = await normalizeName(form.name, form.categoryId || undefined);
-      if (result.name !== form.name || (result.brand && result.brand !== form.brand)) {
-        setNormalized({ name: result.name, brand: result.brand });
-      } else {
-        setNormalized(null);
-      }
+      try {
+        const res = await fetch(`${API_BASE}/search?q=${encodeURIComponent(q)}&limit=5`);
+        if (res.ok) setSimilar((await res.json()).data ?? []);
+      } catch { setSimilar([]); }
     }, 400);
     return () => clearTimeout(timer);
-  }, [form.name, form.categoryId]);
+  }, [form.name]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -286,18 +286,22 @@ export function AddProduct() {
             className="w-full px-4 py-2 bg-white border border-stone-300 rounded-lg text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
             placeholder="Ej: CABLE HDMI 2M"
           />
-          {normalized && (
-            <button
-              type="button"
-              onClick={() => {
-                set('name', normalized.name?.toUpperCase() ?? '');
-                if (normalized.brand && !form.brand) { set('brand', normalized.brand.toUpperCase()); setBrandInput(normalized.brand.toUpperCase()); }
-                setNormalized(null);
-              }}
-              className="mt-1 text-xs text-emerald-600 hover:text-emerald-500 underline text-left"
-            >
-              Sugerencia: {normalized.name?.toUpperCase()}{normalized.brand ? ` · ${normalized.brand?.toUpperCase()}` : ''} (click para aplicar)
-            </button>
+          {similar.length > 0 && (
+            <div className="mt-2 border border-amber-200 bg-amber-50 rounded-lg p-2">
+              <p className="text-xs text-amber-700 mb-1">Ya existen productos parecidos — ¿es alguno? (así no lo duplicás):</p>
+              <div className="space-y-0.5">
+                {similar.map((p: any) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => navigate(`/product/${p.barcode || p.slug}`)}
+                    className="block w-full text-left text-xs text-stone-700 hover:text-emerald-700 truncate"
+                  >
+                    → {p.name}{p.brand ? ` · ${p.brand}` : ''}
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
           <div className="mt-2">
             <button

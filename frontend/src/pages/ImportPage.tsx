@@ -229,7 +229,7 @@ export function ImportPage() {
       const originalIndex = items.indexOf(item);
       const edits = editedItems[i] ?? {};
       return {
-        name: edits.name ?? item.name ?? '',
+        name: (edits.name ?? item.name ?? '').trim() || (edits.sku ?? item.sku ?? '') || (edits.barcode ?? item.barcode ?? ''),
         barcode: edits.barcode ?? item.barcode ?? '',
         sku: edits.sku ?? item.sku ?? '',
         brand: edits.brand ?? item.brand ?? '',
