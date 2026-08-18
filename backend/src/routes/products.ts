@@ -79,28 +79,36 @@ productsRouter.post('/ai-enrich', async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const name = typeof body.name === 'string' ? body.name.trim() : '';
   const barcode = typeof body.barcode === 'string' ? body.barcode.trim() : '';
-  if (!name) return c.json({ error: 'name_required' }, 400);
+  const image = typeof body.image === 'string' ? body.image : '';       // base64, no data: prefix
+  const mimeType = typeof body.mimeType === 'string' ? body.mimeType : 'image/jpeg';
+  if (!name && !image) return c.json({ error: 'name_or_image_required' }, 400);
 
   const cats = await db.query.categories.findMany({ columns: { name: true } });
   const catNames = [...new Set(cats.map(x => x.name))];
 
   const prompt =
     `Sos un asistente para un catálogo de productos en Argentina. ` +
-    `A partir del nombre del producto${barcode ? ' y su código de barras' : ''}, devolvé SOLO un objeto JSON con esta forma exacta:\n` +
-    `{"brand": "", "category": "", "description": "", "color": "", "capacidad": "", "largo": "", "peso": ""}\n` +
+    (image
+      ? `Identificá el producto de la FOTO adjunta${name ? ` (referencia opcional: "${name}")` : ''}. `
+      : `A partir del nombre del producto${barcode ? ' y su código de barras' : ''}, `) +
+    `devolvé SOLO un objeto JSON con esta forma exacta:\n` +
+    `{"name": "", "brand": "", "category": "", "description": "", "color": "", "capacidad": "", "largo": "", "peso": ""}\n` +
+    `- "name": nombre corto y claro del producto (marca + modelo si se distingue).\n` +
     `- "category": elegí EXACTAMENTE UNA de esta lista, o "" si ninguna encaja: ${catNames.join(', ')}\n` +
     `- "description": una frase corta en español.\n` +
     `- "capacidad": capacidad/volumen/memoria si aplica (ej: "128GB", "500ml"), sino "".\n` +
     `- "largo": longitud/medida si aplica (ej: "2m", "50cm"), sino "".\n` +
     `- "peso": peso si aplica (ej: "1kg", "500g"), sino "".\n` +
-    `- Completá SOLO los campos que correspondan al producto; el resto dejalo como "".\n` +
-    `Nombre: ${name}\n${barcode ? `Código de barras: ${barcode}\n` : ''}`;
+    `- Completá SOLO los campos que correspondan; el resto dejalo como "".\n` +
+    (name ? `Nombre: ${name}\n` : '') + (barcode ? `Código de barras: ${barcode}\n` : '');
 
   const candidates = cachedGeminiModel ? [cachedGeminiModel] : await getCandidateModels(key);
   if (candidates.length === 0) return c.json({ error: 'ai_no_model' }, 502);
 
+  const parts: any[] = [{ text: prompt }];
+  if (image) parts.push({ inlineData: { mimeType, data: image } });
   const reqBody = JSON.stringify({
-    contents: [{ parts: [{ text: prompt }] }],
+    contents: [{ parts }],
     generationConfig: { responseMimeType: 'application/json', temperature: 0.2 },
   });
 
@@ -123,6 +131,7 @@ productsRouter.post('/ai-enrich', async (c) => {
         const f = JSON.parse(text);
         const category = catNames.find(n => n.toLowerCase() === String(f.category ?? '').toLowerCase()) ?? '';
         return c.json({
+          name: f.name ?? '',
           brand: f.brand ?? '',
           category,
           description: f.description ?? '',

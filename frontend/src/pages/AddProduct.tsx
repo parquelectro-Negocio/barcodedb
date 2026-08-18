@@ -63,6 +63,55 @@ export function AddProduct() {
 
   // Ask the backend (Gemini) to fill brand/category/description/color from the
   // name. Only fills fields the user left empty — never overwrites their input.
+  const fileToBase64 = (file: File): Promise<string> =>
+    new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res(String(r.result).split(',')[1] ?? '');
+      r.onerror = rej;
+      r.readAsDataURL(file);
+    });
+
+  const applyAiFields = (d: any) => {
+    setForm(f => {
+      const next = { ...f };
+      if (d.name && !f.name) next.name = String(d.name).toUpperCase();
+      if (d.brand && !f.brand) next.brand = String(d.brand).toUpperCase();
+      if (d.color && !f.color) next.color = String(d.color).toUpperCase();
+      if (d.capacidad && !f.capacidad) next.capacidad = String(d.capacidad).toUpperCase();
+      if (d.largo && !f.largo) next.largo = String(d.largo).toUpperCase();
+      if (d.peso && !f.peso) next.peso = String(d.peso).toUpperCase();
+      if (d.description && !f.description) next.description = d.description;
+      if (d.category && !f.categoryId) {
+        const cat = categories.find(c => c.name.toLowerCase() === String(d.category).toLowerCase());
+        if (cat) next.categoryId = cat.id;
+      }
+      return next;
+    });
+    if (d.brand && !form.brand) setBrandInput(String(d.brand).toUpperCase());
+    setAiUsed(true);
+  };
+
+  // Identify the product from the selected/taken photo (Gemini multimodal).
+  const identifyFromPhoto = async () => {
+    const fileInput = document.getElementById('product-image') as HTMLInputElement;
+    const file = fileInput?.files?.[0];
+    if (!file) { toast('Elegí o sacá una foto primero', 'error'); return; }
+    setAiLoading(true);
+    try {
+      const image = await fileToBase64(file);
+      const res = await fetch(`${API_BASE}/products/ai-enrich`, {
+        method: 'POST',
+        headers: apiHeaders(),
+        body: JSON.stringify({ image, mimeType: file.type || 'image/jpeg', name: form.name }),
+      });
+      if (res.status === 503) { toast('La IA todavía no está configurada', 'info'); return; }
+      if (!res.ok) { toast('La IA no pudo identificar el producto', 'error'); return; }
+      applyAiFields(await res.json());
+      toast('Identificado por IA — revisá los datos', 'success');
+    } catch { toast('Error al identificar la foto', 'error'); }
+    finally { setAiLoading(false); }
+  };
+
   const enrichWithAI = async () => {
     if (!form.name?.trim()) { toast('Escribí un nombre primero', 'error'); return; }
     setAiLoading(true);
@@ -421,6 +470,16 @@ export function AddProduct() {
             <input type="checkbox" checked={removeBg} onChange={e => setRemoveBg(e.target.checked)} className="accent-emerald-600" />
             Quitar el fondo automáticamente (queda más prolijo)
           </label>
+          {imageName && (
+            <button
+              type="button"
+              onClick={identifyFromPhoto}
+              disabled={aiLoading}
+              className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg px-3 py-1.5 disabled:opacity-50 transition-colors"
+            >
+              ✨ {aiLoading ? 'Identificando...' : 'Identificar producto con IA (foto)'}
+            </button>
+          )}
           {imageName && (
             <button
               type="button"
