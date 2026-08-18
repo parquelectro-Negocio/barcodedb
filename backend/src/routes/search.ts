@@ -133,31 +133,32 @@ searchRouter.post('/match', async (c) => {
   const matches: { match: any; item: MatchItem; index: number }[] = [];
   const unmatched: { item: MatchItem; index: number }[] = [];
 
+  const COLS = sql`id, name, brand, barcode, slug, image_url, verification_score, status`;
+  const smallList = items.length <= 50; // fuzzy per-item match only for small lists
+
+  // Batch: one query for ALL barcodes and one for ALL slugs, instead of a
+  // per-row query storm that stalls large imports (hundreds of rows).
+  const slugOf = (it: MatchItem) => (it.name ? slugify(it.name.trim()) : '');
+  const barcodes = [...new Set(items.map(i => i.barcode).filter(Boolean))] as string[];
+  const slugs = [...new Set(items.map(slugOf).filter(Boolean))] as string[];
+
+  const barcodeMap = new Map<string, any>();
+  if (barcodes.length) {
+    const r: any = await db.execute(sql`SELECT ${COLS} FROM products WHERE barcode = ANY(${barcodes})`);
+    for (const p of asRows(r)) if (!barcodeMap.has(p.barcode)) barcodeMap.set(p.barcode, p);
+  }
+  const slugMap = new Map<string, any>();
+  if (slugs.length) {
+    const r: any = await db.execute(sql`SELECT ${COLS} FROM products WHERE slug = ANY(${slugs})`);
+    for (const p of asRows(r)) if (!slugMap.has(p.slug)) slugMap.set(p.slug, p);
+  }
+
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
     let found: any = null;
-
-    // Try barcode match first
-    if (item.barcode) {
-      const barResult: any = await db.execute(
-        sql`SELECT id, name, brand, barcode, slug, image_url, verification_score, status FROM products WHERE barcode = ${item.barcode} LIMIT 1`,
-      );
-      found = asRows(barResult)[0];
-    }
-
-    // Fall back to slug match (for barcode-less products)
-    if (!found && item.name) {
-      const slug = slugify(item.name);
-      const slugResult: any = await db.execute(
-        sql`SELECT id, name, brand, barcode, slug, image_url, verification_score, status FROM products WHERE slug = ${slug} LIMIT 1`,
-      );
-      found = asRows(slugResult)[0];
-    }
-
-    // Fall back to name/alias match
-    if (!found && item.name) {
-      found = await matchByName(item.name.trim());
-    }
+    if (item.barcode) found = barcodeMap.get(item.barcode) ?? null;
+    if (!found && item.name) found = slugMap.get(slugOf(item)) ?? null;
+    if (!found && item.name && smallList) found = await matchByName(item.name.trim());
 
     if (found) {
       matchedIds.add(found.id);
