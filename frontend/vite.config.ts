@@ -14,6 +14,11 @@ export default defineConfig({
     VitePWA({
       registerType: 'prompt',
       includeAssets: ['favicon.ico'],
+      workbox: {
+        // The background-removal WASM/model is huge and loaded on demand — never precache it.
+        globIgnores: ['**/ort-*.wasm', '**/*.onnx', '**/*.bin'],
+        maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
+      },
       manifest: {
         name: 'BarcodeDB',
         short_name: 'BarcodeDB',

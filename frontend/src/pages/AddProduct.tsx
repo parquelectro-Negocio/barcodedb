@@ -4,6 +4,7 @@ import { normalizeName } from '../lib/normalizeName';
 import { normalizeProduct } from '../lib/format';
 import { useToast } from '../lib/toast';
 import { API_BASE, uploadImage } from '../lib/config';
+import { stripBackground } from '../lib/removeBg';
 import { apiHeaders } from '../lib/user';
 import { Autocomplete } from '../components/Autocomplete';
 
@@ -28,6 +29,7 @@ export function AddProduct() {
   const [brandInput, setBrandInput] = useState('');
   const [existingWithBc, setExistingWithBc] = useState<any[]>([]);
   const [imageName, setImageName] = useState('');
+  const [removeBg, setRemoveBg] = useState(true);
   const [bizSectors, setBizSectors] = useState<string[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiUsed, setAiUsed] = useState(false);
@@ -141,7 +143,11 @@ export function AddProduct() {
     // The image is optional metadata — a failed upload must not block cataloging.
     let imageFailed = false;
     if (file) {
-      try { imageUrl = await uploadImage(file); }
+      let toUpload = file;
+      if (removeBg) {
+        try { toUpload = await stripBackground(file); } catch { /* keep original if removal fails */ }
+      }
+      try { imageUrl = await uploadImage(toUpload); }
       catch { imageFailed = true; }
     }
 
@@ -411,6 +417,10 @@ export function AddProduct() {
             className="w-full text-sm text-stone-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg
                        file:border-0 file:bg-stone-100 file:text-stone-700 hover:file:bg-stone-200"
           />
+          <label className="flex items-center gap-2 mt-2 text-sm text-stone-600 cursor-pointer">
+            <input type="checkbox" checked={removeBg} onChange={e => setRemoveBg(e.target.checked)} className="accent-emerald-600" />
+            Quitar el fondo automáticamente (queda más prolijo)
+          </label>
           {imageName && (
             <button
               type="button"

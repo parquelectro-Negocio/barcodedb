@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { apiHeaders } from '../lib/user';
 import { useAuth } from '../lib/auth';
 import { API_BASE, resolveImageUrl, uploadImage } from '../lib/config';
+import { stripBackground } from '../lib/removeBg';
 
 export function ProductDetail() {
   const { barcode } = useParams();
@@ -97,7 +98,9 @@ function ProductView({ product, barcode, onBack }: { product: any; barcode: stri
   const contributePhoto = async (file: File) => {
     setUploadingPhoto(true);
     try {
-      const url = await uploadImage(file);
+      let toUpload = file;
+      try { toUpload = await stripBackground(file); } catch { /* keep original if removal fails */ }
+      const url = await uploadImage(toUpload);
       const res = await fetch(`${API_BASE}/products/${product.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
