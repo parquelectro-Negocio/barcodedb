@@ -130,6 +130,7 @@ export function ImportPage() {
       const items: MatchItem[] = [];
       let skipped = 0;
       let currentCategory = '';
+      let currentSection = '';
       for (const row of fileRows) {
         const item: MatchItem = {};
         for (const header of mappedCols) {
@@ -149,9 +150,22 @@ export function ImportPage() {
           skipped++;
           continue;
         }
+        // Section title (e.g. "CONSOLA DE JUEGOS"): a label in the SKU column with
+        // no barcode/price. Remember it to name the code rows below, then skip it.
+        if (item.sku && !item.name && !item.barcode && !(item.price && item.price > 0) && !(item.stock && item.stock > 0)) {
+          currentSection = item.sku.trim();
+          skipped++;
+          continue;
+        }
         if (!item.name && !item.barcode) continue;
         // Inherit the current section's category if the row didn't map one.
         if (!item.category && currentCategory) item.category = currentCategory;
+        // Name nameless code rows with "Sección + SKU" — descriptive and unique
+        // (so products under the same section don't collapse into one).
+        if (!item.name) {
+          const parts = [currentSection, item.sku].filter(Boolean);
+          if (parts.length) item.name = parts.join(' ');
+        }
         items.push(item);
       }
       return { items, skipped };
