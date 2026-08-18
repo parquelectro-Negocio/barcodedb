@@ -477,7 +477,7 @@ export function AddProduct() {
               disabled={aiLoading}
               className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg px-3 py-1.5 disabled:opacity-50 transition-colors"
             >
-              ✨ {aiLoading ? 'Identificando...' : 'Identificar producto con IA (foto)'}
+              ✨ {aiLoading ? 'Completando...' : 'Completar datos con la foto (IA)'}
             </button>
           )}
           {imageName && (
