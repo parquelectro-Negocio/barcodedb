@@ -76,6 +76,8 @@ export function ImportPage() {
   const [creating, setCreating] = useState(false);
   const [createResult, setCreateResult] = useState<any>(null);
   const [editedItems, setEditedItems] = useState<Record<number, Partial<MatchItem>>>({});
+  const [excluded, setExcluded] = useState<Set<number>>(new Set());
+  const toggleExclude = (i: number) => setExcluded(s => { const n = new Set(s); n.has(i) ? n.delete(i) : n.add(i); return n; });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = useCallback(async (file: File) => {
@@ -240,6 +242,7 @@ export function ImportPage() {
     const unmatched = (results?.unmatched ?? []) as MatchItem[];
 
     const products = unmatched.map((item, i) => {
+      if (excluded.has(i)) return null;
       const originalIndex = items.indexOf(item);
       const edits = editedItems[i] ?? {};
       return {
@@ -256,7 +259,7 @@ export function ImportPage() {
         price: edits.price ?? item.price ?? 0,
         stock: edits.stock ?? item.stock ?? 0,
       };
-    }).filter(p => p.name.trim());
+    }).filter((p): p is NonNullable<typeof p> => p !== null && p.name.trim() !== '');
 
     if (products.length === 0) {
       toast('No hay productos sin nombre para crear', 'error');
@@ -420,6 +423,8 @@ export function ImportPage() {
           createResult={createResult}
           editedItems={editedItems}
           onEdit={updateEdit}
+          excluded={excluded}
+          onToggleExclude={toggleExclude}
         />
       )}
     </div>
@@ -545,10 +550,11 @@ function UnmatchedItem({
   );
 }
 
-function MatchResults({ results, businessSlug, onAddToBusiness, onCreateUnmatched, creating, createResult, editedItems, onEdit }: {
+function MatchResults({ results, businessSlug, onAddToBusiness, onCreateUnmatched, creating, createResult, editedItems, onEdit, excluded, onToggleExclude }: {
   results: any; businessSlug: string; onAddToBusiness: () => void;
   onCreateUnmatched: () => void; creating: boolean; createResult: any;
   editedItems: Record<number, Partial<MatchItem>>; onEdit: (i: number, f: string, v: string | number) => void;
+  excluded: Set<number>; onToggleExclude: (i: number) => void;
 }) {
   const matched = results.matches ?? [];
   const unmatched = (results.unmatched ?? []) as MatchItem[];
@@ -619,23 +625,29 @@ function MatchResults({ results, businessSlug, onAddToBusiness, onCreateUnmatche
 
           <div className="grid gap-2 mb-4">
             {unmatched.map((item: any, i: number) => (
-              <UnmatchedItem
-                key={i}
-                item={item}
-                index={i}
-                edits={editedItems[i] ?? {}}
-                onEdit={onEdit}
-              />
+              <div key={i} className={`flex items-start gap-2 ${excluded.has(i) ? 'opacity-40' : ''}`}>
+                <div className="flex-1 min-w-0">
+                  <UnmatchedItem item={item} index={i} edits={editedItems[i] ?? {}} onEdit={onEdit} />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onToggleExclude(i)}
+                  title={excluded.has(i) ? 'Volver a incluir' : 'No importar esta fila'}
+                  className="mt-1 shrink-0 w-7 h-7 rounded border border-stone-200 text-stone-400 hover:text-red-500 hover:border-red-300"
+                >
+                  {excluded.has(i) ? '↩' : '✕'}
+                </button>
+              </div>
             ))}
           </div>
 
           <div className="flex gap-3">
             <button
               onClick={onCreateUnmatched}
-              disabled={creating}
+              disabled={creating || unmatched.length - excluded.size === 0}
               className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 rounded-xl font-medium text-white"
             >
-              {creating ? 'Creando...' : `Crear ${unmatched.length} productos en BarcodeDB`}
+              {creating ? 'Creando...' : `Crear ${unmatched.length - excluded.size} productos en BarcodeDB`}
             </button>
           </div>
 
