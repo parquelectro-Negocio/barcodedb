@@ -5,15 +5,16 @@ import { useToast } from '../lib/toast';
 import { API_BASE } from '../lib/config';
 import * as XLSX from 'xlsx';
 
-type MatchItem = { name?: string; barcode?: string; brand?: string; category?: string; color?: string; capacidad?: string; largo?: string; peso?: string; cost?: number; price?: number; stock?: number };
+type MatchItem = { name?: string; barcode?: string; sku?: string; brand?: string; category?: string; color?: string; capacidad?: string; largo?: string; peso?: string; cost?: number; price?: number; stock?: number };
 type FileRow = Record<string, string>;
 
-const COLUMN_KEYS = ['name', 'barcode', 'brand', 'category', 'color', 'capacidad', 'largo', 'peso', 'cost', 'price', 'stock'] as const;
+const COLUMN_KEYS = ['name', 'barcode', 'sku', 'brand', 'category', 'color', 'capacidad', 'largo', 'peso', 'cost', 'price', 'stock'] as const;
 type ColumnKey = typeof COLUMN_KEYS[number];
 
 const COLUMN_LABELS: Record<ColumnKey, string> = {
   name: 'Nombre / Descripcion',
   barcode: 'Codigo de barras',
+  sku: 'SKU / Codigo interno',
   brand: 'Marca',
   category: 'Categoria',
   color: 'Color',
@@ -26,7 +27,8 @@ const COLUMN_LABELS: Record<ColumnKey, string> = {
 };
 
 const COMMON_PATTERNS: Record<ColumnKey, string[]> = {
-  barcode: ['codigo', 'codigo de barras', 'ean', 'gtin', 'barcode', 'upc'],
+  barcode: ['codigo de barras', 'cod de barras', 'ean', 'gtin', 'barcode', 'upc', 'codigo barra'],
+  sku: ['sku', 'codigo interno', 'cod interno', 'codigo articulo', 'cod articulo', 'referencia', 'ref', 'articulo', 'codigo', 'cod'],
   name: ['nombre', 'descripcion', 'producto', 'articulo', 'detalle', 'desc'],
   brand: ['marca', 'brand', 'fabricante'],
   category: ['categoria', 'category', 'rubro', 'familia', 'seccion'],
@@ -229,6 +231,7 @@ export function ImportPage() {
       return {
         name: edits.name ?? item.name ?? '',
         barcode: edits.barcode ?? item.barcode ?? '',
+        sku: edits.sku ?? item.sku ?? '',
         brand: edits.brand ?? item.brand ?? '',
         category: edits.category ?? item.category ?? '',
         color: edits.color ?? item.color ?? '',
