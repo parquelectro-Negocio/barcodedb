@@ -145,6 +145,7 @@ export function ImportPage() {
           if (key === 'price') item.price = parseFloat(val.replace(/[$,]/g, '')) || 0;
           else if (key === 'cost') item.cost = parseFloat(val.replace(/[$,]/g, '')) || 0;
           else if (key === 'stock') item.stock = parseInt(val) || 0;
+          else if (key === 'barcode') item.barcode = val.replace(/\s+/g, ''); // scanners read no spaces
           else item[key] = val;
         }
         // Section header: not a product. Remember its category for the rows
@@ -168,7 +169,7 @@ export function ImportPage() {
         // (so products under the same section don't collapse into one).
         if (!item.name) {
           const parts = [currentSection, item.sku].filter(Boolean);
-          if (parts.length) item.name = parts.join(' ');
+          item.name = parts.join(' ') || item.barcode || '';
         }
         if (!item.brand && defaultBrand.trim()) item.brand = defaultBrand.trim();
         items.push(item);
