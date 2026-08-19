@@ -269,21 +269,28 @@ export function ImportPage() {
 
     setCreating(true);
     try {
-      const res = await fetch(`${API_BASE}/products/bulk`, {
-        method: 'POST',
-        headers: apiHeaders(),
-        body: JSON.stringify({
-          products,
-          businessSlug: businessSlug || undefined,
-        }),
-      });
-      const data = await res.json();
-      setCreateResult(data);
-      if (data.errors?.length > 0) {
-        toast(`Creados ${data.created.length} de ${products.length}. ${data.errors.length} errores.`, data.errors.length > 0 ? 'error' : 'success');
-      } else {
-        toast(`Creados ${data.created.length} productos correctamente`, 'success');
+      // Create in chunks to stay under the backend's per-request limit and avoid timeouts.
+      const CHUNK = 150;
+      const allCreated: any[] = [];
+      const allErrors: any[] = [];
+      for (let i = 0; i < products.length; i += CHUNK) {
+        const slice = products.slice(i, i + CHUNK);
+        const res = await fetch(`${API_BASE}/products/bulk`, {
+          method: 'POST',
+          headers: apiHeaders(),
+          body: JSON.stringify({ products: slice, businessSlug: businessSlug || undefined }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !Array.isArray(data.created)) {
+          allErrors.push({ name: `Lote ${i + 1}-${i + slice.length}`, error: data.error || `HTTP ${res.status}` });
+          continue;
+        }
+        allCreated.push(...data.created);
+        if (Array.isArray(data.errors)) allErrors.push(...data.errors);
+        toast(`Creando... ${allCreated.length}/${products.length}`, 'info');
       }
+      setCreateResult({ created: allCreated, errors: allErrors, total: products.length });
+      toast(`Creados ${allCreated.length} de ${products.length}${allErrors.length ? ` · ${allErrors.length} con error` : ''}`, allErrors.length ? 'error' : 'success');
     } catch {
       toast('Error al crear productos', 'error');
     } finally {
