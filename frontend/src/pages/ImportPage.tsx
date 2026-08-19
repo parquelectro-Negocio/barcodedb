@@ -77,6 +77,7 @@ export function ImportPage() {
   const [createResult, setCreateResult] = useState<any>(null);
   const [editedItems, setEditedItems] = useState<Record<number, Partial<MatchItem>>>({});
   const [excluded, setExcluded] = useState<Set<number>>(new Set());
+  const [defaultBrand, setDefaultBrand] = useState('');
   const toggleExclude = (i: number) => setExcluded(s => { const n = new Set(s); n.has(i) ? n.delete(i) : n.add(i); return n; });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -169,6 +170,7 @@ export function ImportPage() {
           const parts = [currentSection, item.sku].filter(Boolean);
           if (parts.length) item.name = parts.join(' ');
         }
+        if (!item.brand && defaultBrand.trim()) item.brand = defaultBrand.trim();
         items.push(item);
       }
       return { items, skipped };
@@ -403,6 +405,17 @@ export function ImportPage() {
           />
         </>
       )}
+
+      <div className="mt-4">
+        <label className="block text-sm text-stone-500 mb-1">Marca por defecto (opcional) — se aplica a todos los productos sin marca</label>
+        <input
+          type="text"
+          value={defaultBrand}
+          onChange={e => setDefaultBrand(e.target.value)}
+          placeholder="Ej: NOGA"
+          className="w-full max-w-xs px-4 py-2 bg-white border border-stone-300 rounded-lg text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+        />
+      </div>
 
       <div className="flex gap-3 mt-4 mb-8">
         <input
