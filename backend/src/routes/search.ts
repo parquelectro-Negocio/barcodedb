@@ -144,12 +144,12 @@ searchRouter.post('/match', async (c) => {
 
   const barcodeMap = new Map<string, any>();
   if (barcodes.length) {
-    const r: any = await db.execute(sql`SELECT ${COLS} FROM products WHERE barcode = ANY(${barcodes})`);
+    const r: any = await db.execute(sql`SELECT ${COLS} FROM products WHERE barcode IN (${sql.join(barcodes.map(b => sql`${b}`), sql`, `)})`);
     for (const p of asRows(r)) if (!barcodeMap.has(p.barcode)) barcodeMap.set(p.barcode, p);
   }
   const slugMap = new Map<string, any>();
   if (slugs.length) {
-    const r: any = await db.execute(sql`SELECT ${COLS} FROM products WHERE slug = ANY(${slugs})`);
+    const r: any = await db.execute(sql`SELECT ${COLS} FROM products WHERE slug IN (${sql.join(slugs.map(s => sql`${s}`), sql`, `)})`);
     for (const p of asRows(r)) if (!slugMap.has(p.slug)) slugMap.set(p.slug, p);
   }
 
