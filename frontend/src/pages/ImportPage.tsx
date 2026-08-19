@@ -138,7 +138,8 @@ export function ImportPage() {
         for (const header of mappedCols) {
           const key = columnMap[header];
           if (!key) continue;
-          const val = row[header]?.trim();
+          const raw = row[header];
+          const val = raw === null || raw === undefined || raw === '' ? '' : String(raw).trim();
           if (!val) continue;
           if (key === 'price') item.price = parseFloat(val.replace(/[$,]/g, '')) || 0;
           else if (key === 'cost') item.cost = parseFloat(val.replace(/[$,]/g, '')) || 0;
