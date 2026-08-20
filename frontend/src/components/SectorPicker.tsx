@@ -16,6 +16,7 @@ export function SectorPicker({ slug, sectors, onChange }: {
   const [allSectors, setAllSectors] = useState<Cat[]>([]);
   const [selected, setSelected] = useState<string[]>(sectors ?? []);
   const [saving, setSaving] = useState(false);
+  const [custom, setCustom] = useState('');
 
   useEffect(() => {
     fetch(`${API_BASE}/categories`)
@@ -26,11 +27,8 @@ export function SectorPicker({ slug, sectors, onChange }: {
 
   useEffect(() => { setSelected(sectors ?? []); }, [sectors]);
 
-  const toggle = async (sectorSlug: string) => {
+  const persist = async (next: string[]) => {
     const prev = selected;
-    const next = selected.includes(sectorSlug)
-      ? selected.filter(s => s !== sectorSlug)
-      : [...selected, sectorSlug];
     setSelected(next);
     setSaving(true);
     try {
@@ -49,13 +47,33 @@ export function SectorPicker({ slug, sectors, onChange }: {
     }
   };
 
+  const toggle = (value: string) => {
+    persist(selected.includes(value) ? selected.filter(s => s !== value) : [...selected, value]);
+  };
+
+  const addCustom = () => {
+    const v = custom.trim();
+    if (!v) return;
+    // If it matches a known rubro name, add its slug so catalog filtering keeps working.
+    const known = allSectors.find(c => c.name.toLowerCase() === v.toLowerCase());
+    const val = known ? known.slug : v;
+    if (selected.some(s => s.toLowerCase() === val.toLowerCase())) { setCustom(''); return; }
+    persist([...selected, val]);
+    setCustom('');
+  };
+
   if (allSectors.length === 0) return null;
+
+  // Sectors the shop added by hand that aren't one of the shared rubros.
+  const knownSlugs = new Set(allSectors.map(c => c.slug));
+  const customSectors = selected.filter(v => !knownSlugs.has(v));
 
   return (
     <div className="card p-4 mb-5">
       <p className="text-sm font-semibold text-stone-700 mb-1">Mis rubros</p>
       <p className="text-xs text-stone-400 mb-3">
         Elegí qué vendés — así al cargar productos ves solo las categorías que te sirven.
+        ¿No está tu rubro? Agregalo abajo.
       </p>
       <div className="flex flex-wrap gap-2">
         {allSectors.map(s => {
@@ -74,6 +92,38 @@ export function SectorPicker({ slug, sectors, onChange }: {
             </button>
           );
         })}
+
+        {customSectors.map(v => (
+          <button
+            key={v}
+            type="button"
+            onClick={() => toggle(v)}
+            disabled={saving}
+            title="Tocá para quitar este rubro"
+            className="px-3 py-1.5 rounded-lg text-sm font-medium bg-emerald-600 text-white transition-colors disabled:opacity-60 inline-flex items-center gap-1"
+          >
+            {v} <span className="text-emerald-200">✕</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="flex gap-2 mt-3 max-w-xs">
+        <input
+          type="text"
+          value={custom}
+          onChange={e => setCustom(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustom(); } }}
+          placeholder="Agregar otro rubro..."
+          className="flex-1 px-3 py-1.5 bg-white border border-stone-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+        />
+        <button
+          type="button"
+          onClick={addCustom}
+          disabled={saving || !custom.trim()}
+          className="px-3 py-1.5 bg-stone-800 hover:bg-stone-700 rounded-lg text-sm font-medium text-white disabled:opacity-40"
+        >
+          Agregar
+        </button>
       </div>
     </div>
   );
