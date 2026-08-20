@@ -19,19 +19,28 @@ export type PdfDoc = {
   validityDays?: number;
 };
 
-// Pull the shop logo through our backend proxy (R2 sends no CORS headers) and
-// return it as a data URL so jsPDF can embed it. Returns undefined on any failure.
+// Pull the shop logo through our backend proxy (R2 sends no CORS headers), then
+// downscale + re-encode it as a small JPEG. jsPDF embeds source PNGs almost raw
+// (a full-size logo can bloat the PDF to tens of MB), so shrinking first keeps the
+// file WhatsApp-friendly. White background flattens any transparency. undefined on failure.
 export async function fetchLogoDataUrl(logoUrl: string): Promise<string | undefined> {
   try {
     const res = await fetch(`${API_BASE}/images/proxy?url=${encodeURIComponent(logoUrl)}`);
     if (!res.ok) return undefined;
     const blob = await res.blob();
-    return await new Promise<string | undefined>(resolve => {
-      const fr = new FileReader();
-      fr.onload = () => resolve(fr.result as string);
-      fr.onerror = () => resolve(undefined);
-      fr.readAsDataURL(blob);
-    });
+    const bitmap = await createImageBitmap(blob);
+    const max = 160;
+    const scale = Math.min(1, max / Math.max(bitmap.width, bitmap.height));
+    const w = Math.max(1, Math.round(bitmap.width * scale));
+    const h = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return undefined;
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(bitmap, 0, 0, w, h);
+    bitmap.close?.();
+    return canvas.toDataURL('image/jpeg', 0.85);
   } catch {
     return undefined;
   }
