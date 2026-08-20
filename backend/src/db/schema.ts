@@ -65,6 +65,9 @@ export const businesses = pgTable('businesses', {
   plan: text('plan').default('free').notNull(),
   sectors: text('sectors').array(),
   logoUrl: text('logo_url').default('').notNull(),
+  // Default markup % used to auto-suggest a sale price from cost when adding
+  // NEW products. Never applied retroactively to already-priced inventory.
+  defaultMargin: numeric('default_margin', { precision: 6, scale: 2 }).default('0').notNull(),
   ownerId: uuid('owner_id').references(() => users.id),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });

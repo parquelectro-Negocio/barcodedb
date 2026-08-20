@@ -194,3 +194,6 @@ CREATE INDEX IF NOT EXISTS idx_duplicate_reports_reported ON duplicate_reports(r
 
 -- Migration: business logo
 ALTER TABLE businesses ADD COLUMN IF NOT EXISTS logo_url TEXT NOT NULL DEFAULT '';
+
+-- Migration: default markup % for auto-pricing new inventory from cost
+ALTER TABLE businesses ADD COLUMN IF NOT EXISTS default_margin NUMERIC(6,2) NOT NULL DEFAULT 0;

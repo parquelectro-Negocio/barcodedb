@@ -378,10 +378,20 @@ function ProductView({ product, barcode, onBack }: { product: any; barcode: stri
   );
 }
 
+// Suggested sale price from a cost and a markup %. Empty when inputs aren't numbers.
+function computePrice(cost: string, margin: string): string {
+  const c = parseFloat(cost), m = parseFloat(margin);
+  if (!isFinite(c) || !isFinite(m)) return '';
+  return (c * (1 + m / 100)).toFixed(2);
+}
+
 function InventorySection({ productId }: { productId: string }) {
   const [price, setPrice] = useState('');
   const [cost, setCost] = useState('');
   const [stock, setStock] = useState('');
+  const [margin, setMargin] = useState('0');
+  // Once the user edits the price by hand, stop auto-deriving it from cost×margin.
+  const [priceTouched, setPriceTouched] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [showSetup, setShowSetup] = useState(false);
   const [business, setBusiness] = useState<any>(null);
@@ -402,6 +412,7 @@ function InventorySection({ productId }: { productId: string }) {
       if (res.ok) {
         const b = await res.json();
         setBusiness(b);
+        setMargin(b.defaultMargin ?? '0');
         localStorage.setItem('biz_slug', s);
         const bpRes = await fetch(`${API_BASE}/businesses/${s}/products`, { headers: apiHeaders() });
         if (bpRes.ok) {
@@ -465,6 +476,21 @@ function InventorySection({ productId }: { productId: string }) {
       setShowForm(false);
       queryClient.invalidateQueries({ queryKey: ['business', business.slug] });
     },
+  });
+
+  // Persist the current margin as the shop default so future products reuse it.
+  // Only changes the default — never rewrites already-priced inventory.
+  const saveMarginMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`${API_BASE}/businesses/${business.slug}`, {
+        method: 'PATCH',
+        headers: apiHeaders(),
+        body: JSON.stringify({ defaultMargin: Number(margin) || 0 }),
+      });
+      if (!res.ok) throw new Error('No se pudo guardar el margen');
+      return res.json();
+    },
+    onSuccess: (b) => setBusiness(b),
   });
 
   if (!showForm) {
@@ -567,32 +593,95 @@ function InventorySection({ productId }: { productId: string }) {
         <p className="text-xs text-stone-500 mb-3">Este producto ya está en tu inventario. Actualizá precio y stock.</p>
       )}
       <div className="space-y-3 max-w-md">
-        <div className="flex gap-3">
-          <div className="flex-1">
-            <label className="block text-sm text-stone-500 mb-1">Precio de venta $</label>
-            <input
-              type="number" min="0" step="0.01" value={price}
-              onChange={e => setPrice(e.target.value)}
-              className="w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm text-stone-900"
-            />
+        {!existingBP ? (
+          <>
+            {/* New product: enter cost + margin, price is auto-suggested and editable. */}
+            <div className="flex gap-3">
+              <div className="flex-1">
+                <label className="block text-sm text-stone-500 mb-1">Costo $</label>
+                <input
+                  type="number" min="0" step="0.01" value={cost}
+                  onChange={e => {
+                    const v = e.target.value;
+                    setCost(v);
+                    if (!priceTouched) setPrice(computePrice(v, margin));
+                  }}
+                  className="w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm text-stone-900"
+                />
+              </div>
+              <div className="w-28">
+                <label className="block text-sm text-stone-500 mb-1">Margen %</label>
+                <input
+                  type="number" min="0" step="1" value={margin}
+                  onChange={e => {
+                    const v = e.target.value;
+                    setMargin(v);
+                    if (!priceTouched) setPrice(computePrice(cost, v));
+                  }}
+                  className="w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm text-stone-900"
+                />
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => saveMarginMutation.mutate()}
+              disabled={saveMarginMutation.isPending || Number(business?.defaultMargin ?? 0) === (Number(margin) || 0)}
+              className="text-xs text-emerald-600 hover:text-emerald-700 disabled:text-stone-400 disabled:cursor-default font-medium"
+            >
+              {saveMarginMutation.isSuccess ? '✓ Margen predeterminado guardado' : '★ Fijar este margen como predeterminado'}
+            </button>
+
+            <div className="flex gap-3">
+              <div className="flex-1">
+                <label className="block text-sm text-stone-500 mb-1">
+                  Precio de venta $
+                  {!priceTouched && <span className="text-emerald-600 font-normal"> (sugerido)</span>}
+                </label>
+                <input
+                  type="number" min="0" step="0.01" value={price}
+                  onChange={e => { setPrice(e.target.value); setPriceTouched(true); }}
+                  className="w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm text-stone-900"
+                />
+              </div>
+              <div className="w-28">
+                <label className="block text-sm text-stone-500 mb-1">Stock</label>
+                <input
+                  type="number" min="0" value={stock}
+                  onChange={e => setStock(e.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm text-stone-900"
+                />
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="block text-sm text-stone-500 mb-1">Precio de venta $</label>
+              <input
+                type="number" min="0" step="0.01" value={price}
+                onChange={e => setPrice(e.target.value)}
+                className="w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm text-stone-900"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="block text-sm text-stone-500 mb-1">Costo $</label>
+              <input
+                type="number" min="0" step="0.01" value={cost}
+                onChange={e => setCost(e.target.value)}
+                className="w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm text-stone-900"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="block text-sm text-stone-500 mb-1">Stock</label>
+              <input
+                type="number" min="0" value={stock}
+                onChange={e => setStock(e.target.value)}
+                className="w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm text-stone-900"
+              />
+            </div>
           </div>
-          <div className="flex-1">
-            <label className="block text-sm text-stone-500 mb-1">Costo $</label>
-            <input
-              type="number" min="0" step="0.01" value={cost}
-              onChange={e => setCost(e.target.value)}
-              className="w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm text-stone-900"
-            />
-          </div>
-          <div className="flex-1">
-            <label className="block text-sm text-stone-500 mb-1">Stock</label>
-            <input
-              type="number" min="0" value={stock}
-              onChange={e => setStock(e.target.value)}
-              className="w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm text-stone-900"
-            />
-          </div>
-        </div>
+        )}
         <div className="flex gap-2">
           <button
             onClick={() => setShowSetup(true)}
