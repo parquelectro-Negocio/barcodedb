@@ -31,8 +31,11 @@ imagesRouter.post('/upload', async (c) => {
   if (!s3 || !R2_BUCKET || !R2_PUBLIC_BASE) return c.json({ error: 'r2_not_configured' }, 500);
 
   const body = await c.req.parseBody();
-  const file = body['file'];
-  if (!(file instanceof File)) return c.json({ error: 'no_file' }, 400);
+  const file: any = body['file'];
+  // Duck-type instead of `instanceof File` — File isn't a global in this Node runtime.
+  if (!file || typeof file === 'string' || typeof file.arrayBuffer !== 'function') {
+    return c.json({ error: 'no_file' }, 400);
+  }
   if (file.size > 10 * 1024 * 1024) return c.json({ error: 'file_too_large' }, 400);
 
   const ext = EXT[file.type] ?? 'jpg';
