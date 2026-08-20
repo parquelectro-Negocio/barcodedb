@@ -14,7 +14,7 @@ export function PwaUpdatePrompt() {
     <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3
                     bg-stone-900 text-white rounded-xl shadow-modal px-4 py-3 animate-slide-up
                     max-w-[calc(100%-2rem)]">
-      <span className="text-sm">Hay una versión nueva de BarcodeDB.</span>
+      <span className="text-sm">Hay una versión nueva de CodigoAR.</span>
       <button
         onClick={() => updateServiceWorker(true)}
         className="text-sm font-semibold bg-emerald-500 hover:bg-emerald-400 rounded-lg px-3 py-1.5 transition-colors shrink-0"

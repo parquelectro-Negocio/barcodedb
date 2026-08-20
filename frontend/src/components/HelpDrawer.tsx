@@ -29,7 +29,7 @@ export function HelpDrawer() {
           onClick={() => setOpen(true)}
           className="text-sm text-stone-400 hover:text-emerald-600 underline underline-offset-2 transition-colors"
         >
-          ¿Cómo usar BarcodeDB?
+          ¿Cómo usar CodigoAR?
         </button>
       </div>
 
@@ -41,7 +41,7 @@ export function HelpDrawer() {
             className="flex items-center gap-2 rounded-full bg-emerald-600 px-4 py-3
                        text-white shadow-modal hover:bg-emerald-500 active:bg-emerald-700 transition-colors
                        focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
-            aria-label="Cómo usar BarcodeDB"
+            aria-label="Cómo usar CodigoAR"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -76,12 +76,12 @@ export function HelpDrawer() {
       <aside
         role="dialog"
         aria-modal="true"
-        aria-label="Cómo usar BarcodeDB"
+        aria-label="Cómo usar CodigoAR"
         className={`fixed right-0 top-0 z-50 h-full w-full max-w-md overflow-y-auto bg-white shadow-modal
                     transition-transform duration-300 ${open ? 'translate-x-0' : 'translate-x-full'}`}
       >
         <div className="sticky top-0 flex items-center justify-between border-b border-stone-100 bg-white px-5 py-4">
-          <h2 className="text-lg font-bold text-stone-800">Cómo usar BarcodeDB</h2>
+          <h2 className="text-lg font-bold text-stone-800">Cómo usar CodigoAR</h2>
           <button onClick={close} className="btn-ghost -mr-2" aria-label="Cerrar">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

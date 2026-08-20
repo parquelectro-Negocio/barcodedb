@@ -676,7 +676,7 @@ function MatchResults({ results, businessSlug, onAddToBusiness, onCreateUnmatche
               disabled={creating || unmatched.length - excluded.size === 0}
               className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 rounded-xl font-medium text-white"
             >
-              {creating ? 'Creando...' : `Crear ${unmatched.length - excluded.size} productos en BarcodeDB`}
+              {creating ? 'Creando...' : `Crear ${unmatched.length - excluded.size} productos en CodigoAR`}
             </button>
           </div>
 

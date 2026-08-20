@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
+import { Logo } from '../components/Logo';
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -51,9 +52,7 @@ export function LoginPage() {
     <div className="min-h-[80vh] flex items-center justify-center">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="w-14 h-14 bg-gradient-to-br from-emerald-500 to-emerald-700 rounded-2xl flex items-center justify-center text-white text-2xl font-bold mx-auto mb-4 shadow-lg shadow-emerald-200/50">
-            B
-          </div>
+          <Logo size="lg" className="mb-5" />
           <h1 className="text-2xl font-bold text-stone-900">
             {mode === 'login' ? 'Bienvenido de vuelta' : 'Crear cuenta'}
           </h1>

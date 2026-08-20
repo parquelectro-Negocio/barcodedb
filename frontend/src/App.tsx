@@ -17,6 +17,7 @@ import { PwaUpdatePrompt } from './components/PwaUpdatePrompt';
 import { ToastProvider } from './lib/toast';
 import { AuthProvider, useAuth } from './lib/auth';
 import { resolveImageUrl } from './lib/config';
+import { Logo } from './components/Logo';
 import { useState, type ReactNode } from 'react';
 
 // Gate write pages behind a real account. Reads (search, scan, product view)
@@ -51,11 +52,8 @@ function NavBar() {
   return (
     <nav className="sticky top-0 z-30 bg-white/80 backdrop-blur-lg border-b border-stone-200/80 shadow-sm">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16">
-        <Link to="/" className="flex items-center gap-2.5 group shrink-0">
-          <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center text-white text-xs font-bold group-hover:bg-emerald-500 transition-colors">
-            B
-          </div>
-          <span className="text-lg font-bold text-stone-800">BarcodeDB</span>
+        <Link to="/" className="flex items-center group shrink-0">
+          <Logo size="sm" />
         </Link>
 
         <div className="hidden md:flex items-center gap-1">

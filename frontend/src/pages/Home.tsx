@@ -22,10 +22,10 @@ export function Home() {
           <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-50 border border-emerald-200 rounded-full text-xs font-medium text-emerald-700 mb-4">
             Base colaborativa de productos
           </div>
-          <h1 className="text-4xl sm:text-6xl font-extrabold text-stone-900 tracking-tight mb-3">
-            BarcodeDB
-          </h1>
           <BarcodeStrip />
+          <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight mb-3">
+            <span className="text-stone-900">Codigo</span><span className="text-emerald-600">AR</span>
+          </h1>
           <p className="text-stone-500 text-base sm:text-lg max-w-lg mx-auto">
             Busca, escanea y comparte información de productos. Tu catálogo colaborativo de códigos de barras.
           </p>

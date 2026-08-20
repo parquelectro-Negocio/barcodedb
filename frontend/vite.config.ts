@@ -20,8 +20,8 @@ export default defineConfig({
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
       },
       manifest: {
-        name: 'BarcodeDB',
-        short_name: 'BarcodeDB',
+        name: 'CodigoAR',
+        short_name: 'CodigoAR',
         description: 'Base colaborativa de productos por código de barras',
         theme_color: '#059669',
         background_color: '#fafaf9',

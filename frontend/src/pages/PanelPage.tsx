@@ -171,7 +171,7 @@ export function PanelPage() {
       <div className="min-h-[70vh] flex flex-col items-center justify-center py-8">
         <div className="text-center mb-6">
           <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-50 border border-emerald-200 rounded-full text-xs font-medium text-emerald-700 mb-4">
-            Bienvenido a BarcodeDB
+            Bienvenido a CodigoAR
           </div>
           <h1 className="text-3xl sm:text-4xl font-extrabold text-stone-900 tracking-tight mb-2">
             Empecemos por tu comercio
