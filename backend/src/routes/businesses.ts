@@ -248,6 +248,32 @@ businessesRouter.post('/:slug/products', async (c) => {
   return c.json(bp, 201);
 });
 
+const applyMarginSchema = z.object({ margin: z.number().min(0).max(100000) });
+
+// Opt-in bulk repricing: recompute price = cost × (1 + margin%) for EVERY product
+// in this shop that has a cost loaded. Explicit, owner-triggered, and destructive
+// to current prices — the UI must confirm before calling. Products without a cost
+// (cost = 0) are left untouched, since there's nothing to derive a price from.
+businessesRouter.post('/:slug/products/apply-margin', async (c) => {
+  const owned = await requireOwnedBusiness(c, c.req.param('slug'));
+  if (!owned.ok) return c.json({ error: owned.error }, owned.status);
+
+  const parsed = applyMarginSchema.safeParse(await c.req.json());
+  if (!parsed.success) {
+    return c.json({ error: 'validation_error', details: parsed.error.flatten() }, 400);
+  }
+  const factor = 1 + parsed.data.margin / 100;
+
+  const rows: any = await db.execute(sql`
+    UPDATE business_products
+    SET price = ROUND(cost * ${factor}, 2), updated_at = now()
+    WHERE business_id = ${owned.business.id} AND cost > 0
+    RETURNING id
+  `);
+  const arr = Array.isArray(rows) ? rows : (rows?.rows ?? []);
+  return c.json({ updated: arr.length });
+});
+
 businessesRouter.patch('/:slug/products/:id', async (c) => {
   const { slug, id } = c.req.param();
   const owned = await requireOwnedBusiness(c, slug);

@@ -13,6 +13,8 @@ function ShopSettings({ business, onUpdated }: { business: any; onUpdated: (b: a
   const [margin, setMargin] = useState(String(business.defaultMargin ?? '0'));
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [applying, setApplying] = useState(false);
+  const [applyMsg, setApplyMsg] = useState('');
   const changed = (Number(margin) || 0) !== Number(business.defaultMargin ?? 0);
 
   const save = async () => {
@@ -25,6 +27,34 @@ function ShopSettings({ business, onUpdated }: { business: any; onUpdated: (b: a
       });
       if (res.ok) { onUpdated(await res.json()); setSaved(true); }
     } catch {} finally { setSaving(false); }
+  };
+
+  // Opt-in: overwrite the sale price of every already-loaded product from its cost.
+  const applyToAll = async () => {
+    const m = Number(margin) || 0;
+    const ok = window.confirm(
+      `Esto va a RECALCULAR el precio de venta de TODOS los productos que tengan costo cargado, ` +
+      `usando un margen de ${m}%. Los precios actuales se van a reemplazar. ¿Continuar?`,
+    );
+    if (!ok) return;
+    setApplying(true); setApplyMsg('');
+    try {
+      const res = await fetch(`${API_BASE}/businesses/${business.slug}/products/apply-margin`, {
+        method: 'POST',
+        headers: apiHeaders(),
+        body: JSON.stringify({ margin: m }),
+      });
+      if (res.ok) {
+        const { updated } = await res.json();
+        setApplyMsg(`✓ ${updated} precio${updated === 1 ? '' : 's'} actualizado${updated === 1 ? '' : 's'}.`);
+      } else {
+        setApplyMsg('No se pudo aplicar. Probá de nuevo.');
+      }
+    } catch {
+      setApplyMsg('No se pudo aplicar. Probá de nuevo.');
+    } finally {
+      setApplying(false);
+    }
   };
 
   return (
@@ -54,6 +84,22 @@ function ShopSettings({ business, onUpdated }: { business: any; onUpdated: (b: a
             Se usa para sugerir el <strong>precio de venta</strong> a partir del costo cuando agregás
             productos <strong>nuevos</strong>. No modifica los precios de productos que ya cargaste.
           </p>
+
+          <div className="mt-4 pt-4 border-t border-stone-100">
+            <p className="text-xs text-stone-500 mb-2 max-w-md">
+              ¿Querés aplicar este margen también a los productos que <strong>ya cargaste</strong>?
+              Recalcula el precio de cada uno desde su costo (solo los que tengan costo cargado) y
+              <strong> reemplaza</strong> el precio actual.
+            </p>
+            <button
+              onClick={applyToAll}
+              disabled={applying}
+              className="btn-secondary text-sm disabled:opacity-50"
+            >
+              {applying ? 'Aplicando...' : 'Aplicar a todos los productos ya cargados'}
+            </button>
+            {applyMsg && <p className="text-xs text-emerald-600 mt-2">{applyMsg}</p>}
+          </div>
         </div>
       )}
     </div>
