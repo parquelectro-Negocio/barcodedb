@@ -5,6 +5,61 @@ import { SectorPicker } from '../components/SectorPicker';
 import { CreateBusinessCard } from '../components/CreateBusinessCard';
 import { apiHeaders } from '../lib/user';
 
+// Shop-level settings that live on the Panel. Currently the default markup used
+// to auto-suggest sale prices from cost when adding NEW products. Editing it never
+// rewrites already-priced inventory — it only changes future suggestions.
+function ShopSettings({ business, onUpdated }: { business: any; onUpdated: (b: any) => void }) {
+  const [open, setOpen] = useState(false);
+  const [margin, setMargin] = useState(String(business.defaultMargin ?? '0'));
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const changed = (Number(margin) || 0) !== Number(business.defaultMargin ?? 0);
+
+  const save = async () => {
+    setSaving(true); setSaved(false);
+    try {
+      const res = await fetch(`${API_BASE}/businesses/${business.slug}`, {
+        method: 'PATCH',
+        headers: apiHeaders(),
+        body: JSON.stringify({ defaultMargin: Number(margin) || 0 }),
+      });
+      if (res.ok) { onUpdated(await res.json()); setSaved(true); }
+    } catch {} finally { setSaving(false); }
+  };
+
+  return (
+    <div className="card p-4 mt-5">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between text-sm font-semibold text-stone-700"
+      >
+        <span>⚙️ Configuración del comercio</span>
+        <span className="text-stone-400">{open ? '−' : '+'}</span>
+      </button>
+
+      {open && (
+        <div className="mt-4">
+          <label className="block text-xs text-stone-500 mb-1">Margen predeterminado %</label>
+          <div className="flex gap-2 items-start">
+            <input
+              type="number" min="0" step="1" value={margin}
+              onChange={e => { setMargin(e.target.value); setSaved(false); }}
+              className="input w-28"
+            />
+            <button onClick={save} disabled={saving || !changed} className="btn-primary text-sm disabled:opacity-50">
+              {saving ? 'Guardando...' : saved ? '✓ Guardado' : 'Guardar'}
+            </button>
+          </div>
+          <p className="text-xs text-stone-400 mt-2 max-w-md">
+            Se usa para sugerir el <strong>precio de venta</strong> a partir del costo cuando agregás
+            productos <strong>nuevos</strong>. No modifica los precios de productos que ya cargaste.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // The shop cockpit: onboarding when the account has no shop yet, otherwise the
 // dashboard (sales, estimated profit, low stock, quick actions). Lives on its
 // own tab so the public home stays a clean, scroll-free landing.
@@ -181,6 +236,8 @@ export function PanelPage() {
             <Link to="/sales" className="btn-secondary flex-1 text-center text-sm">Ventas</Link>
             <Link to="/add" className="btn-secondary flex-1 text-center text-sm">+ Producto</Link>
           </div>
+
+          <ShopSettings business={business} onUpdated={setBusiness} />
         </div>
       )}
 
