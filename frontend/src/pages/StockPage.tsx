@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { API_BASE } from '../lib/config';
+import { API_BASE, resolveImageUrl } from '../lib/config';
 import { apiHeaders } from '../lib/user';
 import { useToast } from '../lib/toast';
 
@@ -25,6 +25,7 @@ export function StockPage() {
   const [editing, setEditing] = useState<Record<string, { stock: number; price: string; cost: string }>>({});
   const [saving, setSaving] = useState<string | null>(null);
   const [filterStock, setFilterStock] = useState<'all' | 'low' | 'out'>('all');
+  const [showAdd, setShowAdd] = useState(false);
 
   const loadBusiness = async (slug: string) => {
     if (!slug.trim()) return;
@@ -139,13 +140,30 @@ export function StockPage() {
           <h2 className="text-2xl font-bold text-stone-800">Stock</h2>
           <p className="text-sm text-emerald-600 font-medium">{business?.name}</p>
         </div>
-        <button
-          onClick={() => { setBusiness(null); setBusinessSlug(''); }}
-          className="text-xs text-stone-400 hover:text-stone-600 underline"
-        >
-          Cambiar comercio
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowAdd(v => !v)}
+            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-sm font-medium text-white"
+          >
+            {showAdd ? 'Cerrar' : '+ Agregar producto'}
+          </button>
+          <button
+            onClick={() => { setBusiness(null); setBusinessSlug(''); }}
+            className="text-xs text-stone-400 hover:text-stone-600 underline"
+          >
+            Cambiar comercio
+          </button>
+        </div>
       </div>
+
+      {showAdd && business && (
+        <AddToInventory
+          business={business}
+          existingIds={new Set(items.map(i => i.productId))}
+          onAdded={(bp) => setItems(prev => [bp, ...prev.filter(p => p.id !== bp.id)])}
+          onClose={() => setShowAdd(false)}
+        />
+      )}
 
       <div className="grid grid-cols-4 gap-3 mb-6">
         <div className="bg-white border border-stone-200 rounded-xl p-4 shadow-sm">
@@ -198,7 +216,12 @@ export function StockPage() {
       {items.length === 0 ? (
         <div className="text-center py-16">
           <p className="text-stone-300 text-lg">Tu inventario está vacío</p>
-          <p className="text-stone-400 text-sm mt-1">Agregá productos desde el detalle de cada producto</p>
+          <button
+            onClick={() => setShowAdd(true)}
+            className="mt-3 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-sm font-medium text-white"
+          >
+            + Agregar producto
+          </button>
         </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-16">
@@ -317,6 +340,159 @@ export function StockPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// Direct add-to-inventory: search the shared catalog and add a product to this
+// shop with cost / margin-suggested price / stock, without leaving the Stock page.
+function AddToInventory({ business, existingIds, onAdded, onClose }: {
+  business: any;
+  existingIds: Set<string>;
+  onAdded: (bp: BPItem) => void;
+  onClose: () => void;
+}) {
+  const { toast } = useToast();
+  const [q, setQ] = useState('');
+  const [results, setResults] = useState<any[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [added, setAdded] = useState<Set<string>>(new Set());
+  const marginDefault = String(business.defaultMargin ?? '0');
+
+  const [active, setActive] = useState<any | null>(null);
+  const [cost, setCost] = useState('');
+  const [margin, setMargin] = useState(marginDefault);
+  const [price, setPrice] = useState('');
+  const [stock, setStock] = useState('1');
+  const [touched, setTouched] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!q.trim()) { setResults([]); return; }
+    const t = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const res = await fetch(`${API_BASE}/search?q=${encodeURIComponent(q)}&limit=8`);
+        const d = await res.json();
+        setResults(Array.isArray(d.data) ? d.data : []);
+      } catch { setResults([]); } finally { setSearching(false); }
+    }, 300);
+    return () => clearTimeout(t);
+  }, [q]);
+
+  const compute = (c: string, m: string) => {
+    const cn = parseFloat(c), mn = parseFloat(m);
+    if (!isFinite(cn) || !isFinite(mn)) return '';
+    return (cn * (1 + mn / 100)).toFixed(2);
+  };
+
+  const openForm = (product: any) => {
+    setActive(product);
+    setCost(''); setMargin(marginDefault); setPrice(''); setStock('1'); setTouched(false);
+  };
+
+  const save = async (product: any) => {
+    setSaving(true);
+    try {
+      const res = await fetch(`${API_BASE}/businesses/${business.slug}/products`, {
+        method: 'POST',
+        headers: apiHeaders(),
+        body: JSON.stringify({ productId: product.id, price: Number(price) || 0, cost: Number(cost) || 0, stock: Number(stock) || 0 }),
+      });
+      if (!res.ok) throw new Error();
+      const bp = await res.json();
+      onAdded({
+        ...bp,
+        product: {
+          id: product.id, name: product.name, barcode: product.barcode || '',
+          imageUrl: product.imageUrl || '', brand: product.brand || '', slug: product.slug || '',
+        },
+      });
+      setAdded(prev => new Set(prev).add(product.id));
+      setActive(null);
+      toast(`${product.name} agregado`, 'success');
+    } catch {
+      toast('No se pudo agregar', 'error');
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <div className="bg-white border border-stone-200 rounded-xl shadow-sm p-4 mb-6">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-semibold text-stone-700">Agregar producto al inventario</h3>
+        <button onClick={onClose} className="text-xs text-stone-400 hover:text-stone-600">Cerrar</button>
+      </div>
+
+      <input
+        type="text" value={q} onChange={e => setQ(e.target.value)} autoFocus
+        placeholder="Buscá por nombre, marca o código..."
+        className="w-full px-4 py-2 bg-white border border-stone-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 mb-3"
+      />
+
+      {searching && <p className="text-xs text-stone-400">Buscando...</p>}
+
+      {!searching && q.trim() && results.length === 0 && (
+        <div className="text-sm text-stone-500 py-2">
+          No se encontró nada.{' '}
+          <Link to="/add" className="text-emerald-600 hover:underline font-medium">Crear producto nuevo →</Link>
+        </div>
+      )}
+
+      <div className="divide-y divide-stone-100">
+        {results.map(product => {
+          const inInv = existingIds.has(product.id) || added.has(product.id);
+          const isActive = active?.id === product.id;
+          return (
+            <div key={product.id} className="py-2.5">
+              <div className="flex items-center gap-3">
+                {product.imageUrl
+                  ? <img src={resolveImageUrl(product.imageUrl)} alt="" className="w-10 h-10 object-cover rounded-lg shrink-0" />
+                  : <div className="w-10 h-10 bg-stone-100 rounded-lg shrink-0" />}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-stone-800 truncate">{product.name}</p>
+                  <p className="text-xs text-stone-400 font-mono truncate">{product.barcode || product.brand}</p>
+                </div>
+                {inInv ? (
+                  <span className="text-xs text-emerald-600 font-medium shrink-0">✓ En inventario</span>
+                ) : isActive ? (
+                  <button onClick={() => setActive(null)} className="text-xs text-stone-400 hover:text-stone-600 shrink-0">Cancelar</button>
+                ) : (
+                  <button onClick={() => openForm(product)} className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-xs font-medium text-white shrink-0">Agregar</button>
+                )}
+              </div>
+
+              {isActive && (
+                <div className="mt-3 pl-12 flex flex-wrap items-end gap-2">
+                  <label className="text-xs text-stone-500">Costo $
+                    <input type="number" min="0" step="0.01" value={cost}
+                      onChange={e => { const v = e.target.value; setCost(v); if (!touched) setPrice(compute(v, margin)); }}
+                      className="block w-24 mt-0.5 px-2 py-1.5 border border-stone-300 rounded-lg text-sm" />
+                  </label>
+                  <label className="text-xs text-stone-500">Margen %
+                    <input type="number" min="0" step="1" value={margin}
+                      onChange={e => { const v = e.target.value; setMargin(v); if (!touched) setPrice(compute(cost, v)); }}
+                      className="block w-20 mt-0.5 px-2 py-1.5 border border-stone-300 rounded-lg text-sm" />
+                  </label>
+                  <label className="text-xs text-stone-500">Precio $
+                    <input type="number" min="0" step="0.01" value={price}
+                      onChange={e => { setPrice(e.target.value); setTouched(true); }}
+                      className="block w-24 mt-0.5 px-2 py-1.5 border border-stone-300 rounded-lg text-sm" />
+                  </label>
+                  <label className="text-xs text-stone-500">Stock
+                    <input type="number" min="0" value={stock}
+                      onChange={e => setStock(e.target.value)}
+                      className="block w-20 mt-0.5 px-2 py-1.5 border border-stone-300 rounded-lg text-sm" />
+                  </label>
+                  <button onClick={() => save(product)} disabled={saving || !price}
+                    className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 rounded-lg text-sm font-medium text-white">
+                    {saving ? '...' : 'Guardar'}
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

@@ -684,6 +684,12 @@ function InventorySection({ productId }: { productId: string }) {
         )}
         <div className="flex gap-2">
           <button
+            onClick={() => setShowForm(false)}
+            className="px-4 py-2 bg-stone-100 hover:bg-stone-200 rounded-lg text-sm text-stone-700"
+          >
+            Cancelar
+          </button>
+          <button
             onClick={() => setShowSetup(true)}
             className="px-4 py-2 bg-stone-100 hover:bg-stone-200 rounded-lg text-sm text-stone-700"
           >
