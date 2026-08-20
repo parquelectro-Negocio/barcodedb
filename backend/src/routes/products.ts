@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { db, schema } from '../db';
 import { eq, or, sql, and, ne } from 'drizzle-orm';
-import { requireAuth } from '../middleware/user';
+import { requireAuth, isModerator } from '../middleware/user';
 import { slugify } from '../lib/slug';
 import { categorize } from '../lib/categorize';
 
@@ -255,9 +255,10 @@ productsRouter.patch('/:id', async (c) => {
   if (!current) return c.json({ error: 'not_found' }, 404);
 
   const isCreator = current.createdBy === auth.userId;
+  const isMod = await isModerator(auth.userId);
 
-  // Verified products: only the creator can edit
-  if (current.status === 'verified' && !isCreator) {
+  // Verified products: only the creator (or a moderator) can edit
+  if (current.status === 'verified' && !isCreator && !isMod) {
     return c.json({ error: 'Producto verificado — solo el creador puede editarlo. Si encontraste un error, usa el botón Reportar.' }, 403);
   }
 
@@ -293,7 +294,7 @@ productsRouter.patch('/:id', async (c) => {
   }
 
   // Non-creator editing a pending product: reset verification, transfer ownership
-  if (!isCreator) {
+  if (!isCreator && !isMod) {
     updates.verificationScore = 0;
     updates.status = 'pending';
     updates.createdBy = auth.userId;

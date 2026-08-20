@@ -110,6 +110,19 @@ function ProductView({ product, barcode, onBack }: { product: any; barcode: stri
     } catch {} finally { setUploadingPhoto(false); }
   };
 
+  const deletePhoto = async () => {
+    if (!confirm('¿Quitar la foto de este producto?')) return;
+    setUploadingPhoto(true);
+    try {
+      const res = await fetch(`${API_BASE}/products/${product.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ imageUrl: '' }),
+      });
+      if (res.ok) queryClient.invalidateQueries({ queryKey: ['product', barcode] });
+    } catch {} finally { setUploadingPhoto(false); }
+  };
+
   const doSearch = async (q: string) => {
     if (!q.trim()) { setSearchResults([]); return; }
     setSearching(true);
@@ -168,24 +181,32 @@ function ProductView({ product, barcode, onBack }: { product: any; barcode: stri
 
       <div className="flex gap-8 items-start mb-6">
         {product.imageUrl ? (
-          <img src={resolveImageUrl(product.imageUrl)} alt="" className="w-48 h-48 object-cover rounded-xl shadow-sm" />
+          <div className="flex flex-col items-center gap-1">
+            <img src={resolveImageUrl(product.imageUrl)} alt="" className="w-48 h-48 object-cover rounded-xl shadow-sm" />
+            {user && (
+              <div className="flex gap-3 text-xs">
+                <button type="button" onClick={() => photoInput.current?.click()} disabled={uploadingPhoto} className="text-emerald-600 hover:text-emerald-700 underline disabled:opacity-50">
+                  {uploadingPhoto ? 'Subiendo...' : 'Cambiar'}
+                </button>
+                <button type="button" onClick={deletePhoto} disabled={uploadingPhoto} className="text-red-500 hover:text-red-600 underline disabled:opacity-50">
+                  Quitar
+                </button>
+              </div>
+            )}
+          </div>
         ) : (
           <div className="w-48 h-48 bg-stone-100 rounded-xl flex flex-col items-center justify-center text-stone-400 text-sm gap-2">
             <span>Sin imagen</span>
             {user && (
-              <>
-                <button
-                  onClick={() => photoInput.current?.click()}
-                  disabled={uploadingPhoto}
-                  className="text-xs text-emerald-600 hover:text-emerald-700 underline disabled:opacity-50"
-                >
-                  {uploadingPhoto ? 'Subiendo...' : '+ Aportar foto'}
-                </button>
-                <input ref={photoInput} type="file" accept="image/*" capture="environment" className="hidden"
-                  onChange={e => { const f = e.target.files?.[0]; if (f) contributePhoto(f); e.target.value = ''; }} />
-              </>
+              <button onClick={() => photoInput.current?.click()} disabled={uploadingPhoto} className="text-xs text-emerald-600 hover:text-emerald-700 underline disabled:opacity-50">
+                {uploadingPhoto ? 'Subiendo...' : '+ Aportar foto'}
+              </button>
             )}
           </div>
+        )}
+        {user && (
+          <input ref={photoInput} type="file" accept="image/*" capture="environment" className="hidden"
+            onChange={e => { const f = e.target.files?.[0]; if (f) contributePhoto(f); e.target.value = ''; }} />
         )}
 
         <div className="flex-1">
