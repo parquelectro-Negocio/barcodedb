@@ -1,11 +1,13 @@
 // Client-side PDF generation for receipts and quotes. jsPDF is loaded lazily
 // (dynamic import) so it never weighs down the initial bundle.
+import { API_BASE } from './config';
 
 export type PdfLine = { name: string; quantity: number; unitPrice: number; total: number };
 
 export type PdfDoc = {
   kind: 'recibo' | 'presupuesto';
   businessName: string;
+  logoDataUrl?: string;
   docNumber?: string;
   dateISO?: string;
   customer?: string;
@@ -16,6 +18,24 @@ export type PdfDoc = {
   change?: number;
   validityDays?: number;
 };
+
+// Pull the shop logo through our backend proxy (R2 sends no CORS headers) and
+// return it as a data URL so jsPDF can embed it. Returns undefined on any failure.
+export async function fetchLogoDataUrl(logoUrl: string): Promise<string | undefined> {
+  try {
+    const res = await fetch(`${API_BASE}/images/proxy?url=${encodeURIComponent(logoUrl)}`);
+    if (!res.ok) return undefined;
+    const blob = await res.blob();
+    return await new Promise<string | undefined>(resolve => {
+      const fr = new FileReader();
+      fr.onload = () => resolve(fr.result as string);
+      fr.onerror = () => resolve(undefined);
+      fr.readAsDataURL(blob);
+    });
+  } catch {
+    return undefined;
+  }
+}
 
 const money = (n: number) =>
   '$' + (isFinite(n) ? n : 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -30,8 +50,19 @@ export async function generateDocumentPDF(d: PdfDoc): Promise<Blob> {
   const gray: [number, number, number] = [120, 113, 108];
   let y = 58;
 
+  let nameX = M;
+  if (d.logoDataUrl) {
+    try {
+      const props = doc.getImageProperties(d.logoDataUrl);
+      const h = 46;
+      const w = Math.min(150, h * (props.width / props.height));
+      const fmt = /^data:image\/png/i.test(d.logoDataUrl) ? 'PNG' : 'JPEG';
+      doc.addImage(d.logoDataUrl, fmt, M, y - 34, w, h);
+      nameX = M + w + 14;
+    } catch { /* bad image — fall back to text-only header */ }
+  }
   doc.setFont('helvetica', 'bold'); doc.setFontSize(20); doc.setTextColor(...dark);
-  doc.text(d.businessName || 'Comercio', M, y);
+  doc.text(d.businessName || 'Comercio', nameX, y);
 
   const label = d.kind === 'recibo' ? 'RECIBO' : 'PRESUPUESTO';
   doc.setFontSize(16); doc.setTextColor(...green);
@@ -99,6 +130,9 @@ export async function generateDocumentPDF(d: PdfDoc): Promise<Blob> {
     doc.setFont('helvetica', 'italic'); doc.setFontSize(10); doc.setTextColor(...gray);
     const days = d.validityDays ?? 7;
     doc.text(`Presupuesto válido por ${days} días. Precios sujetos a cambio.`, M, y);
+    y += 16;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...dark);
+    doc.text('No válido como factura.', M, y);
   }
 
   doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...gray);

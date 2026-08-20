@@ -23,6 +23,26 @@ const EXT: Record<string, string> = {
   'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif',
 };
 
+// Proxy a public R2 image through our own origin so the browser can read its
+// bytes (R2's public r2.dev domain sends no CORS headers). Restricted to our
+// bucket's public base to avoid being an open proxy / SSRF vector. Used to embed
+// the shop logo into client-generated PDFs.
+imagesRouter.get('/proxy', async (c) => {
+  const url = c.req.query('url');
+  if (!url || !R2_PUBLIC_BASE || !url.startsWith(R2_PUBLIC_BASE.replace(/\/$/, ''))) {
+    return c.json({ error: 'bad_url' }, 400);
+  }
+  try {
+    const r = await fetch(url);
+    if (!r.ok) return c.json({ error: 'not_found' }, 404);
+    const ct = r.headers.get('content-type') || 'image/jpeg';
+    const buf = await r.arrayBuffer();
+    return c.body(buf, 200, { 'Content-Type': ct, 'Cache-Control': 'public, max-age=86400' });
+  } catch {
+    return c.json({ error: 'proxy_failed' }, 502);
+  }
+});
+
 // Upload an image to Cloudflare R2 (free tier) and return its public URL.
 // The browser sends the file here; the backend stores it server-side (no R2 CORS needed).
 imagesRouter.post('/upload', async (c) => {

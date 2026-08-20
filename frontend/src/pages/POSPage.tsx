@@ -5,7 +5,7 @@ import { useToast } from '../lib/toast';
 import { API_BASE, resolveImageUrl } from '../lib/config';
 import { Link } from 'react-router-dom';
 import { Scanner } from '../components/Scanner';
-import { generateDocumentPDF, sharePDF } from '../lib/pdf';
+import { generateDocumentPDF, sharePDF, fetchLogoDataUrl } from '../lib/pdf';
 
 type CartItem = {
   id: string;
@@ -71,6 +71,12 @@ export function POSPage() {
       setCatalog(Array.isArray(bpData) ? bpData : []);
     }
   };
+
+  // Auto-enter the remembered shop so "Vender" doesn't ask for it every time.
+  useEffect(() => {
+    if (businessSlug) loadBusiness(businessSlug);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Core add. Dedup by businessProduct id, NOT barcode — bulk/electro items
   // often have no barcode ('') and would otherwise collide into one cart line.
@@ -217,9 +223,11 @@ export function POSPage() {
       : r.sale.paymentMethod ? 'Otro' : undefined;
     setSharingPdf(true);
     try {
+      const logoDataUrl = business?.logoUrl ? await fetchLogoDataUrl(business.logoUrl) : undefined;
       const blob = await generateDocumentPDF({
         kind: 'recibo',
         businessName: business?.name ?? 'Comercio',
+        logoDataUrl,
         docNumber: r.sale.id.slice(0, 8),
         dateISO: r.sale.createdAt,
         lines: (r.lines ?? []).map((l: any) => ({
@@ -248,9 +256,11 @@ export function POSPage() {
     if (customer === null) return; // cancelled
     setSharingPdf(true);
     try {
+      const logoDataUrl = business.logoUrl ? await fetchLogoDataUrl(business.logoUrl) : undefined;
       const blob = await generateDocumentPDF({
         kind: 'presupuesto',
         businessName: business.name,
+        logoDataUrl,
         dateISO: new Date().toISOString(),
         customer: customer.trim() || undefined,
         lines: cart.map(i => ({ name: i.productName, quantity: i.quantity, unitPrice: i.price, total: i.total })),
@@ -509,9 +519,19 @@ export function POSPage() {
         </div>
 
         <div className="lg:col-span-2 bg-white border border-stone-200 rounded-xl p-4 shadow-sm">
-          <h3 className="text-lg font-semibold mb-4 flex justify-between">
+          <h3 className="text-lg font-semibold mb-4 flex justify-between items-center">
             <span>Carrito</span>
-            <span className="text-stone-400 text-sm">{cart.length} items</span>
+            <span className="flex items-center gap-3">
+              <span className="text-stone-400 text-sm">{cart.length} items</span>
+              {cart.length > 0 && (
+                <button
+                  onClick={() => { if (confirm('¿Vaciar todo el carrito?')) setCart([]); }}
+                  className="text-xs text-red-500 hover:text-red-600 font-medium"
+                >
+                  Vaciar
+                </button>
+              )}
+            </span>
           </h3>
           {cart.length === 0 ? (
             <p className="text-stone-300 text-sm text-center py-8">
