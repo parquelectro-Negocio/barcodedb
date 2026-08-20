@@ -280,7 +280,7 @@ export function PanelPage() {
           <div className="flex gap-2">
             <Link to="/pos" className="btn-primary flex-1 text-center text-sm">Vender</Link>
             <Link to="/sales" className="btn-secondary flex-1 text-center text-sm">Ventas</Link>
-            <Link to="/add" className="btn-secondary flex-1 text-center text-sm">+ Producto</Link>
+            <Link to="/add" className="btn-secondary flex-1 text-center text-sm">Agregar producto</Link>
           </div>
 
           <ShopSettings business={business} onUpdated={setBusiness} />
