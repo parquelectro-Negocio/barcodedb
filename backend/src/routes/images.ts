@@ -1,30 +1,54 @@
 import { Hono } from 'hono';
 import { requireAuth } from '../middleware/user';
-
-const CF_API = 'https://api.cloudflare.com/client/v4';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { randomUUID } from 'crypto';
 
 export const imagesRouter = new Hono();
 
-imagesRouter.post('/upload-token', async (c) => {
+const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID;
+const R2_ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID;
+const R2_SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY;
+const R2_BUCKET = process.env.R2_BUCKET;
+const R2_PUBLIC_BASE = process.env.R2_PUBLIC_BASE; // e.g. https://pub-xxxx.r2.dev
+
+const s3 = R2_ACCOUNT_ID && R2_ACCESS_KEY_ID && R2_SECRET_ACCESS_KEY
+  ? new S3Client({
+      region: 'auto',
+      endpoint: `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+      credentials: { accessKeyId: R2_ACCESS_KEY_ID, secretAccessKey: R2_SECRET_ACCESS_KEY },
+    })
+  : null;
+
+const EXT: Record<string, string> = {
+  'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif',
+};
+
+// Upload an image to Cloudflare R2 (free tier) and return its public URL.
+// The browser sends the file here; the backend stores it server-side (no R2 CORS needed).
+imagesRouter.post('/upload', async (c) => {
   const payload = requireAuth(c);
   if (!payload) return c.json({ error: 'unauthorized' }, 401);
+  if (!s3 || !R2_BUCKET || !R2_PUBLIC_BASE) return c.json({ error: 'r2_not_configured' }, 500);
 
-  const accountId = process.env.CF_ACCOUNT_ID;
-  const token = process.env.CF_IMAGES_TOKEN;
-  if (!accountId || !token) return c.json({ error: 'cloudflare_not_configured' }, 500);
+  const body = await c.req.parseBody();
+  const file = body['file'];
+  if (!(file instanceof File)) return c.json({ error: 'no_file' }, 400);
+  if (file.size > 10 * 1024 * 1024) return c.json({ error: 'file_too_large' }, 400);
+
+  const ext = EXT[file.type] ?? 'jpg';
+  const key = `products/${randomUUID()}.${ext}`;
+  const buf = Buffer.from(await file.arrayBuffer());
 
   try {
-    const res = await fetch(`${CF_API}/accounts/${accountId}/images/v2/direct_upload`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) {
-      const err = await res.json();
-      return c.json({ error: 'cloudflare_error', details: err }, 502);
-    }
-    const data: any = await res.json();
-    return c.json(data.result);
+    await s3.send(new PutObjectCommand({
+      Bucket: R2_BUCKET,
+      Key: key,
+      Body: buf,
+      ContentType: file.type || 'image/jpeg',
+    }));
+    return c.json({ url: `${R2_PUBLIC_BASE.replace(/\/$/, '')}/${key}` });
   } catch (e: any) {
-    return c.json({ error: 'cloudflare_error', message: e.message }, 502);
+    console.error('[images] R2 upload failed:', e?.message ?? e);
+    return c.json({ error: 'upload_failed' }, 502);
   }
 });
