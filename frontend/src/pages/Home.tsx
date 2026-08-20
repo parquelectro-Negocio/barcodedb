@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { BarcodeStrip } from '../components/BarcodeStrip';
+import { Logo } from '../components/Logo';
 import { HelpDrawer } from '../components/HelpDrawer';
 
 // The public landing: collaborative search, kept clean and scroll-free. The
@@ -22,10 +22,7 @@ export function Home() {
           <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-50 border border-emerald-200 rounded-full text-xs font-medium text-emerald-700 mb-4">
             Base colaborativa de productos
           </div>
-          <BarcodeStrip />
-          <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight mb-3">
-            <span className="text-stone-900">Codigo</span><span className="text-emerald-600">AR</span>
-          </h1>
+          <Logo size="xl" className="mx-auto mb-4" />
           <p className="text-stone-500 text-base sm:text-lg max-w-lg mx-auto">
             Busca, escanea y comparte información de productos. Tu catálogo colaborativo de códigos de barras.
           </p>

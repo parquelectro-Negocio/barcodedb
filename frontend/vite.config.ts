@@ -23,7 +23,7 @@ export default defineConfig({
         name: 'CodigoAR',
         short_name: 'CodigoAR',
         description: 'Base colaborativa de productos por código de barras',
-        theme_color: '#059669',
+        theme_color: '#2E7D4F',
         background_color: '#fafaf9',
         display: 'standalone',
         start_url: '/',
