@@ -157,6 +157,30 @@ productsRouter.post('/ai-enrich', async (c) => {
   return c.json({ error: 'ai_error', status: lastStatus }, 502);
 });
 
+// Resolve a list of keys (barcode or SKU) to product IDs — for bulk image upload.
+productsRouter.post('/find-by-keys', async (c) => {
+  const auth = requireAuth(c);
+  if (!auth) return c.json({ error: 'auth_required' }, 401);
+  const body = await c.req.json().catch(() => ({}));
+  const keys: string[] = Array.isArray(body.keys)
+    ? [...new Set(body.keys.map((k: any) => String(k).trim()).filter(Boolean))] as string[]
+    : [];
+  if (!keys.length) return c.json({ map: {} });
+
+  const r: any = await db.execute(sql`
+    SELECT id, barcode, sku FROM products
+    WHERE barcode IN (${sql.join(keys.map(k => sql`${k}`), sql`, `)})
+       OR sku IN (${sql.join(keys.map(k => sql`${k}`), sql`, `)})
+  `);
+  const rows = Array.isArray(r) ? r : (r?.rows ?? []);
+  const map: Record<string, string> = {};
+  for (const p of rows) {
+    if (p.barcode && !map[p.barcode]) map[p.barcode] = p.id;
+    if (p.sku && !map[p.sku]) map[p.sku] = p.id;
+  }
+  return c.json({ map });
+});
+
 productsRouter.post('/', async (c) => {
   const raw = await c.req.json();
   const parsed = createSchema.safeParse(raw);

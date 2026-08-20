@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { apiHeaders } from '../lib/user';
 import { useToast } from '../lib/toast';
 import { API_BASE } from '../lib/config';
@@ -322,6 +322,13 @@ export function ImportPage() {
     <div className="max-w-4xl mx-auto">
       <h2 className="text-2xl font-bold mb-2 text-stone-800">Importar productos</h2>
       <p className="text-sm text-stone-500 mb-4">Subí una lista de precios en Excel o CSV. El sistema busca coincidencias y te deja crear los que falten.</p>
+
+      <Link
+        to="/import-images"
+        className="inline-flex items-center gap-2 mb-4 px-3 py-2 rounded-lg text-sm font-medium bg-stone-100 hover:bg-stone-200 text-stone-700 transition-colors"
+      >
+        📷 ¿Ya tenés los productos? Cargá imágenes en lote →
+      </Link>
 
       <div
         onDrop={handleDrop}

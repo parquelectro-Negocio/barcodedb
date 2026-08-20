@@ -5,6 +5,7 @@ import { ProductDetail } from './pages/ProductDetail';
 import { ScanPage } from './pages/ScanPage';
 import { AddProduct } from './pages/AddProduct';
 import { ImportPage } from './pages/ImportPage';
+import { BulkImagesPage } from './pages/BulkImagesPage';
 import { POSPage } from './pages/POSPage';
 import { SalesPage } from './pages/SalesPage';
 import { EditProduct } from './pages/EditProduct';
@@ -219,6 +220,7 @@ function AppContent() {
           <Route path="/scan" element={<ScanPage />} />
           <Route path="/add" element={<RequireAuth><AddProduct /></RequireAuth>} />
           <Route path="/import" element={<RequireAuth><ImportPage /></RequireAuth>} />
+          <Route path="/import-images" element={<RequireAuth><BulkImagesPage /></RequireAuth>} />
           <Route path="/pos" element={<RequireAuth><POSPage /></RequireAuth>} />
           <Route path="/sales" element={<RequireAuth><SalesPage /></RequireAuth>} />
           <Route path="/edit/:barcode" element={<RequireAuth><EditProduct /></RequireAuth>} />
