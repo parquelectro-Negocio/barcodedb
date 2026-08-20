@@ -10,6 +10,7 @@
   "dependencies": {
     "@imgly/background-removal": "^1.7.0",
     "@tanstack/react-query": "^5.60.0",
+    "jspdf": "^4.2.1",
     "quagga": "^0.12.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

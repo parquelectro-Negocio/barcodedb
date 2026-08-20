@@ -5,6 +5,7 @@ import { useToast } from '../lib/toast';
 import { API_BASE, resolveImageUrl } from '../lib/config';
 import { Link } from 'react-router-dom';
 import { Scanner } from '../components/Scanner';
+import { generateDocumentPDF, sharePDF } from '../lib/pdf';
 
 type CartItem = {
   id: string;
@@ -207,34 +208,62 @@ export function POSPage() {
     }
   };
 
+  const [sharingPdf, setSharingPdf] = useState(false);
+
   const shareReceipt = async () => {
     const r = receipt;
-    const lines = (r.lines ?? []).map((l: any) => `${l.quantity}x ${l.name} — $${l.total.toFixed(2)}`).join('\n');
     const pay = r.sale.paymentMethod === 'efectivo' ? 'Efectivo'
       : r.sale.paymentMethod === 'transferencia' ? 'Transferencia'
-      : r.sale.paymentMethod ? 'Otro' : '';
-    const text = [
-      business?.name ?? 'Comprobante',
-      `Comprobante #${r.sale.id.slice(0, 8)}`,
-      r.sale.createdAt ? new Date(r.sale.createdAt).toLocaleString('es-AR') : '',
-      '',
-      lines,
-      '',
-      `Total: $${parseFloat(r.sale.total).toFixed(2)}`,
-      pay ? `Pago: ${pay}` : '',
-      r.sale.change ? `Vuelto: $${parseFloat(r.sale.change).toFixed(2)}` : '',
-      '',
-      '¡Gracias por tu compra!',
-    ].filter(l => l !== undefined && l !== null).join('\n');
-
+      : r.sale.paymentMethod ? 'Otro' : undefined;
+    setSharingPdf(true);
     try {
-      if (navigator.share) {
-        await navigator.share({ title: `Comprobante ${business?.name ?? ''}`.trim(), text });
-      } else {
-        await navigator.clipboard.writeText(text);
-        toast('Comprobante copiado al portapapeles', 'success');
-      }
-    } catch { /* user dismissed the share sheet */ }
+      const blob = await generateDocumentPDF({
+        kind: 'recibo',
+        businessName: business?.name ?? 'Comercio',
+        docNumber: r.sale.id.slice(0, 8),
+        dateISO: r.sale.createdAt,
+        lines: (r.lines ?? []).map((l: any) => ({
+          name: l.name,
+          quantity: l.quantity,
+          unitPrice: l.quantity ? l.total / l.quantity : l.total,
+          total: l.total,
+        })),
+        total: parseFloat(r.sale.total),
+        payment: pay,
+        amountTendered: r.sale.amountTendered ? parseFloat(r.sale.amountTendered) : undefined,
+        change: r.sale.change ? parseFloat(r.sale.change) : undefined,
+      });
+      const res = await sharePDF(blob, `recibo-${r.sale.id.slice(0, 8)}.pdf`, `Recibo ${business?.name ?? ''}`.trim());
+      if (res === 'downloaded') toast('Recibo PDF descargado', 'success');
+    } catch {
+      toast('No se pudo generar el PDF', 'error');
+    } finally {
+      setSharingPdf(false);
+    }
+  };
+
+  const makeQuote = async () => {
+    if (!business || cart.length === 0) return;
+    const customer = window.prompt('Nombre del cliente (opcional):');
+    if (customer === null) return; // cancelled
+    setSharingPdf(true);
+    try {
+      const blob = await generateDocumentPDF({
+        kind: 'presupuesto',
+        businessName: business.name,
+        dateISO: new Date().toISOString(),
+        customer: customer.trim() || undefined,
+        lines: cart.map(i => ({ name: i.productName, quantity: i.quantity, unitPrice: i.price, total: i.total })),
+        total,
+        validityDays: 7,
+      });
+      const res = await sharePDF(blob, 'presupuesto.pdf', `Presupuesto ${business.name}`);
+      if (res === 'downloaded') toast('Presupuesto PDF descargado', 'success');
+    } catch {
+      toast('No se pudo generar el presupuesto', 'error');
+    } finally {
+      setSharingPdf(false);
+    }
   };
 
   if (receipt) {
@@ -269,12 +298,13 @@ export function POSPage() {
         <div className="flex gap-3 justify-center">
           <button
             onClick={shareReceipt}
-            className="px-5 py-3 bg-white border border-emerald-300 text-emerald-700 hover:bg-emerald-50 rounded-xl font-medium flex items-center gap-2"
+            disabled={sharingPdf}
+            className="px-5 py-3 bg-white border border-emerald-300 text-emerald-700 hover:bg-emerald-50 rounded-xl font-medium flex items-center gap-2 disabled:opacity-50"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
             </svg>
-            Compartir
+            {sharingPdf ? 'Generando...' : 'Compartir PDF'}
           </button>
           <button
             onClick={() => setReceipt(null)}
@@ -536,6 +566,13 @@ export function POSPage() {
                 className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 rounded-xl font-medium"
               >
                 Cobrar ${total.toFixed(2)}
+              </button>
+              <button
+                onClick={makeQuote}
+                disabled={sharingPdf}
+                className="w-full py-2.5 mt-2 bg-white border border-emerald-300 text-emerald-700 hover:bg-emerald-50 rounded-xl font-medium disabled:opacity-50"
+              >
+                {sharingPdf ? 'Generando...' : 'Generar presupuesto (PDF)'}
               </button>
             </>
           )}
