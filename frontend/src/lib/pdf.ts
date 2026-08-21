@@ -8,6 +8,7 @@ export type PdfDoc = {
   kind: 'recibo' | 'presupuesto';
   businessName: string;
   logoDataUrl?: string;
+  footerLogoDataUrl?: string;
   docNumber?: string;
   dateISO?: string;
   customer?: string;
@@ -19,31 +20,52 @@ export type PdfDoc = {
   validityDays?: number;
 };
 
-// Pull the shop logo through our backend proxy (R2 sends no CORS headers), then
-// downscale + re-encode it as a small JPEG. jsPDF embeds source PNGs almost raw
-// (a full-size logo can bloat the PDF to tens of MB), so shrinking first keeps the
-// file WhatsApp-friendly. White background flattens any transparency. undefined on failure.
+// Downscale + flatten an image blob to a small JPEG data URL. jsPDF embeds source
+// PNGs almost raw (a full-size logo can bloat the PDF to tens of MB), so shrinking
+// first keeps the file WhatsApp-friendly. White background flattens transparency.
+async function blobToSmallJpeg(blob: Blob, max: number): Promise<string | undefined> {
+  const bitmap = await createImageBitmap(blob);
+  const scale = Math.min(1, max / Math.max(bitmap.width, bitmap.height));
+  const w = Math.max(1, Math.round(bitmap.width * scale));
+  const h = Math.max(1, Math.round(bitmap.height * scale));
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return undefined;
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, w, h);
+  ctx.drawImage(bitmap, 0, 0, w, h);
+  bitmap.close?.();
+  return canvas.toDataURL('image/jpeg', 0.85);
+}
+
+// The shop's own logo, pulled through our backend proxy (R2 sends no CORS headers).
+// undefined on any failure. Goes in the document header.
 export async function fetchLogoDataUrl(logoUrl: string): Promise<string | undefined> {
   try {
     const res = await fetch(`${API_BASE}/images/proxy?url=${encodeURIComponent(logoUrl)}`);
     if (!res.ok) return undefined;
-    const blob = await res.blob();
-    const bitmap = await createImageBitmap(blob);
-    const max = 160;
-    const scale = Math.min(1, max / Math.max(bitmap.width, bitmap.height));
-    const w = Math.max(1, Math.round(bitmap.width * scale));
-    const h = Math.max(1, Math.round(bitmap.height * scale));
-    const canvas = document.createElement('canvas');
-    canvas.width = w; canvas.height = h;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return undefined;
-    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, w, h);
-    ctx.drawImage(bitmap, 0, 0, w, h);
-    bitmap.close?.();
-    return canvas.toDataURL('image/jpeg', 0.85);
+    return await blobToSmallJpeg(await res.blob(), 160);
   } catch {
     return undefined;
   }
+}
+
+// The CodigoAR wordmark (bundled at /logo.png, same-origin) for the footer credit.
+// Cached — it's identical on every document.
+let appLogoPromise: Promise<string | undefined> | undefined;
+export function fetchAppLogoDataUrl(): Promise<string | undefined> {
+  if (!appLogoPromise) {
+    appLogoPromise = (async () => {
+      try {
+        const res = await fetch('/logo.png');
+        if (!res.ok) return undefined;
+        return await blobToSmallJpeg(await res.blob(), 240);
+      } catch {
+        return undefined;
+      }
+    })();
+  }
+  return appLogoPromise;
 }
 
 const money = (n: number) =>
@@ -144,8 +166,20 @@ export async function generateDocumentPDF(d: PdfDoc): Promise<Blob> {
     doc.text('No válido como factura.', M, y);
   }
 
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...gray);
-  doc.text('Generado con CodigoAR', W / 2, 812, { align: 'center' });
+  let footerDrawn = false;
+  if (d.footerLogoDataUrl) {
+    try {
+      const p = doc.getImageProperties(d.footerLogoDataUrl);
+      const fh = 20;
+      const fw = fh * (p.width / p.height);
+      doc.addImage(d.footerLogoDataUrl, 'JPEG', (W - fw) / 2, 800, fw, fh);
+      footerDrawn = true;
+    } catch { /* fall back to text */ }
+  }
+  if (!footerDrawn) {
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...gray);
+    doc.text('Generado con CodigoAR', W / 2, 812, { align: 'center' });
+  }
 
   return doc.output('blob');
 }

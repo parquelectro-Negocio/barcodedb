@@ -5,7 +5,7 @@ import { useToast } from '../lib/toast';
 import { API_BASE, resolveImageUrl } from '../lib/config';
 import { Link } from 'react-router-dom';
 import { Scanner } from '../components/Scanner';
-import { generateDocumentPDF, sharePDF, fetchLogoDataUrl } from '../lib/pdf';
+import { generateDocumentPDF, sharePDF, fetchLogoDataUrl, fetchAppLogoDataUrl } from '../lib/pdf';
 
 type CartItem = {
   id: string;
@@ -223,11 +223,15 @@ export function POSPage() {
       : r.sale.paymentMethod ? 'Otro' : undefined;
     setSharingPdf(true);
     try {
-      const logoDataUrl = business?.logoUrl ? await fetchLogoDataUrl(business.logoUrl) : undefined;
+      const [logoDataUrl, footerLogoDataUrl] = await Promise.all([
+        business?.logoUrl ? fetchLogoDataUrl(business.logoUrl) : Promise.resolve(undefined),
+        fetchAppLogoDataUrl(),
+      ]);
       const blob = await generateDocumentPDF({
         kind: 'recibo',
         businessName: business?.name ?? 'Comercio',
         logoDataUrl,
+        footerLogoDataUrl,
         docNumber: r.sale.id.slice(0, 8),
         dateISO: r.sale.createdAt,
         lines: (r.lines ?? []).map((l: any) => ({
@@ -256,11 +260,15 @@ export function POSPage() {
     if (customer === null) return; // cancelled
     setSharingPdf(true);
     try {
-      const logoDataUrl = business.logoUrl ? await fetchLogoDataUrl(business.logoUrl) : undefined;
+      const [logoDataUrl, footerLogoDataUrl] = await Promise.all([
+        business.logoUrl ? fetchLogoDataUrl(business.logoUrl) : Promise.resolve(undefined),
+        fetchAppLogoDataUrl(),
+      ]);
       const blob = await generateDocumentPDF({
         kind: 'presupuesto',
         businessName: business.name,
         logoDataUrl,
+        footerLogoDataUrl,
         dateISO: new Date().toISOString(),
         customer: customer.trim() || undefined,
         lines: cart.map(i => ({ name: i.productName, quantity: i.quantity, unitPrice: i.price, total: i.total })),
