@@ -3,7 +3,7 @@
 type LogoSize = 'sm' | 'lg' | 'xl';
 
 const HEIGHT: Record<LogoSize, string> = {
-  sm: 'h-8',
+  sm: 'h-10',
   lg: 'h-16 sm:h-20',
   xl: 'h-24 sm:h-32',
 };

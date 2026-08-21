@@ -17,6 +17,7 @@ export function SectorPicker({ slug, sectors, onChange }: {
   const [selected, setSelected] = useState<string[]>(sectors ?? []);
   const [saving, setSaving] = useState(false);
   const [custom, setCustom] = useState('');
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     fetch(`${API_BASE}/categories`)
@@ -68,10 +69,25 @@ export function SectorPicker({ slug, sectors, onChange }: {
   const knownSlugs = new Set(allSectors.map(c => c.slug));
   const customSectors = selected.filter(v => !knownSlugs.has(v));
 
+  const activeCount = selected.length;
+
   return (
     <div className="card p-4 mb-5">
-      <p className="text-sm font-semibold text-stone-700 mb-1">Mis rubros</p>
-      <p className="text-xs text-stone-400 mb-3">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between text-sm font-semibold text-stone-700"
+      >
+        <span>
+          Mis rubros
+          {activeCount > 0 && <span className="ml-2 text-xs font-normal text-emerald-600">{activeCount} activo{activeCount > 1 ? 's' : ''}</span>}
+        </span>
+        <span className="text-stone-400">{open ? '−' : '+'}</span>
+      </button>
+
+      {open && (
+        <>
+      <p className="text-xs text-stone-400 mt-3 mb-3">
         Elegí qué vendés — así al cargar productos ves solo las categorías que te sirven.
         ¿No está tu rubro? Agregalo abajo.
       </p>
@@ -125,6 +141,8 @@ export function SectorPicker({ slug, sectors, onChange }: {
           Agregar
         </button>
       </div>
+        </>
+      )}
     </div>
   );
 }
