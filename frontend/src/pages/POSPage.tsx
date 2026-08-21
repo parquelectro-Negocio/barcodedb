@@ -15,6 +15,7 @@ type CartItem = {
   quantity: number;
   total: number;
   stock: number;
+  manual?: boolean; // custom line (installation, shipping, …) — quotes only, not sales
 };
 
 type PaymentMethod = 'efectivo' | 'transferencia' | 'otro';
@@ -40,6 +41,11 @@ export function POSPage() {
   const [showPayment, setShowPayment] = useState(false);
   const [loadingBusiness, setLoadingBusiness] = useState(false);
   const [businessError, setBusinessError] = useState('');
+  const [myShops, setMyShops] = useState<any[]>([]);
+  const [showManual, setShowManual] = useState(false);
+  const [manualName, setManualName] = useState('');
+  const [manualPrice, setManualPrice] = useState('');
+  const [manualQty, setManualQty] = useState('1');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('efectivo');
   const [amountTendered, setAmountTendered] = useState('');
   const [search, setSearch] = useState('');
@@ -72,9 +78,15 @@ export function POSPage() {
     }
   };
 
-  // Auto-enter the remembered shop so "Vender" doesn't ask for it every time.
+  // Auto-enter the remembered shop so "Vender" doesn't ask for it every time,
+  // and load the owner's shops so the gate can offer them as buttons (no need
+  // to remember the exact slug).
   useEffect(() => {
     if (businessSlug) loadBusiness(businessSlug);
+    fetch(`${API_BASE}/businesses/mine`, { headers: apiHeaders() })
+      .then(r => (r.ok ? r.json() : []))
+      .then(d => setMyShops(Array.isArray(d) ? d : []))
+      .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -136,6 +148,21 @@ export function POSPage() {
     }
   };
 
+  // Free-form line (installation, shipping, a product you don't stock…). Goes into
+  // quotes; sales are blocked while one is present since it has no inventory record.
+  const addManualItem = () => {
+    const name = manualName.trim();
+    const price = parseFloat(manualPrice) || 0;
+    const qty = parseInt(manualQty) || 1;
+    if (!name || price <= 0) { toast('Poné una descripción y un precio', 'error'); return; }
+    setCart(prev => [...prev, {
+      id: 'manual-' + crypto.randomUUID(),
+      productName: name, barcode: '', price, quantity: qty, total: price * qty,
+      stock: Infinity, manual: true,
+    }]);
+    setManualName(''); setManualPrice(''); setManualQty('1'); setShowManual(false);
+  };
+
   const removeItem = (id: string) => {
     setCart(prev => prev.filter(i => i.id !== id));
   };
@@ -165,6 +192,10 @@ export function POSPage() {
     : [];
 
   const openPayment = () => {
+    if (cart.some(i => i.manual)) {
+      toast('Los ítems manuales van solo en presupuestos. Quitalos para cobrar.', 'error');
+      return;
+    }
     setPaymentMethod('efectivo');
     setAmountTendered('');
     setShowPayment(true);
@@ -340,25 +371,42 @@ export function POSPage() {
     return (
       <div className="max-w-lg mx-auto text-center py-12">
         <h2 className="text-2xl font-bold mb-2 text-stone-800">Vender</h2>
-        <p className="text-stone-500 mb-8">Primero ingresá tu comercio para empezar a vender</p>
-        <div className="space-y-3">
-          <input
-            type="text"
-            value={businessSlug}
-            onChange={e => setBusinessSlug(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && loadBusiness(businessSlug)}
-            placeholder="Identificador de tu comercio"
-            className="w-full px-4 py-3 bg-white border border-stone-300 rounded-xl text-lg text-stone-900 text-center focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            autoFocus
-          />
-          <button
-            onClick={() => loadBusiness(businessSlug)}
-            className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-lg font-medium"
-          >
-            Ingresar
-          </button>
-          {businessError && <p className="text-sm text-red-600">{businessError}</p>}
-        </div>
+        <p className="text-stone-500 mb-6">Elegí tu comercio para empezar a vender</p>
+
+        {myShops.length > 0 && (
+          <div className="space-y-2 mb-6">
+            {myShops.map(s => (
+              <button
+                key={s.slug}
+                onClick={() => { setBusinessSlug(s.slug); loadBusiness(s.slug); }}
+                className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-lg font-medium"
+              >
+                {s.name || s.slug}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <details className="text-left">
+          <summary className="text-sm text-stone-400 cursor-pointer text-center mb-3">Ingresar por identificador</summary>
+          <div className="space-y-3">
+            <input
+              type="text"
+              value={businessSlug}
+              onChange={e => setBusinessSlug(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && loadBusiness(businessSlug)}
+              placeholder="Identificador de tu comercio"
+              className="w-full px-4 py-3 bg-white border border-stone-300 rounded-xl text-lg text-stone-900 text-center focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+            <button
+              onClick={() => loadBusiness(businessSlug)}
+              className="w-full py-3 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-lg font-medium"
+            >
+              Ingresar
+            </button>
+          </div>
+        </details>
+        {businessError && <p className="text-sm text-red-600 mt-2">{businessError}</p>}
       </div>
     );
   }
@@ -523,6 +571,45 @@ export function POSPage() {
           </button>
           {scanning && (
             <Scanner onDetect={handleScan} onClose={() => setScanning(false)} />
+          )}
+
+          {!showManual ? (
+            <button
+              onClick={() => setShowManual(true)}
+              className="w-full py-2.5 bg-white border border-stone-300 hover:bg-stone-50 rounded-xl text-sm font-medium text-stone-600"
+            >
+              + Ítem manual (instalación, envío…)
+            </button>
+          ) : (
+            <div className="border border-stone-200 rounded-xl p-3 space-y-2">
+              <input
+                type="text" value={manualName} onChange={e => setManualName(e.target.value)}
+                placeholder="Descripción (ej. Instalación)" autoFocus
+                className="w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+              <div className="flex gap-2">
+                <input
+                  type="number" min="0" step="0.01" value={manualPrice} onChange={e => setManualPrice(e.target.value)}
+                  placeholder="Precio $"
+                  className="flex-1 px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+                <input
+                  type="number" min="1" value={manualQty} onChange={e => setManualQty(e.target.value)}
+                  placeholder="Cant."
+                  className="w-20 px-3 py-2 bg-white border border-stone-300 rounded-lg text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => { setShowManual(false); setManualName(''); setManualPrice(''); setManualQty('1'); }}
+                  className="flex-1 py-2 bg-stone-100 hover:bg-stone-200 rounded-lg text-sm text-stone-600">
+                  Cancelar
+                </button>
+                <button onClick={addManualItem}
+                  className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-sm font-medium text-white">
+                  Agregar
+                </button>
+              </div>
+            </div>
           )}
         </div>
 

@@ -26,6 +26,7 @@ export function StockPage() {
   const [saving, setSaving] = useState<string | null>(null);
   const [filterStock, setFilterStock] = useState<'all' | 'low' | 'out'>('all');
   const [showAdd, setShowAdd] = useState(false);
+  const [myShops, setMyShops] = useState<any[]>([]);
 
   const loadBusiness = async (slug: string) => {
     if (!slug.trim()) return;
@@ -53,6 +54,10 @@ export function StockPage() {
 
   useEffect(() => {
     if (businessSlug) loadBusiness(businessSlug);
+    fetch(`${API_BASE}/businesses/mine`, { headers: apiHeaders() })
+      .then(r => (r.ok ? r.json() : []))
+      .then(d => setMyShops(Array.isArray(d) ? d : []))
+      .catch(() => {});
   }, []);
 
   const startEdit = (item: BPItem) => {
@@ -108,22 +113,39 @@ export function StockPage() {
     return (
       <div className="max-w-lg mx-auto text-center py-12">
         <h2 className="text-2xl font-bold mb-2 text-stone-800">Gestión de stock</h2>
-        <p className="text-stone-500 mb-8">Ingresá tu comercio para ver y ajustar tu inventario</p>
-        <input
-          type="text"
-          value={businessSlug}
-          onChange={e => setBusinessSlug(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && loadBusiness(businessSlug)}
-          placeholder="Identificador de tu comercio"
-          className="w-full px-4 py-3 bg-white border border-stone-300 rounded-xl text-lg text-center focus:outline-none focus:ring-2 focus:ring-emerald-500"
-          autoFocus
-        />
-        <button
-          onClick={() => loadBusiness(businessSlug)}
-          className="w-full py-3 mt-3 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-lg font-medium"
-        >
-          Ingresar
-        </button>
+        <p className="text-stone-500 mb-6">Elegí tu comercio para ver y ajustar tu inventario</p>
+
+        {myShops.length > 0 && (
+          <div className="space-y-2 mb-6">
+            {myShops.map(s => (
+              <button
+                key={s.slug}
+                onClick={() => { setBusinessSlug(s.slug); loadBusiness(s.slug); }}
+                className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-lg font-medium"
+              >
+                {s.name || s.slug}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <details className="text-left">
+          <summary className="text-sm text-stone-400 cursor-pointer text-center mb-3">Ingresar por identificador</summary>
+          <input
+            type="text"
+            value={businessSlug}
+            onChange={e => setBusinessSlug(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && loadBusiness(businessSlug)}
+            placeholder="Identificador de tu comercio"
+            className="w-full px-4 py-3 bg-white border border-stone-300 rounded-xl text-lg text-center focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          />
+          <button
+            onClick={() => loadBusiness(businessSlug)}
+            className="w-full py-3 mt-3 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-lg font-medium"
+          >
+            Ingresar
+          </button>
+        </details>
         {busError && <p className="text-sm text-red-600 mt-2">{busError}</p>}
       </div>
     );
