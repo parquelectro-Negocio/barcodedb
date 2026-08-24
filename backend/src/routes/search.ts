@@ -62,7 +62,7 @@ searchRouter.get('/brands', async (c) => {
   return c.json(asRows(results).map((r: any) => r.brand));
 });
 
-type MatchItem = { name?: string; barcode?: string; brand?: string; color?: string; capacidad?: string; largo?: string; peso?: string; price?: number; stock?: number };
+type MatchItem = { name?: string; barcode?: string; sku?: string; brand?: string; color?: string; capacidad?: string; largo?: string; peso?: string; price?: number; stock?: number };
 
 function asRows(r: any): any[] {
   return Array.isArray(r) ? r : (r?.rows ?? []);
@@ -133,19 +133,25 @@ searchRouter.post('/match', async (c) => {
   const matches: { match: any; item: MatchItem; index: number }[] = [];
   const unmatched: { item: MatchItem; index: number }[] = [];
 
-  const COLS = sql`id, name, brand, barcode, slug, image_url, verification_score, status`;
+  const COLS = sql`id, name, brand, barcode, sku, slug, image_url, verification_score, status`;
   const smallList = items.length <= 50; // fuzzy per-item match only for small lists
 
-  // Batch: one query for ALL barcodes and one for ALL slugs, instead of a
+  // Batch: one query each for ALL barcodes, SKUs and slugs, instead of a
   // per-row query storm that stalls large imports (hundreds of rows).
   const slugOf = (it: MatchItem) => (it.name ? slugify(it.name.trim()) : '');
   const barcodes = [...new Set(items.map(i => i.barcode).filter(Boolean))] as string[];
+  const skus = [...new Set(items.map(i => i.sku?.trim()).filter(Boolean))] as string[];
   const slugs = [...new Set(items.map(slugOf).filter(Boolean))] as string[];
 
   const barcodeMap = new Map<string, any>();
   if (barcodes.length) {
     const r: any = await db.execute(sql`SELECT ${COLS} FROM products WHERE barcode IN (${sql.join(barcodes.map(b => sql`${b}`), sql`, `)})`);
     for (const p of asRows(r)) if (!barcodeMap.has(p.barcode)) barcodeMap.set(p.barcode, p);
+  }
+  const skuMap = new Map<string, any>();
+  if (skus.length) {
+    const r: any = await db.execute(sql`SELECT ${COLS} FROM products WHERE sku <> '' AND sku IN (${sql.join(skus.map(s => sql`${s}`), sql`, `)})`);
+    for (const p of asRows(r)) if (p.sku && !skuMap.has(p.sku)) skuMap.set(p.sku, p);
   }
   const slugMap = new Map<string, any>();
   if (slugs.length) {
@@ -157,6 +163,7 @@ searchRouter.post('/match', async (c) => {
     const item = items[i];
     let found: any = null;
     if (item.barcode) found = barcodeMap.get(item.barcode) ?? null;
+    if (!found && item.sku?.trim()) found = skuMap.get(item.sku.trim()) ?? null;
     if (!found && item.name) found = slugMap.get(slugOf(item)) ?? null;
     if (!found && item.name && smallList) found = await matchByName(item.name.trim());
 

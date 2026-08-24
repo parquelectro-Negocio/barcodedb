@@ -31,6 +31,7 @@ export function BulkImagesPage() {
   const [items, setItems] = useState<Item[]>([]);
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [done, setDone] = useState(false);
 
   const onPick = (files: FileList | null) => {
     if (!files) return;
@@ -39,7 +40,10 @@ export function BulkImagesPage() {
       .map(f => ({ file: f, key: keyFromName(f.name), status: 'pending' as Status }));
     setItems(list);
     setProgress(0);
+    setDone(false);
   };
+
+  const reset = () => { setItems([]); setProgress(0); setDone(false); };
 
   const setStatus = (key: string, status: Status) =>
     setItems(prev => prev.map(it => (it.key === key ? { ...it, status } : it)));
@@ -74,6 +78,7 @@ export function BulkImagesPage() {
 
       if (!matched.length) {
         toast('Ninguna imagen coincidió con un código o SKU', 'error');
+        setDone(true);
         return;
       }
 
@@ -98,6 +103,7 @@ export function BulkImagesPage() {
       });
 
       toast(`Listo: ${matched.length} imágenes procesadas`, 'success');
+      setDone(true);
     } catch (e: any) {
       toast(e?.message || 'Error al procesar', 'error');
     } finally {
@@ -155,11 +161,13 @@ export function BulkImagesPage() {
               <strong>{counts.total}</strong> imágenes seleccionadas
             </p>
             <button
-              onClick={run}
+              onClick={done ? reset : run}
               disabled={running}
-              className="px-5 py-2.5 rounded-lg text-sm font-medium bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-50 transition-colors"
+              className={`px-5 py-2.5 rounded-lg text-sm font-medium text-white disabled:opacity-50 transition-colors ${
+                done ? 'bg-stone-700 hover:bg-stone-600' : 'bg-emerald-600 hover:bg-emerald-500'
+              }`}
             >
-              {running ? 'Procesando…' : 'Asignar imágenes'}
+              {running ? 'Procesando…' : done ? 'Cargar otras imágenes' : 'Asignar imágenes'}
             </button>
           </div>
 
@@ -172,11 +180,25 @@ export function BulkImagesPage() {
             </div>
           )}
 
-          <div className="flex gap-4 text-sm mb-4">
-            <span className="text-emerald-600">✓ {counts.done} asignadas</span>
-            {counts.failed > 0 && <span className="text-red-500">✕ {counts.failed} fallaron</span>}
-            {counts.nomatch > 0 && <span className="text-amber-600">? {counts.nomatch} sin coincidencia</span>}
-          </div>
+          {done && (
+            <div className={`rounded-xl p-4 mb-4 border ${counts.failed > 0 ? 'bg-amber-50 border-amber-200' : 'bg-emerald-50 border-emerald-200'}`}>
+              <p className="font-semibold text-stone-800 mb-1">✓ Trabajo terminado</p>
+              <p className="text-sm text-stone-600">
+                <strong className="text-emerald-700">{counts.done}</strong> asignadas
+                {counts.nomatch > 0 && <> · <strong className="text-amber-700">{counts.nomatch}</strong> sin coincidencia</>}
+                {counts.failed > 0 && <> · <strong className="text-red-600">{counts.failed}</strong> fallaron</>}.
+              </p>
+              <p className="text-xs text-stone-500 mt-1">Tocá "Cargar otras imágenes" para hacer otra tanda.</p>
+            </div>
+          )}
+
+          {!done && (
+            <div className="flex gap-4 text-sm mb-4">
+              <span className="text-emerald-600">✓ {counts.done} asignadas</span>
+              {counts.failed > 0 && <span className="text-red-500">✕ {counts.failed} fallaron</span>}
+              {counts.nomatch > 0 && <span className="text-amber-600">? {counts.nomatch} sin coincidencia</span>}
+            </div>
+          )}
 
           {nomatchList.length > 0 && (
             <div className="bg-stone-50 border border-stone-200 rounded-lg p-3 text-xs text-stone-500 max-h-48 overflow-y-auto">
