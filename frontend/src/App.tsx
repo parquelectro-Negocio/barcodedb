@@ -6,6 +6,7 @@ import { ScanPage } from './pages/ScanPage';
 import { AddProduct } from './pages/AddProduct';
 import { ImportPage } from './pages/ImportPage';
 import { BulkImagesPage } from './pages/BulkImagesPage';
+import { DuplicatesPage } from './pages/DuplicatesPage';
 import { POSPage } from './pages/POSPage';
 import { SalesPage } from './pages/SalesPage';
 import { EditProduct } from './pages/EditProduct';
@@ -87,6 +88,16 @@ function NavBar() {
                   {item.label}
                 </Link>
               ))}
+              {user.isModerator && (
+                <Link
+                  to="/duplicates"
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive('/duplicates') ? 'bg-emerald-50 text-emerald-700' : 'text-stone-500 hover:text-stone-800 hover:bg-stone-100'
+                  }`}
+                >
+                  Duplicados
+                </Link>
+              )}
               <Link
                 to="/pos"
                 className="ml-1 px-4 py-2 rounded-lg text-sm font-medium bg-emerald-600 hover:bg-emerald-500 text-white transition-colors"
@@ -168,6 +179,15 @@ function NavBar() {
                     {item.label}
                   </Link>
                 ))}
+                {user.isModerator && (
+                  <Link
+                    to="/duplicates"
+                    onClick={() => setMenuOpen(false)}
+                    className="block px-3 py-2.5 rounded-lg text-sm font-medium text-stone-600 hover:bg-stone-100"
+                  >
+                    Duplicados
+                  </Link>
+                )}
                 <Link
                   to="/pos"
                   onClick={() => setMenuOpen(false)}
@@ -219,6 +239,7 @@ function AppContent() {
           <Route path="/add" element={<RequireAuth><AddProduct /></RequireAuth>} />
           <Route path="/import" element={<RequireAuth><ImportPage /></RequireAuth>} />
           <Route path="/import-images" element={<RequireAuth><BulkImagesPage /></RequireAuth>} />
+          <Route path="/duplicates" element={<RequireAuth><DuplicatesPage /></RequireAuth>} />
           <Route path="/pos" element={<RequireAuth><POSPage /></RequireAuth>} />
           <Route path="/sales" element={<RequireAuth><SalesPage /></RequireAuth>} />
           <Route path="/edit/:barcode" element={<RequireAuth><EditProduct /></RequireAuth>} />
