@@ -58,18 +58,19 @@ export function BulkImagesPage() {
       if (!res.ok) throw new Error('No se pudo buscar los productos');
       const { map } = (await res.json()) as { map: Record<string, string> };
 
+      // Compute matches synchronously from the map — do NOT rely on a setItems
+      // updater to populate `matched`, since React runs that updater later.
       const matched: Item[] = [];
-      setItems(prev =>
-        prev.map(it => {
-          const productId = map[it.key];
-          if (productId) {
-            const withId = { ...it, productId, status: 'pending' as Status };
-            matched.push(withId);
-            return withId;
-          }
-          return { ...it, status: 'nomatch' as Status };
-        }),
-      );
+      const next: Item[] = items.map(it => {
+        const productId = map[it.key];
+        if (productId) {
+          const withId = { ...it, productId, status: 'pending' as Status };
+          matched.push(withId);
+          return withId;
+        }
+        return { ...it, status: 'nomatch' as Status };
+      });
+      setItems(next);
 
       if (!matched.length) {
         toast('Ninguna imagen coincidió con un código o SKU', 'error');
