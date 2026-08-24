@@ -186,6 +186,15 @@ duplicatesRouter.get('/candidates', async (c) => {
     .replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
   const brandOf = (p: any) => norm(p.brand) || '_';
 
+  // Colours make a variant a DIFFERENT product, so they must not be merged. The
+  // model-token grouping keys on colour too, keeping "M280 Negro" and "M280 Azul" apart.
+  const COLORS = new Set(['negro', 'negra', 'blanco', 'blanca', 'gris', 'azul', 'rojo', 'roja',
+    'verde', 'amarillo', 'amarilla', 'rosa', 'rosado', 'rosada', 'violeta', 'celeste', 'naranja',
+    'dorado', 'dorada', 'plateado', 'plateada', 'plata', 'marron', 'beige', 'turquesa', 'fucsia',
+    'lila', 'bordo', 'camo', 'camuflado', 'transparente', 'multicolor', 'cian', 'magenta', 'purpura', 'morado']);
+  const colorOf = (name: string) =>
+    [...new Set(norm(name).split(' ').filter(t => COLORS.has(t)))].sort().join('-');
+
   // Spec/platform tokens look like model codes (letter+digit) but describe an
   // attribute or compatibility, not the product itself.
   const isSpec = (t: string): boolean => {
@@ -215,8 +224,9 @@ duplicatesRouter.get('/candidates', async (c) => {
   const mtBuckets = new Map<string, number[]>();
   for (let i = 0; i < products.length; i++) {
     const b = brandOf(products[i]);
+    const col = colorOf(products[i].name);
     for (const t of new Set(norm(products[i].name).split(' '))) {
-      if (t.length >= 3 && /[a-z]/.test(t) && /\d/.test(t) && !isSpec(t)) push(mtBuckets, b + '|' + t, i);
+      if (t.length >= 3 && /[a-z]/.test(t) && /\d/.test(t) && !isSpec(t)) push(mtBuckets, b + '|' + t + '|' + col, i);
     }
   }
   for (const idxs of mtBuckets.values()) if (idxs.length <= 5) unionAll(idxs);

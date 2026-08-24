@@ -13,6 +13,7 @@ export function DuplicatesPage() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
   const [keepers, setKeepers] = useState<Record<string, string>>({});
+  const [excluded, setExcluded] = useState<Record<string, Set<string>>>({}); // ids the user won't merge
   const [merging, setMerging] = useState<string | null>(null);
 
   const load = async () => {
@@ -37,27 +38,38 @@ export function DuplicatesPage() {
   const setKeeper = (gid: string, pid: string) => setKeepers(p => ({ ...p, [gid]: pid }));
   const dismiss = (gid: string) => setGroups(prev => prev.filter(g => g.id !== gid));
 
+  const isExcluded = (gid: string, pid: string) => !!excluded[gid]?.has(pid);
+  const toggleMerge = (gid: string, pid: string) => setExcluded(prev => {
+    const s = new Set(prev[gid] ?? []);
+    s.has(pid) ? s.delete(pid) : s.add(pid);
+    return { ...prev, [gid]: s };
+  });
+
   const mergeGroup = async (g: Group) => {
     const keepId = keepers[g.id] ?? g.products[0].id;
     const keeper = g.products.find(p => p.id === keepId);
-    const others = g.products.filter(p => p.id !== keepId);
-    if (!others.length) return;
-    if (!confirm(`Fusionar ${others.length} producto(s) en "${keeper?.name}". Los demás se borran y su inventario/precios pasan a este. ¿Continuar?`)) return;
+    const toMerge = g.products.filter(p => p.id !== keepId && !isExcluded(g.id, p.id));
+    if (!toMerge.length) { toast('Marcá al menos un producto para fusionar', 'error'); return; }
+    if (!confirm(`Fusionar ${toMerge.length} producto(s) en "${keeper?.name}". Se borran y su inventario/precios pasan a este. ¿Continuar?`)) return;
     setMerging(g.id);
-    let ok = 0, fail = 0;
-    for (const p of others) {
+    const mergedIds = new Set<string>();
+    let fail = 0;
+    for (const p of toMerge) {
       try {
         const res = await fetch(`${API_BASE}/duplicates/merge`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...authHeaders() },
           body: JSON.stringify({ keepId, removeId: p.id }),
         });
-        if (res.ok) ok++; else fail++;
+        if (res.ok) mergedIds.add(p.id); else fail++;
       } catch { fail++; }
     }
     setMerging(null);
-    toast(`Fusionados: ${ok}${fail ? `, ${fail} fallaron` : ''}`, fail ? 'error' : 'success');
-    setGroups(prev => prev.filter(x => x.id !== g.id));
+    toast(`Fusionados: ${mergedIds.size}${fail ? `, ${fail} fallaron` : ''}`, fail ? 'error' : 'success');
+    // Drop the merged products from the group; keep the rest so you can act again.
+    setGroups(prev => prev
+      .map(x => x.id === g.id ? { ...x, products: x.products.filter(p => !mergedIds.has(p.id)) } : x)
+      .filter(x => x.products.length >= 2));
   };
 
   return (
@@ -80,46 +92,66 @@ export function DuplicatesPage() {
           <p className="text-sm text-stone-500 mb-4">{groups.length} grupos con posibles duplicados.</p>
           {groups.map(g => {
             const keepId = keepers[g.id] ?? g.products[0].id;
+            const toMergeCount = g.products.filter(p => p.id !== keepId && !isExcluded(g.id, p.id)).length;
             return (
               <div key={g.id} className="bg-white border border-stone-200 rounded-xl shadow-sm p-4 mb-4">
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center justify-between mb-1">
                   <p className="text-sm font-semibold text-stone-700">{g.products.length} posibles duplicados</p>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 items-center">
                     <button onClick={() => dismiss(g.id)} className="text-xs text-stone-400 hover:text-stone-600">
                       No son duplicados
                     </button>
                     <button
                       onClick={() => mergeGroup(g)}
-                      disabled={merging === g.id}
+                      disabled={merging === g.id || toMergeCount === 0}
                       className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-medium disabled:opacity-50"
                     >
-                      {merging === g.id ? 'Fusionando…' : 'Fusionar el resto en el elegido'}
+                      {merging === g.id ? 'Fusionando…' : `Fusionar ${toMergeCount} en el elegido`}
                     </button>
                   </div>
                 </div>
+                <p className="text-xs text-stone-400 mb-2">
+                  Elegí <strong>el que queda</strong> (○) y tildá <strong>cuáles fusionar</strong>. Destildá los que NO son duplicados.
+                </p>
 
                 <div className="divide-y divide-stone-100">
-                  {g.products.map(p => (
-                    <label key={p.id} className="flex items-center gap-3 py-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name={`keep-${g.id}`}
-                        checked={keepId === p.id}
-                        onChange={() => setKeeper(g.id, p.id)}
-                        className="accent-emerald-600 shrink-0"
-                      />
-                      {p.imageUrl
-                        ? <img src={resolveImageUrl(p.imageUrl)} alt="" className="w-10 h-10 object-cover rounded shrink-0" />
-                        : <div className="w-10 h-10 bg-stone-100 rounded shrink-0" />}
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm text-stone-800 truncate">{p.name}</p>
-                        <p className="text-xs text-stone-400 truncate">
-                          {[p.brand, p.barcode, p.sku && ('SKU ' + p.sku)].filter(Boolean).join(' · ')}
-                        </p>
+                  {g.products.map(p => {
+                    const isKeeper = keepId === p.id;
+                    return (
+                      <div key={p.id} className="flex items-center gap-3 py-2">
+                        <input
+                          type="radio"
+                          name={`keep-${g.id}`}
+                          checked={isKeeper}
+                          onChange={() => setKeeper(g.id, p.id)}
+                          title="El que queda"
+                          className="accent-emerald-600 shrink-0"
+                        />
+                        {p.imageUrl
+                          ? <img src={resolveImageUrl(p.imageUrl)} alt="" className="w-10 h-10 object-cover rounded shrink-0" />
+                          : <div className="w-10 h-10 bg-stone-100 rounded shrink-0" />}
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm text-stone-800 truncate">{p.name}</p>
+                          <p className="text-xs text-stone-400 truncate">
+                            {[p.brand, p.barcode, p.sku && ('SKU ' + p.sku)].filter(Boolean).join(' · ')}
+                          </p>
+                        </div>
+                        {isKeeper ? (
+                          <span className="text-xs text-emerald-600 font-medium shrink-0">se queda</span>
+                        ) : (
+                          <label className="flex items-center gap-1.5 text-xs text-stone-500 shrink-0 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={!isExcluded(g.id, p.id)}
+                              onChange={() => toggleMerge(g.id, p.id)}
+                              className="accent-emerald-600"
+                            />
+                            fusionar
+                          </label>
+                        )}
                       </div>
-                      {keepId === p.id && <span className="text-xs text-emerald-600 font-medium shrink-0">se queda</span>}
-                    </label>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             );
