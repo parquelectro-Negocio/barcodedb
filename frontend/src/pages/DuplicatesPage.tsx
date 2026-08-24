@@ -13,7 +13,7 @@ export function DuplicatesPage() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
   const [keepers, setKeepers] = useState<Record<string, string>>({});
-  const [excluded, setExcluded] = useState<Record<string, Set<string>>>({}); // ids the user won't merge
+  const [included, setIncluded] = useState<Record<string, Set<string>>>({}); // ids the user picked to merge
   const [merging, setMerging] = useState<string | null>(null);
 
   const load = async () => {
@@ -38,8 +38,8 @@ export function DuplicatesPage() {
   const setKeeper = (gid: string, pid: string) => setKeepers(p => ({ ...p, [gid]: pid }));
   const dismiss = (gid: string) => setGroups(prev => prev.filter(g => g.id !== gid));
 
-  const isExcluded = (gid: string, pid: string) => !!excluded[gid]?.has(pid);
-  const toggleMerge = (gid: string, pid: string) => setExcluded(prev => {
+  const isChecked = (gid: string, pid: string) => !!included[gid]?.has(pid);
+  const toggleMerge = (gid: string, pid: string) => setIncluded(prev => {
     const s = new Set(prev[gid] ?? []);
     s.has(pid) ? s.delete(pid) : s.add(pid);
     return { ...prev, [gid]: s };
@@ -48,7 +48,7 @@ export function DuplicatesPage() {
   const mergeGroup = async (g: Group) => {
     const keepId = keepers[g.id] ?? g.products[0].id;
     const keeper = g.products.find(p => p.id === keepId);
-    const toMerge = g.products.filter(p => p.id !== keepId && !isExcluded(g.id, p.id));
+    const toMerge = g.products.filter(p => p.id !== keepId && isChecked(g.id, p.id));
     if (!toMerge.length) { toast('Marcá al menos un producto para fusionar', 'error'); return; }
     if (!confirm(`Fusionar ${toMerge.length} producto(s) en "${keeper?.name}". Se borran y su inventario/precios pasan a este. ¿Continuar?`)) return;
     setMerging(g.id);
@@ -92,7 +92,7 @@ export function DuplicatesPage() {
           <p className="text-sm text-stone-500 mb-4">{groups.length} grupos con posibles duplicados.</p>
           {groups.map(g => {
             const keepId = keepers[g.id] ?? g.products[0].id;
-            const toMergeCount = g.products.filter(p => p.id !== keepId && !isExcluded(g.id, p.id)).length;
+            const toMergeCount = g.products.filter(p => p.id !== keepId && isChecked(g.id, p.id)).length;
             return (
               <div key={g.id} className="bg-white border border-stone-200 rounded-xl shadow-sm p-4 mb-4">
                 <div className="flex items-center justify-between mb-1">
@@ -111,7 +111,7 @@ export function DuplicatesPage() {
                   </div>
                 </div>
                 <p className="text-xs text-stone-400 mb-2">
-                  Elegí <strong>el que queda</strong> (○) y tildá <strong>cuáles fusionar</strong>. Destildá los que NO son duplicados.
+                  Elegí <strong>el que queda</strong> (○) y <strong>tildá solo los que SÍ son duplicados</strong>. Lo que dejes sin tildar no se toca.
                 </p>
 
                 <div className="divide-y divide-stone-100">
@@ -142,7 +142,7 @@ export function DuplicatesPage() {
                           <label className="flex items-center gap-1.5 text-xs text-stone-500 shrink-0 cursor-pointer">
                             <input
                               type="checkbox"
-                              checked={!isExcluded(g.id, p.id)}
+                              checked={isChecked(g.id, p.id)}
                               onChange={() => toggleMerge(g.id, p.id)}
                               className="accent-emerald-600"
                             />
