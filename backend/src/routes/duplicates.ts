@@ -170,9 +170,10 @@ duplicatesRouter.post('/merge', async (c) => {
   return c.json({ success: true, keptId: keepId, removedId: removeId });
 });
 
-// Detect likely duplicate groups: products sharing a brand and a model-like
-// token (a digit-containing token from the name, or the SKU). Heuristic — the
-// moderator confirms before merging, so false groupings are just ignored.
+// Detect likely duplicate groups by three high-precision signals: a near-identical
+// name (same word set), a RARE model token shared within a brand (platform/spec
+// tokens shared by many products are skipped), or an exact SKU. Heuristic — the
+// moderator confirms before merging, so any stray grouping is just ignored.
 duplicatesRouter.get('/candidates', async (c) => {
   const auth = requireAuth(c);
   if (!auth) return c.json({ error: 'auth_required' }, 401);
@@ -183,43 +184,50 @@ duplicatesRouter.get('/candidates', async (c) => {
 
   const norm = (s: string) => (s || '').toLowerCase().normalize('NFD')
     .replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
-  // Spec tokens look like model codes (letter+digit) but describe an ATTRIBUTE, not
-  // the product — capacity, memory, power, frequency, resolution, interface. Grouping
-  // on these merges genuinely different products (16GB vs 32GB), so exclude them.
-  const isSpec = (t: string): boolean => {
-    if (/^\d+(gb|tb|mb|kb|g|kg|mg|w|kw|v|kv|a|ma|mah|ah|wh|kwh|hz|khz|mhz|ghz|p|i|k|mm|cm|m|km|ml|l|nm|lm|lux|rpm|dpi|fps|bit|bits|pin|pines|awg|ohm|db|psi|mp)$/.test(t)) return true;
-    if (/^(ddr\d|lpddr\d|usb\d|usbc|typec|cat\d|wifi\d|bt\d|hdmi\d|dp\d|pcie\d|pci|sata\d|nvme|gen\d|m2|rj\d+|awg\d+)$/.test(t)) return true;
-    return false;
-  };
-  const tokensOf = (p: any): Set<string> => {
-    const set = new Set<string>();
-    // Model-like tokens from the name: need BOTH a letter and a digit (e.g. "m280",
-    // "b60") and must NOT be a spec token.
-    for (const t of norm(p.name).split(' ')) {
-      if (t.length >= 3 && /[a-z]/.test(t) && /\d/.test(t) && !isSpec(t)) set.add('m:' + t);
-    }
-    // A real SKU is a strong signal on its own.
-    const sku = norm(p.sku).replace(/\s+/g, '');
-    if (sku.length >= 4) set.add('s:' + sku);
-    return set;
-  };
   const brandOf = (p: any) => norm(p.brand) || '_';
 
-  const prodTokens = products.map(tokensOf);
-  const buckets = new Map<string, number[]>();
-  for (let i = 0; i < products.length; i++) {
-    const b = brandOf(products[i]);
-    for (const t of prodTokens[i]) {
-      const k = b + '|' + t;
-      if (!buckets.has(k)) buckets.set(k, []);
-      buckets.get(k)!.push(i);
-    }
-  }
+  // Spec/platform tokens look like model codes (letter+digit) but describe an
+  // attribute or compatibility, not the product itself.
+  const isSpec = (t: string): boolean => {
+    if (/^\d+(gb|tb|mb|kb|g|kg|mg|w|kw|v|kv|a|ma|mah|ah|wh|kwh|hz|khz|mhz|ghz|p|i|k|mm|cm|m|km|ml|l|nm|lm|lux|rpm|dpi|fps|bit|bits|pin|pines|awg|ohm|db|psi|mp)$/.test(t)) return true;
+    if (/^(ddr\d|lpddr\d|usb\d|usbc|typec|cat\d|wifi\d|bt\d|hdmi\d|dp\d|pcie\d|pci|sata\d|nvme|gen\d|m2|rj\d+|awg\d+|lga\d+|am\d|ps\d|s\d{3,})$/.test(t)) return true;
+    return false;
+  };
 
   const parent = products.map((_: any, i: number) => i);
   const find = (x: number): number => { while (parent[x] !== x) { parent[x] = parent[parent[x]]; x = parent[x]; } return x; };
   const union = (a: number, b: number) => { const ra = find(a), rb = find(b); if (ra !== rb) parent[ra] = rb; };
-  for (const idxs of buckets.values()) for (let j = 1; j < idxs.length; j++) union(idxs[0], idxs[j]);
+  const unionAll = (idxs: number[]) => { for (let j = 1; j < idxs.length; j++) union(idxs[0], idxs[j]); };
+  const push = (m: Map<string, number[]>, k: string, i: number) => { if (!m.has(k)) m.set(k, []); m.get(k)!.push(i); };
+
+  // (a) Near-identical name: same set of normalized words → same product.
+  const sigBuckets = new Map<string, number[]>();
+  for (let i = 0; i < products.length; i++) {
+    const words = norm(products[i].name).split(' ').filter(t => t.length >= 2);
+    const sig = [...new Set(words)].sort().join(' ');
+    if (sig) push(sigBuckets, sig, i);
+  }
+  for (const idxs of sigBuckets.values()) unionAll(idxs);
+
+  // (b) Same RARE model token (letter+digit, not a spec) within a brand. Skipping
+  // buckets shared by many products drops platform tokens (lga1700, ps4, s1700)
+  // that would otherwise merge genuinely different products.
+  const mtBuckets = new Map<string, number[]>();
+  for (let i = 0; i < products.length; i++) {
+    const b = brandOf(products[i]);
+    for (const t of new Set(norm(products[i].name).split(' '))) {
+      if (t.length >= 3 && /[a-z]/.test(t) && /\d/.test(t) && !isSpec(t)) push(mtBuckets, b + '|' + t, i);
+    }
+  }
+  for (const idxs of mtBuckets.values()) if (idxs.length <= 5) unionAll(idxs);
+
+  // (c) Exact SKU.
+  const skuBuckets = new Map<string, number[]>();
+  for (let i = 0; i < products.length; i++) {
+    const sku = norm(products[i].sku).replace(/\s+/g, '');
+    if (sku.length >= 4) push(skuBuckets, sku, i);
+  }
+  for (const idxs of skuBuckets.values()) unionAll(idxs);
 
   const byRoot = new Map<number, any[]>();
   for (let i = 0; i < products.length; i++) {
