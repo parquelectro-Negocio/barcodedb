@@ -183,12 +183,20 @@ duplicatesRouter.get('/candidates', async (c) => {
 
   const norm = (s: string) => (s || '').toLowerCase().normalize('NFD')
     .replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+  // Spec tokens look like model codes (letter+digit) but describe an ATTRIBUTE, not
+  // the product — capacity, memory, power, frequency, resolution, interface. Grouping
+  // on these merges genuinely different products (16GB vs 32GB), so exclude them.
+  const isSpec = (t: string): boolean => {
+    if (/^\d+(gb|tb|mb|kb|g|kg|mg|w|kw|v|kv|a|ma|mah|ah|wh|kwh|hz|khz|mhz|ghz|p|i|k|mm|cm|m|km|ml|l|nm|lm|lux|rpm|dpi|fps|bit|bits|pin|pines|awg|ohm|db|psi|mp)$/.test(t)) return true;
+    if (/^(ddr\d|lpddr\d|usb\d|usbc|typec|cat\d|wifi\d|bt\d|hdmi\d|dp\d|pcie\d|pci|sata\d|nvme|gen\d|m2|rj\d+|awg\d+)$/.test(t)) return true;
+    return false;
+  };
   const tokensOf = (p: any): Set<string> => {
     const set = new Set<string>();
     // Model-like tokens from the name: need BOTH a letter and a digit (e.g. "m280",
-    // "b60"), so plain specs ("1080", "usb", "3") don't create false groupings.
+    // "b60") and must NOT be a spec token.
     for (const t of norm(p.name).split(' ')) {
-      if (t.length >= 3 && /[a-z]/.test(t) && /\d/.test(t)) set.add('m:' + t);
+      if (t.length >= 3 && /[a-z]/.test(t) && /\d/.test(t) && !isSpec(t)) set.add('m:' + t);
     }
     // A real SKU is a strong signal on its own.
     const sku = norm(p.sku).replace(/\s+/g, '');
