@@ -263,7 +263,10 @@ export function StockPage() {
 
               return (
                 <div key={item.id} className={`p-4 ${isOut ? 'bg-red-50' : isLow ? 'bg-amber-50' : ''}`}>
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-3">
+                    {item.product.imageUrl
+                      ? <img src={resolveImageUrl(item.product.imageUrl)} alt="" className="w-10 h-10 object-cover rounded-lg shrink-0" />
+                      : <div className="w-10 h-10 bg-stone-100 rounded-lg shrink-0" />}
                     <div className="flex-1 min-w-0">
                       <Link to={`/product/${item.product.barcode || item.product.slug}`} className="font-medium text-sm text-stone-800 hover:text-emerald-700 truncate block">
                         {item.product.name}
