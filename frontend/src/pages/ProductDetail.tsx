@@ -225,19 +225,19 @@ function ProductView({ product, barcode, onBack }: { product: any; barcode: stri
 
           <div className="flex flex-wrap gap-2 mb-4">
             {product.status === 'verified' ? (
-              <span className="text-xs px-3 py-1 rounded bg-emerald-100 text-emerald-700">
-                Verificado
+              <span title="Varios usuarios confirmaron que los datos de este producto son correctos." className="text-xs px-3 py-1 rounded bg-emerald-100 text-emerald-700 cursor-help">
+                ✓ Verificado
               </span>
             ) : product.status === 'flagged' ? (
-              <span className="text-xs px-3 py-1 rounded bg-red-100 text-red-700">
+              <span title="Alguien reportó un error en los datos. Un moderador lo va a revisar." className="text-xs px-3 py-1 rounded bg-red-100 text-red-700 cursor-help">
                 Reportado - en revisión
               </span>
             ) : (
-              <span className="text-xs px-3 py-1 rounded bg-yellow-100 text-yellow-800">
+              <span title="Todavía nadie confirmó los datos. Cuando varios usuarios lo confirmen, pasa a 'Verificado' (verde)." className="text-xs px-3 py-1 rounded bg-yellow-100 text-yellow-800 cursor-help">
                 Pendiente
               </span>
             )}
-            <span className="text-xs px-3 py-1 rounded bg-stone-100 text-stone-500">
+            <span title="Cuántos usuarios confirmaron que los datos están bien." className="text-xs px-3 py-1 rounded bg-stone-100 text-stone-500 cursor-help">
               {product.verification_score} confirmaciones
             </span>
             {product.category && (
@@ -255,7 +255,13 @@ function ProductView({ product, barcode, onBack }: { product: any; barcode: stri
 
       {/* Vote buttons */}
       {user ? (
-        <div className="flex gap-3 mb-8">
+        <div className="mb-8">
+          <p className="text-sm text-stone-500 mb-2">
+            {product.status === 'verified'
+              ? '¿Encontraste un error en los datos? Reportalo para que un moderador lo revise.'
+              : '¿Los datos están bien? Tocá "Confirmar datos" — con varias confirmaciones el producto pasa a Verificado ✓ (verde). Si algo está mal, reportá el error.'}
+          </p>
+          <div className="flex gap-3">
           <button
             onClick={() => voteMutation.mutate('confirm')}
             disabled={voteMutation.isPending}
@@ -278,6 +284,7 @@ function ProductView({ product, barcode, onBack }: { product: any; barcode: stri
           >
             {currentVote === 'flag' ? '⚑ Reportado' : 'Reportar error'}
           </button>
+          </div>
         </div>
       ) : (
         <div className="mb-8">
@@ -592,6 +599,9 @@ function InventorySection({ productId }: { productId: string }) {
       {existingBP && (
         <p className="text-xs text-stone-500 mb-3">Este producto ya está en tu inventario. Actualizá precio y stock.</p>
       )}
+      <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 mb-3 text-xs text-emerald-800">
+        Si es el producto correcto, ayudá a la comunidad: <strong>confirmá sus datos</strong> más arriba 👆 — con varias confirmaciones el producto pasa a <strong>Verificado ✓</strong>.
+      </div>
       <div className="space-y-3 max-w-md">
         {!existingBP ? (
           <>
