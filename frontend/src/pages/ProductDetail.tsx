@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect, useRef } from 'react';
 import { apiHeaders } from '../lib/user';
 import { useAuth } from '../lib/auth';
+import { InfoHint } from '../components/InfoHint';
 import { API_BASE, resolveImageUrl, uploadImage } from '../lib/config';
 import { stripBackground } from '../lib/removeBg';
 
@@ -297,12 +298,15 @@ function ProductView({ product, barcode, onBack }: { product: any; barcode: stri
       {/* Reportar duplicado */}
       <div className="mt-6 pt-4 border-t border-stone-200">
         {!showReport ? (
+          <>
           <button
             onClick={() => setShowReport(true)}
             className="text-xs text-stone-400 hover:text-stone-600 underline"
           >
             Reportar duplicado
           </button>
+          <InfoHint text="Es cuando este MISMO producto está cargado dos veces (por dos listas distintas). Lo marcás y un moderador los une en uno solo. Distinto de 'Reportar error', que es para datos equivocados." />
+          </>
         ) : reportSent ? (
           <p className="text-xs text-emerald-600">Gracias — tu reporte fue enviado. Un revisor lo va a procesar.</p>
         ) : (
@@ -620,7 +624,7 @@ function InventorySection({ productId }: { productId: string }) {
                 />
               </div>
               <div className="w-28">
-                <label className="block text-sm text-stone-500 mb-1">Margen %</label>
+                <label className="block text-sm text-stone-500 mb-1">Margen %<InfoHint text="Ganancia sobre el costo. El precio de venta se calcula solo: costo × (1 + margen/100). Igual podés editarlo a mano." /></label>
                 <input
                   type="number" min="0" step="1" value={margin}
                   onChange={e => {

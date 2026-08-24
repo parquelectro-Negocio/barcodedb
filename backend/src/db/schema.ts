@@ -97,6 +97,17 @@ export const productVotes = pgTable('product_votes', {
   uniqueIdx: uniqueIndex('product_votes_unique').on(table.userId, table.productId),
 }));
 
+// Reclamos y sugerencias — go straight to the owner (moderator) to read.
+export const feedback = pgTable('feedback', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id),
+  kind: text('kind').default('sugerencia').notNull(), // reclamo | sugerencia
+  message: text('message').notNull(),
+  contact: text('contact').default('').notNull(),
+  status: text('status').default('open').notNull(), // open | done
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
 export const productAliases = pgTable('product_aliases', {
   id: uuid('id').defaultRandom().primaryKey(),
   productId: uuid('product_id').notNull().references(() => products.id),

@@ -7,6 +7,7 @@ import { AddProduct } from './pages/AddProduct';
 import { ImportPage } from './pages/ImportPage';
 import { BulkImagesPage } from './pages/BulkImagesPage';
 import { DuplicatesPage } from './pages/DuplicatesPage';
+import { FeedbackPage } from './pages/FeedbackPage';
 import { POSPage } from './pages/POSPage';
 import { SalesPage } from './pages/SalesPage';
 import { EditProduct } from './pages/EditProduct';
@@ -111,6 +112,11 @@ function NavBar() {
           {!loading && (
             user ? (
               <div className="flex items-center gap-2">
+                <Link to="/sugerencias" className="text-stone-400 hover:text-emerald-600 transition-colors" title="Reclamos y sugerencias">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 3v-3z" />
+                  </svg>
+                </Link>
                 <Link to="/profile" className="flex items-center gap-2 group" title="Mi perfil">
                   {user.avatarUrl && (
                     <img src={resolveImageUrl(user.avatarUrl)} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
@@ -208,6 +214,13 @@ function NavBar() {
                   >
                     Mi perfil
                   </Link>
+                  <Link
+                    to="/sugerencias"
+                    onClick={() => setMenuOpen(false)}
+                    className="block px-3 py-2.5 rounded-lg text-sm font-medium text-stone-600 hover:bg-stone-100"
+                  >
+                    💬 Reclamos y sugerencias
+                  </Link>
                   <div className="px-3 py-2 flex items-center justify-between text-sm text-stone-500">
                     <span className="truncate mr-2">{user.name || user.email}</span>
                     <button onClick={() => { logout(); setMenuOpen(false); }} className="text-red-500 hover:text-red-600 text-xs font-medium shrink-0">Salir</button>
@@ -240,6 +253,7 @@ function AppContent() {
           <Route path="/import" element={<RequireAuth><ImportPage /></RequireAuth>} />
           <Route path="/import-images" element={<RequireAuth><BulkImagesPage /></RequireAuth>} />
           <Route path="/duplicates" element={<RequireAuth><DuplicatesPage /></RequireAuth>} />
+          <Route path="/sugerencias" element={<RequireAuth><FeedbackPage /></RequireAuth>} />
           <Route path="/pos" element={<RequireAuth><POSPage /></RequireAuth>} />
           <Route path="/sales" element={<RequireAuth><SalesPage /></RequireAuth>} />
           <Route path="/edit/:barcode" element={<RequireAuth><EditProduct /></RequireAuth>} />

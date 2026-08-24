@@ -197,3 +197,14 @@ ALTER TABLE businesses ADD COLUMN IF NOT EXISTS logo_url TEXT NOT NULL DEFAULT '
 
 -- Migration: default markup % for auto-pricing new inventory from cost
 ALTER TABLE businesses ADD COLUMN IF NOT EXISTS default_margin NUMERIC(6,2) NOT NULL DEFAULT 0;
+
+-- Reclamos y sugerencias (van directo al dueño/moderador)
+CREATE TABLE IF NOT EXISTS feedback (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id),
+  kind TEXT NOT NULL DEFAULT 'sugerencia',
+  message TEXT NOT NULL,
+  contact TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'open',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
