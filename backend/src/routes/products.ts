@@ -24,6 +24,27 @@ const createSchema = z.object({
   attributes: z.record(z.any()).optional().default({}),
 });
 
+// Look up a barcode on Open Food Facts (free, open catalog) to auto-fill a new
+// product — name, brand and image. Returns { found: false } when there's no match.
+productsRouter.get('/off/:barcode', async (c) => {
+  const barcode = c.req.param('barcode').replace(/\s+/g, '');
+  if (!/^\d{6,14}$/.test(barcode)) return c.json({ found: false });
+  try {
+    const url = `https://world.openfoodfacts.org/api/v2/product/${barcode}.json?fields=product_name,product_name_es,brands,image_front_url,image_url`;
+    const r = await fetch(url, { headers: { 'User-Agent': 'CodigoAR/1.0 (parquelectro@gmail.com)' } });
+    if (!r.ok) return c.json({ found: false });
+    const d: any = await r.json();
+    const p = d?.product;
+    const name = String(p?.product_name_es || p?.product_name || '').trim();
+    if (d?.status === 0 || !p || !name) return c.json({ found: false });
+    const brand = String(p.brands || '').split(',')[0].trim();
+    const imageUrl = String(p.image_front_url || p.image_url || '').trim();
+    return c.json({ found: true, name, brand, imageUrl });
+  } catch {
+    return c.json({ found: false });
+  }
+});
+
 productsRouter.get('/:identifier', async (c) => {
   const { identifier } = c.req.param();
   const results = await db.query.products.findMany({

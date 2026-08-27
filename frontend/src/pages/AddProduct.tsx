@@ -32,6 +32,32 @@ export function AddProduct() {
   const [bizSectors, setBizSectors] = useState<string[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiUsed, setAiUsed] = useState(false);
+  const [offLoading, setOffLoading] = useState(false);
+  const [offImageUrl, setOffImageUrl] = useState('');
+
+  // Auto-fill a new product from Open Food Facts by its barcode (name/brand/image).
+  // `auto` = triggered on load (stay quiet on misses); otherwise it's a manual click.
+  const enrichFromOFF = async (bc?: string, auto = false) => {
+    const code = (bc ?? form.barcode ?? '').replace(/\s+/g, '');
+    if (!/^\d{6,14}$/.test(code)) { if (!auto) toast('Poné un código de barras válido primero', 'error'); return; }
+    setOffLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/products/off/${code}`);
+      const d = await res.json();
+      if (!d.found) { if (!auto) toast('Ese código no está en Open Food Facts', 'info'); return; }
+      setForm(f => ({ ...f, name: f.name || d.name, brand: f.brand || (d.brand || '') }));
+      if (d.brand && !form.brand) setBrandInput(String(d.brand).toUpperCase());
+      if (d.imageUrl) setOffImageUrl(d.imageUrl);
+      toast('Datos traídos de Open Food Facts — revisalos antes de guardar', 'success');
+    } catch { if (!auto) toast('Error al buscar en Open Food Facts', 'error'); }
+    finally { setOffLoading(false); }
+  };
+
+  // On arrival from a scan (barcode in URL, no name), try Open Food Facts once.
+  useEffect(() => {
+    if (barcode && !prefillName) enrichFromOFF(barcode, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     fetch(`${API_BASE}/categories`)
@@ -185,7 +211,7 @@ export function AddProduct() {
       if (v !== undefined && v !== '') categoryAttrs[a.name] = v;
     }
 
-    let imageUrl = normalized.imageUrl ?? '';
+    let imageUrl = offImageUrl || (normalized.imageUrl ?? '');
     const fileInput = document.getElementById('product-image') as HTMLInputElement;
     const file = fileInput?.files?.[0];
 
@@ -346,6 +372,22 @@ export function AddProduct() {
               className="w-full px-4 py-2 bg-white border border-stone-300 rounded-lg font-mono text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
               placeholder="Ej: 7790040929604. Sin código va por slug."
             />
+            {form.barcode?.trim() && (
+              <button
+                type="button"
+                onClick={() => enrichFromOFF()}
+                disabled={offLoading}
+                className="mt-1 text-xs text-emerald-600 hover:text-emerald-700 font-medium disabled:opacity-50"
+              >
+                {offLoading ? 'Buscando…' : '🔎 Buscar datos en Open Food Facts'}
+              </button>
+            )}
+            {offImageUrl && (
+              <div className="mt-2 flex items-center gap-2">
+                <img src={offImageUrl} alt="" className="w-12 h-12 object-cover rounded border border-stone-200" />
+                <span className="text-xs text-stone-400">Imagen de Open Food Facts (se usa si no subís otra)</span>
+              </div>
+            )}
           </div>
           <div>
             <label className="block text-sm text-stone-500 mb-1">Color</label>
