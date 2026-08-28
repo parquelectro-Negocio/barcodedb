@@ -30,7 +30,7 @@ productsRouter.get('/off/:barcode', async (c) => {
   const barcode = c.req.param('barcode').replace(/\s+/g, '');
   if (!/^\d{6,14}$/.test(barcode)) return c.json({ found: false });
   try {
-    const url = `https://world.openfoodfacts.org/api/v2/product/${barcode}.json?fields=product_name,product_name_es,brands,image_front_url,image_url`;
+    const url = `https://world.openfoodfacts.org/api/v2/product/${barcode}.json?fields=product_name,product_name_es,brands,image_front_url,image_url,categories_tags`;
     const r = await fetch(url, { headers: { 'User-Agent': 'CodigoAR/1.0 (parquelectro@gmail.com)' } });
     if (!r.ok) return c.json({ found: false });
     const d: any = await r.json();
@@ -39,7 +39,20 @@ productsRouter.get('/off/:barcode', async (c) => {
     if (d?.status === 0 || !p || !name) return c.json({ found: false });
     const brand = String(p.brands || '').split(',')[0].trim();
     const imageUrl = String(p.image_front_url || p.image_url || '').trim();
-    return c.json({ found: true, name, brand, imageUrl });
+
+    // Map Open Food Facts category tags to one of our top-level rubros.
+    const tags = (Array.isArray(p.categories_tags) ? p.categories_tags : []).join(' ');
+    const RUBRO: [RegExp, string][] = [
+      [/beverage|drink|soda|water|juice|wine|beer|coffee|tea|mate|yerba/, 'Bebidas'],
+      [/cleaning|detergent|laundry|dishwash|bleach/, 'Limpieza'],
+      [/cosmetic|beauty|shampoo|soap|perfume|hygiene|toothpaste/, 'Farmacia y Perfumería'],
+      [/pet-food|pet-|cat-|dog-/, 'Mascotas'],
+      [/snack|biscuit|cookie|chocolate|candy|dairy|milk|cheese|bread|pasta|rice|cereal|food|grocery|sauce|oil|sugar|flour|canned/, 'Almacén'],
+    ];
+    let category = '';
+    for (const [re, rubro] of RUBRO) { if (re.test(tags)) { category = rubro; break; } }
+
+    return c.json({ found: true, name, brand, imageUrl, category });
   } catch {
     return c.json({ found: false });
   }
@@ -121,6 +134,9 @@ productsRouter.post('/ai-enrich', async (c) => {
     `- "largo": longitud/medida si aplica (ej: "2m", "50cm"), sino "".\n` +
     `- "peso": peso si aplica (ej: "1kg", "500g"), sino "".\n` +
     `- Completá SOLO los campos que correspondan; el resto dejalo como "".\n` +
+    `Basate principalmente en el NOMBRE (el código de barras por sí solo no identifica el producto). ` +
+    `Si el nombre es reconocible, dá tu mejor estimación de marca y categoría aunque no tengas certeza total; ` +
+    `solo dejá "name" vacío si el texto es realmente indescifrable.\n` +
     (name ? `Nombre: ${name}\n` : '') + (barcode ? `Código de barras: ${barcode}\n` : '');
 
   const candidates = cachedGeminiModel ? [cachedGeminiModel] : await getCandidateModels(key);

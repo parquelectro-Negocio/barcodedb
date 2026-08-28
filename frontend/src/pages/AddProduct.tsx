@@ -34,6 +34,7 @@ export function AddProduct() {
   const [aiUsed, setAiUsed] = useState(false);
   const [offLoading, setOffLoading] = useState(false);
   const [offImageUrl, setOffImageUrl] = useState('');
+  const [showAllCats, setShowAllCats] = useState(false);
 
   // Auto-fill a new product from Open Food Facts by its barcode (name/brand/image).
   // `auto` = triggered on load (stay quiet on misses); otherwise it's a manual click.
@@ -45,7 +46,16 @@ export function AddProduct() {
       const res = await fetch(`${API_BASE}/products/off/${code}`);
       const d = await res.json();
       if (!d.found) { if (!auto) toast('Ese código no está en Open Food Facts', 'info'); return; }
-      setForm(f => ({ ...f, name: f.name || d.name, brand: f.brand || (d.brand || '') }));
+      setForm(f => {
+        const next: Record<string, any> = { ...f };
+        next.name = f.name || d.name;
+        next.brand = f.brand || (d.brand || '');
+        if (d.category && !f.categoryId) {
+          const cat = categories.find(c => c.name.toLowerCase() === String(d.category).toLowerCase());
+          if (cat) next.categoryId = cat.id;
+        }
+        return next;
+      });
       if (d.brand && !form.brand) setBrandInput(String(d.brand).toUpperCase());
       if (d.imageUrl) setOffImageUrl(d.imageUrl);
       toast('Datos traídos de Open Food Facts — revisalos antes de guardar', 'success');
@@ -290,6 +300,17 @@ export function AddProduct() {
       })
     : [];
 
+  // Categories suggested from the product name (word overlap with the category name).
+  const catNorm = (s: string) => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const nameNorm = catNorm(form.name);
+  const nameWords = nameNorm.split(/\s+/).filter(w => w.length >= 3);
+  const suggestedCats = nameNorm.length < 3 ? [] : categories.filter(c => {
+    const cn = catNorm(c.name);
+    if (!cn) return false;
+    const catWords = cn.split(/\s+/).filter(w => w.length >= 3);
+    return catWords.some(cw => nameNorm.includes(cw)) || nameWords.some(nw => cn.includes(nw));
+  }).slice(0, 6);
+
   if (done) {
     return (
       <div className="text-center py-16">
@@ -438,22 +459,53 @@ export function AddProduct() {
 
         <div>
           <label className="block text-sm text-stone-500 mb-1">Categoría</label>
-          {relevantCats.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mb-2">
-              {relevantCats.map(c => (
-                <button
-                  type="button"
-                  key={c.id}
-                  onClick={() => set('categoryId', c.id)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
-                    form.categoryId === c.id ? 'bg-emerald-600 text-white' : 'bg-stone-100 text-stone-600 hover:bg-emerald-50'
-                  }`}
-                >
-                  {c.name}
-                </button>
-              ))}
+
+          {suggestedCats.length > 0 && (
+            <div className="mb-2">
+              <p className="text-xs text-emerald-600 font-medium mb-1">Sugeridas por el nombre:</p>
+              <div className="flex flex-wrap gap-1.5">
+                {suggestedCats.map(c => (
+                  <button
+                    type="button" key={c.id}
+                    onClick={() => set('categoryId', c.id)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
+                      form.categoryId === c.id ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                    }`}
+                  >
+                    {c.name}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
+
+          {relevantCats.length > 0 && (
+            <div className="mb-2">
+              <button
+                type="button"
+                onClick={() => setShowAllCats(v => !v)}
+                className="text-xs text-stone-500 hover:text-stone-700 font-medium"
+              >
+                {showAllCats ? '▾ Ocultar' : `▸ Ver categorías de mis rubros (${relevantCats.length})`}
+              </button>
+              {showAllCats && (
+                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                  {relevantCats.map(c => (
+                    <button
+                      type="button" key={c.id}
+                      onClick={() => set('categoryId', c.id)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
+                        form.categoryId === c.id ? 'bg-emerald-600 text-white' : 'bg-stone-100 text-stone-600 hover:bg-emerald-50'
+                      }`}
+                    >
+                      {c.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           <Autocomplete
             value={catName(form.categoryId)}
             onChange={(val, opt) => set('categoryId', opt?.value ?? '')}
