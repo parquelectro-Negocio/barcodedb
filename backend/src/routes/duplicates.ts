@@ -195,6 +195,13 @@ duplicatesRouter.get('/candidates', async (c) => {
   const colorOf = (name: string) =>
     [...new Set(norm(name).split(' ').filter(t => COLORS.has(t)))].sort().join('-');
 
+  // Capacity/measurement (16GB vs 32GB, 500ml vs 1L, 600W…) also makes a variant a
+  // DIFFERENT product — same model in another size is not a duplicate.
+  const specSig = (name: string) => {
+    const m = norm(name).match(/\d+\s?(gb|tb|mb|kb|w|kw|kv|v|a|ma|mah|ah|wh|kwh|hz|khz|mhz|ghz|ml|l|cl|mm|cm|km|va|dpi|rpm|fps|pulg|in|nm|lm|db)\b/g) || [];
+    return [...new Set(m.map(s => s.replace(/\s+/g, '')))].sort().join('-');
+  };
+
   // Spec/platform tokens look like model codes (letter+digit) but describe an
   // attribute or compatibility, not the product itself.
   const isSpec = (t: string): boolean => {
@@ -224,9 +231,9 @@ duplicatesRouter.get('/candidates', async (c) => {
   const mtBuckets = new Map<string, number[]>();
   for (let i = 0; i < products.length; i++) {
     const b = brandOf(products[i]);
-    const col = colorOf(products[i].name);
+    const variant = colorOf(products[i].name) + '|' + specSig(products[i].name);
     for (const t of new Set(norm(products[i].name).split(' '))) {
-      if (t.length >= 3 && /[a-z]/.test(t) && /\d/.test(t) && !isSpec(t)) push(mtBuckets, b + '|' + t + '|' + col, i);
+      if (t.length >= 3 && /[a-z]/.test(t) && /\d/.test(t) && !isSpec(t)) push(mtBuckets, b + '|' + t + '|' + variant, i);
     }
   }
   for (const idxs of mtBuckets.values()) if (idxs.length <= 5) unionAll(idxs);
