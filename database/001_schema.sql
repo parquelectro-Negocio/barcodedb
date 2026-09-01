@@ -23,7 +23,8 @@ CREATE TABLE IF NOT EXISTS category_attributes (
   sort_order    INT NOT NULL DEFAULT 0
 );
 
--- Global products (multiple entries per barcode allowed — conflicts exist in the real world)
+-- Global products. Non-blank barcodes (EANs) are UNIQUE (enforced by a partial
+-- index below); barcode-less products are allowed and identified by slug instead.
 CREATE TABLE IF NOT EXISTS products (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   barcode         TEXT NOT NULL,
@@ -208,3 +209,8 @@ CREATE TABLE IF NOT EXISTS feedback (
   status TEXT NOT NULL DEFAULT 'open',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Migration: enforce one product per EAN. Partial so the many barcode-less
+-- products (identified by slug) can coexist without colliding on empty string.
+-- This is the safety lock that makes supplier-API ingest idempotent (upsert by EAN).
+CREATE UNIQUE INDEX IF NOT EXISTS products_barcode_unique ON products (barcode) WHERE barcode <> '';

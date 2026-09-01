@@ -1,4 +1,5 @@
 import { pgTable, uuid, text, integer, numeric, jsonb, boolean, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
 export const users = pgTable('users', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -47,7 +48,11 @@ export const products = pgTable('products', {
   createdBy: uuid('created_by').references(() => users.id),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-});
+}, (table) => ({
+  // One product per EAN. Partial: barcode-less products (identified by slug)
+  // may coexist without colliding on empty string. Makes API ingest upsert-safe.
+  barcodeUnique: uniqueIndex('products_barcode_unique').on(table.barcode).where(sql`${table.barcode} <> ''`),
+}));
 
 export const productVariants = pgTable('product_variants', {
   id: uuid('id').defaultRandom().primaryKey(),
