@@ -192,12 +192,16 @@ duplicatesRouter.get('/candidates', async (c) => {
   const unionAll = (idxs: number[]) => { for (let j = 1; j < idxs.length; j++) union(idxs[0], idxs[j]); };
   const push = (m: Map<string, number[]>, k: string, i: number) => { if (!m.has(k)) m.set(k, []); m.get(k)!.push(i); };
 
-  // (a) Near-identical name: same set of normalized words → same product.
+  // (a) Same word set AND same SKU. Word set alone over-groups variants that share
+  // a name but differ only in SKU (RTX5060TI 8G vs 16G, "1 pack" vs "3 pack"), so
+  // key on the SKU too. Keep single-digit tokens (the 1/2/3 in "N pack") that a
+  // length>=2 filter would drop and merge distinct packs.
+  const normSku = (s: string) => norm(s).replace(/\s+/g, '');
   const sigBuckets = new Map<string, number[]>();
   for (let i = 0; i < products.length; i++) {
-    const words = norm(products[i].name).split(' ').filter(t => t.length >= 2);
+    const words = norm(products[i].name).split(' ').filter(t => t.length >= 2 || /^\d+$/.test(t));
     const sig = [...new Set(words)].sort().join(' ');
-    if (sig) push(sigBuckets, sig, i);
+    if (sig) push(sigBuckets, sig + '|' + normSku(products[i].sku), i);
   }
   for (const idxs of sigBuckets.values()) unionAll(idxs);
 
