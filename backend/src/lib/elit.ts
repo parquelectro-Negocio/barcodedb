@@ -37,8 +37,8 @@ export interface MappedProduct {
   imageUrl: string;                    // imagenes[0]
   attributes: Record<string, string>;  // peso, garantia, atributos[] specs
   // Provenance (-> product_sources)
-  source: 'elit';
-  sourceId: string;                    // ELIT id
+  source: 'elit' | 'invid';            // which supplier catalog this came from
+  sourceId: string;                    // provider's own product id
   sourceSku: string;                   // codigo_alfa
   sourceUrl: string;                   // link
   sourceUpdatedAt: Date | null;        // actualizado
