@@ -9,7 +9,7 @@
 //  - Prices/stock never touched — mapElitProduct already dropped them.
 
 import { db, schema } from '../db';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { slugify } from './slug';
 import { categorize } from './categorize';
 import { fetchElitPage, mapElitProduct, type MappedProduct } from './elit';
@@ -45,12 +45,27 @@ async function buildCategoryResolver(): Promise<CategoryResolver> {
   return (name: string) => byKey.get(categorize(name) ?? '') ?? null;
 }
 
-// Upsert one mapped product (already known to have a non-empty barcode).
-async function upsertProduct(m: MappedProduct, resolveCategory: CategoryResolver): Promise<'inserted' | 'updated'> {
-  const existing = await db.query.products.findFirst({
-    where: eq(schema.products.barcode, m.barcode),
-    columns: { id: true, name: true, brand: true, sku: true, imageUrl: true, attributes: true, categoryId: true },
+const PRODUCT_COLS = { id: true, name: true, brand: true, sku: true, imageUrl: true, attributes: true, categoryId: true } as const;
+
+// Find a product this source already created, keyed by (source, source_id). Used
+// for barcode-less products: ELIT's own id is a safe within-provider key, so they
+// stay idempotent without ever name-merging.
+async function findBySource(m: MappedProduct) {
+  if (!m.sourceId) return undefined;
+  const src = await db.query.productSources.findFirst({
+    where: and(eq(schema.productSources.source, m.source), eq(schema.productSources.sourceId, m.sourceId)),
+    columns: { productId: true },
   });
+  if (!src) return undefined;
+  return db.query.products.findFirst({ where: eq(schema.products.id, src.productId), columns: PRODUCT_COLS });
+}
+
+// Upsert one mapped product. Products WITH an EAN are matched by barcode (cross-
+// provider dedup); barcode-less products are matched by (source, source_id).
+async function upsertProduct(m: MappedProduct, resolveCategory: CategoryResolver): Promise<'inserted' | 'updated'> {
+  const existing = m.barcode
+    ? await db.query.products.findFirst({ where: eq(schema.products.barcode, m.barcode), columns: PRODUCT_COLS })
+    : await findBySource(m);
 
   if (!existing) {
     const slug = slugify([m.name, m.brand].filter(Boolean).join('-'));
@@ -140,7 +155,9 @@ export async function syncElit(opts: ElitSyncOptions = {}): Promise<ElitSyncRepo
       try {
         const mapped = mapElitProduct(raw);
         if (!mapped) continue;
-        if (!mapped.barcode) { report.skippedNoEan++; continue; }
+        // Need at least one stable key: an EAN, or ELIT's own id for barcode-less
+        // items. Without either we can't dedup, so skip (never name-merge).
+        if (!mapped.barcode && !mapped.sourceId) { report.skippedNoEan++; continue; }
         const result = await upsertProduct(mapped, resolveCategory);
         report[result]++;
       } catch (err) {
