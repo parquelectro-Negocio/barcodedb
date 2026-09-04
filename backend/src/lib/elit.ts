@@ -125,7 +125,11 @@ export async function fetchElitPage(opts: ElitFetchOptions = {}): Promise<ElitPa
 
   const params = new URLSearchParams();
   params.set('limit', String(Math.min(Math.max(1, opts.limit ?? 100), 100)));
-  params.set('offset', String(Math.max(0, opts.offset ?? 0)));
+  // ELIT rejects offset=0 ("must be >= 1"); omitting it starts at the first
+  // product (its own docs omit offset and echo offset 0). So only send it when
+  // paging past the first page. Paging stays 0-based: 0 (omitted), 100, 200, ...
+  const offset = Math.max(0, opts.offset ?? 0);
+  if (offset >= 1) params.set('offset', String(offset));
   if (opts.since) params.set('actualizacion', opts.since);
   if (opts.store) params.set('store', opts.store);
 
