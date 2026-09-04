@@ -170,10 +170,12 @@ duplicatesRouter.post('/merge', async (c) => {
   return c.json({ success: true, keptId: keepId, removedId: removeId });
 });
 
-// Detect likely duplicate groups by three high-precision signals: a near-identical
-// name (same word set), a RARE model token shared within a brand (platform/spec
-// tokens shared by many products are skipped), or an exact SKU. Heuristic — the
-// moderator confirms before merging, so any stray grouping is just ignored.
+// Detect likely duplicate groups by three HIGH-PRECISION signals only: a
+// near-identical name (identical set of words), the same EAN ignoring leading
+// zeros (UPC vs EAN-13 of one product), or an exact SKU. Deliberately NO fuzzy /
+// shared-token grouping: in this catalog one token distinguishes real products,
+// so similarity grouping produced mass false positives. The moderator still
+// confirms before merging.
 duplicatesRouter.get('/candidates', async (c) => {
   const auth = requireAuth(c);
   if (!auth) return c.json({ error: 'auth_required' }, 401);
@@ -184,32 +186,6 @@ duplicatesRouter.get('/candidates', async (c) => {
 
   const norm = (s: string) => (s || '').toLowerCase().normalize('NFD')
     .replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
-  const brandOf = (p: any) => norm(p.brand) || '_';
-
-  // Colours make a variant a DIFFERENT product, so they must not be merged. The
-  // model-token grouping keys on colour too, keeping "M280 Negro" and "M280 Azul" apart.
-  const COLORS = new Set(['negro', 'negra', 'blanco', 'blanca', 'gris', 'azul', 'rojo', 'roja',
-    'verde', 'amarillo', 'amarilla', 'rosa', 'rosado', 'rosada', 'violeta', 'celeste', 'naranja',
-    'dorado', 'dorada', 'plateado', 'plateada', 'plata', 'marron', 'beige', 'turquesa', 'fucsia',
-    'lila', 'bordo', 'camo', 'camuflado', 'transparente', 'multicolor', 'cian', 'magenta', 'purpura', 'morado']);
-  const colorOf = (name: string) =>
-    [...new Set(norm(name).split(' ').filter(t => COLORS.has(t)))].sort().join('-');
-
-  // Capacity/measurement (16GB vs 32GB, 500ml vs 1L, 600W…) also makes a variant a
-  // DIFFERENT product — same model in another size is not a duplicate.
-  const specSig = (name: string) => {
-    const m = norm(name).match(/\d+\s?(gb|tb|mb|kb|w|kw|kv|v|a|ma|mah|ah|wh|kwh|hz|khz|mhz|ghz|ml|l|cl|mm|cm|km|va|dpi|rpm|fps|pulg|in|nm|lm|db)\b/g) || [];
-    return [...new Set(m.map(s => s.replace(/\s+/g, '')))].sort().join('-');
-  };
-
-  // Spec/platform tokens look like model codes (letter+digit) but describe an
-  // attribute or compatibility, not the product itself.
-  const isSpec = (t: string): boolean => {
-    if (/^\d+(gb|tb|mb|kb|g|kg|mg|w|kw|v|kv|a|ma|mah|ah|wh|kwh|hz|khz|mhz|ghz|p|i|k|mm|cm|m|km|ml|l|nm|lm|lux|rpm|dpi|fps|bit|bits|pin|pines|awg|ohm|db|psi|mp)$/.test(t)) return true;
-    if (/^(ddr\d|lpddr\d|usb\d|usbc|typec|cat\d|wifi\d|bt\d|hdmi\d|dp\d|pcie\d|pci|sata\d|nvme|gen\d|m2|rj\d+|awg\d+|lga\d+|am\d|ps\d|s\d{3,})$/.test(t)) return true;
-    return false;
-  };
-
   const parent = products.map((_: any, i: number) => i);
   const find = (x: number): number => { while (parent[x] !== x) { parent[x] = parent[parent[x]]; x = parent[x]; } return x; };
   const union = (a: number, b: number) => { const ra = find(a), rb = find(b); if (ra !== rb) parent[ra] = rb; };
@@ -225,18 +201,17 @@ duplicatesRouter.get('/candidates', async (c) => {
   }
   for (const idxs of sigBuckets.values()) unionAll(idxs);
 
-  // (b) Same RARE model token (letter+digit, not a spec) within a brand. Skipping
-  // buckets shared by many products drops platform tokens (lga1700, ps4, s1700)
-  // that would otherwise merge genuinely different products.
-  const mtBuckets = new Map<string, number[]>();
+  // (b) Same EAN ignoring leading zeros — a UPC-11/12 and the EAN-13 of the SAME
+  // product (suppliers pad differently). High precision: identical GTIN.
+  // A model-token heuristic used to live here but was REMOVED: in this domain a
+  // single token distinguishes real products (X870E vs B760M, DDR4 vs DDR5,
+  // 1TB vs 2TB), so token similarity grouped distinct products as duplicates.
+  const eanBuckets = new Map<string, number[]>();
   for (let i = 0; i < products.length; i++) {
-    const b = brandOf(products[i]);
-    const variant = colorOf(products[i].name) + '|' + specSig(products[i].name);
-    for (const t of new Set(norm(products[i].name).split(' '))) {
-      if (t.length >= 3 && /[a-z]/.test(t) && /\d/.test(t) && !isSpec(t)) push(mtBuckets, b + '|' + t + '|' + variant, i);
-    }
+    const ean = String(products[i].barcode || '').replace(/\D/g, '').replace(/^0+/, '');
+    if (ean.length >= 8) push(eanBuckets, ean, i);
   }
-  for (const idxs of mtBuckets.values()) if (idxs.length <= 5) unionAll(idxs);
+  for (const idxs of eanBuckets.values()) unionAll(idxs);
 
   // (c) Exact SKU.
   const skuBuckets = new Map<string, number[]>();
