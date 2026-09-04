@@ -3,7 +3,9 @@ import { Link } from 'react-router-dom';
 import { API_BASE } from '../lib/config';
 import { SectorPicker } from '../components/SectorPicker';
 import { CreateBusinessCard } from '../components/CreateBusinessCard';
+import { ElitSync } from '../components/ElitSync';
 import { apiHeaders } from '../lib/user';
+import { useAuth } from '../lib/auth';
 
 // Shop-level settings that live on the Panel. Currently the default markup used
 // to auto-suggest sale prices from cost when adding NEW products. Editing it never
@@ -110,6 +112,7 @@ function ShopSettings({ business, onUpdated }: { business: any; onUpdated: (b: a
 // dashboard (sales, estimated profit, low stock, quick actions). Lives on its
 // own tab so the public home stays a clean, scroll-free landing.
 export function PanelPage() {
+  const { user } = useAuth();
   const [businessSlug, setBusinessSlug] = useState(localStorage.getItem('biz_slug') || '');
   const [business, setBusiness] = useState<any>(null);
   const [stats, setStats] = useState<any>(null);
@@ -284,6 +287,7 @@ export function PanelPage() {
           </div>
 
           <ShopSettings business={business} onUpdated={setBusiness} />
+          {user?.isModerator && <ElitSync />}
         </div>
       )}
 
