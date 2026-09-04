@@ -121,6 +121,27 @@ export const productAliases = pgTable('product_aliases', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
+// Provenance for products ingested from external supplier catalogs (ELIT, etc.).
+// One row per (source, source_id): lets ingest stay idempotent, records which
+// provider fed a product and when it was last updated there. Holds only identity/
+// origin — never prices or stock (those stay per-merchant in business_products).
+export const productSources = pgTable('product_sources', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  productId: uuid('product_id').notNull().references(() => products.id),
+  source: text('source').notNull(),                          // e.g. 'elit'
+  sourceId: text('source_id').default('').notNull(),         // provider's own product id
+  sourceSku: text('source_sku').default('').notNull(),       // provider SKU / alt code
+  sourceUrl: text('source_url').default('').notNull(),
+  sourceUpdatedAt: timestamp('source_updated_at', { withTimezone: true }),
+  fetchedAt: timestamp('fetched_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  // One product per (source, source_id). Partial so a source without a stable id
+  // (source_id '') never collides. API sources always carry an id.
+  sourceIdUnique: uniqueIndex('product_sources_source_id_unique')
+    .on(table.source, table.sourceId)
+    .where(sql`${table.sourceId} <> ''`),
+}));
+
 export const sales = pgTable('sales', {
   id: uuid('id').defaultRandom().primaryKey(),
   businessId: uuid('business_id').notNull().references(() => businesses.id),

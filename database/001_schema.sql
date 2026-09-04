@@ -214,3 +214,19 @@ CREATE TABLE IF NOT EXISTS feedback (
 -- products (identified by slug) can coexist without colliding on empty string.
 -- This is the safety lock that makes supplier-API ingest idempotent (upsert by EAN).
 CREATE UNIQUE INDEX IF NOT EXISTS products_barcode_unique ON products (barcode) WHERE barcode <> '';
+
+-- Migration: supplier-API provenance. One row per (source, source_id). Records
+-- which external catalog a product came from and when it last changed there, so
+-- ingest is idempotent. Identity/origin only — never prices or stock.
+CREATE TABLE IF NOT EXISTS product_sources (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  product_id        UUID NOT NULL REFERENCES products(id),
+  source            TEXT NOT NULL,
+  source_id         TEXT NOT NULL DEFAULT '',
+  source_sku        TEXT NOT NULL DEFAULT '',
+  source_url        TEXT NOT NULL DEFAULT '',
+  source_updated_at TIMESTAMPTZ,
+  fetched_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS product_sources_source_id_unique ON product_sources (source, source_id) WHERE source_id <> '';
+CREATE INDEX IF NOT EXISTS idx_product_sources_product ON product_sources(product_id);

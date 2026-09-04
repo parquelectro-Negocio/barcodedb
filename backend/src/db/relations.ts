@@ -12,6 +12,11 @@ export const productsRelations = relations(s.products, ({ one, many }) => ({
   variants: many(s.productVariants),
   aliases: many(s.productAliases),
   votes: many(s.productVotes),
+  sources: many(s.productSources),
+}));
+
+export const productSourcesRelations = relations(s.productSources, ({ one }) => ({
+  product: one(s.products, { fields: [s.productSources.productId], references: [s.products.id] }),
 }));
 
 export const productVariantsRelations = relations(s.productVariants, ({ one }) => ({

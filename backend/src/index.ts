@@ -15,6 +15,7 @@ import { authRouter } from './routes/auth';
 import { duplicatesRouter } from './routes/duplicates';
 import { imagesRouter } from './routes/images';
 import { feedbackRouter } from './routes/feedback';
+import { adminRouter } from './routes/admin';
 import { userMiddleware } from './middleware/user';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -40,6 +41,7 @@ app.route('/api/categories', categoriesRouter);
 app.route('/api/votes', votesRouter);
 app.route('/api/sales', salesRouter);
 app.route('/api/feedback', feedbackRouter);
+app.route('/api/admin', adminRouter);
 
 // Global error handler: log method + path + stack so a 500 in production is
 // immediately traceable in the logs (Hono's default logs a context-free error).
