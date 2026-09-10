@@ -34,6 +34,15 @@ export function SupplierSync({ title, endpoint, note }: Props) {
   const [msg, setMsg] = useState('');
   const [report, setReport] = useState<SyncReport | null>(null);
 
+  // Resume point: a full sync can stop mid-way (rate limit / error). We persist
+  // the last processed offset per endpoint so the next run continues instead of
+  // re-processing from 0 and burning the provider's request budget.
+  const storageKey = `sync_offset_${endpoint}`;
+  const readOffset = (): number => {
+    try { return Math.max(0, parseInt(localStorage.getItem(storageKey) || '0', 10)) || 0; } catch { return 0; }
+  };
+  const [resumeOffset, setResumeOffset] = useState<number>(readOffset);
+
   async function callSync(offset: number, maxPages: number): Promise<SyncReport> {
     const res = await fetch(`${API_BASE}${endpoint}`, {
       method: 'POST',
@@ -62,11 +71,13 @@ export function SupplierSync({ title, endpoint, note }: Props) {
   }
 
   async function runFull() {
-    setRunning(true); setMsg('Sincronizando catálogo completo…');
+    setRunning(true);
     const acc: SyncReport = { ...EMPTY };
+    let offset = Math.max(0, resumeOffset || 0);
+    setMsg(offset > 0 ? `Reanudando desde el producto ${offset}…` : 'Sincronizando catálogo completo…');
     try {
-      let offset = 0, done = false, guard = 0;
-      while (!done && guard++ < 500) {
+      let done = false, guard = 0;
+      while (!done && guard++ < 1000) {
         const r = await callSync(offset, 5);
         acc.fetched += r.fetched;
         acc.inserted += r.inserted;
@@ -76,12 +87,18 @@ export function SupplierSync({ title, endpoint, note }: Props) {
         acc.total = r.total;
         offset = r.nextOffset;
         done = r.done;
+        try { localStorage.setItem(storageKey, String(offset)); } catch { /* ignore */ }
+        setResumeOffset(offset);
         setReport({ ...acc, nextOffset: offset, done });
-        setMsg(`Procesados ${acc.fetched}${r.total ? ` de ${r.total}` : ''}…`);
+        setMsg(`Procesados ${acc.fetched}${r.total ? ` de ${r.total}` : ''} (posición ${offset})…`);
       }
-      setMsg(`✓ Sincronización completa: ${acc.fetched} productos procesados.`);
+      // Finished the whole catalog — clear the resume point.
+      try { localStorage.removeItem(storageKey); } catch { /* ignore */ }
+      setResumeOffset(0);
+      setMsg(`✓ Sincronización completa: ${acc.fetched} productos en esta corrida.`);
     } catch (e) {
-      setMsg(`Se detuvo: ${(e as Error).message}. Podés reintentar — es idempotente.`);
+      // Keep the saved offset so the next run resumes from here.
+      setMsg(`Se detuvo en la posición ${offset}: ${(e as Error).message} Volvé a tocar "Sincronizar todo" y continúa desde acá.`);
     } finally {
       setRunning(false);
     }
@@ -110,9 +127,23 @@ export function SupplierSync({ title, endpoint, note }: Props) {
               {running ? 'Trabajando…' : 'Probar (100)'}
             </button>
             <button onClick={runFull} disabled={running} className="btn-primary text-sm disabled:opacity-50">
-              {running ? 'Trabajando…' : 'Sincronizar todo'}
+              {running ? 'Trabajando…' : resumeOffset > 0 ? 'Continuar sincronización' : 'Sincronizar todo'}
             </button>
           </div>
+
+          {!running && (
+            <div className="flex items-center gap-2 mt-2 text-xs text-stone-500">
+              <label htmlFor={`off-${endpoint}`}>Empezar desde el producto Nº</label>
+              <input
+                id={`off-${endpoint}`}
+                type="number" min="0" step="100"
+                value={resumeOffset}
+                onChange={e => setResumeOffset(Math.max(0, parseInt(e.target.value || '0', 10) || 0))}
+                className="input w-24 py-1"
+              />
+              <span className="text-stone-400">(0 = desde el principio)</span>
+            </div>
+          )}
 
           {msg && <p className="text-xs text-stone-600 mt-3">{msg}</p>}
 
