@@ -5,6 +5,8 @@
 // stock field. Prices/stock are per-merchant and never enter the global base.
 // Keep that guarantee — the mapping test asserts no pricing field can leak.
 
+import { toCanonicalEan } from './ean';
+
 // Raw shape returned by ELIT (only the fields we read are typed; the rest —
 // precio, iva, pvp_ars, stock_total, etc. — are intentionally ignored).
 export interface ElitRawProduct {
@@ -48,12 +50,13 @@ function str(v: unknown): string {
   return v == null ? '' : String(v).trim();
 }
 
-// Normalize an EAN to digits only. Returns '' when there is no plausible code,
-// so the caller can decide to skip it (barcode-less items are never merged by
-// name — see the ingest). Does not validate the checksum; presence is enough.
+// Normalize an EAN for storage/matching. Delegates to the shared canonical form
+// (strips leading zeros) so the same product matches across suppliers — ELIT's
+// 11-digit UPC and INVID's 13/14-digit GTIN collapse to one key. Returns '' when
+// there is no plausible code (barcode-less items are matched by source id, never
+// by name — see the ingest).
 export function normalizeEan(raw: unknown): string {
-  const digits = str(raw).replace(/\D/g, '');
-  return digits.length >= 8 && digits.length <= 14 ? digits : '';
+  return toCanonicalEan(raw);
 }
 
 function parseDate(v: unknown): Date | null {

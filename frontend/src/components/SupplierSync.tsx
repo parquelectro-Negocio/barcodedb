@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { API_BASE } from '../lib/config';
 import { apiHeaders } from '../lib/user';
 
-// Moderator-only trigger for the ELIT catalog sync. The backend endpoint is
-// resumable (one call processes a few pages and returns nextOffset/done), so the
-// full sync loops here, accumulating a running report. Never handles credentials —
-// the ELIT token lives only in the backend environment.
+// Moderator-only trigger for a supplier catalog sync (ELIT, INVID, ...). The
+// backend endpoint is resumable (a call processes a few pages and returns
+// nextOffset/done), so the full sync loops here, accumulating a running report.
+// Never handles credentials — supplier tokens live only in the backend env.
 
 interface SyncReport {
   fetched: number;
@@ -22,14 +22,20 @@ const EMPTY: SyncReport = {
   fetched: 0, inserted: 0, updated: 0, skippedNoEan: 0, errors: 0, total: 0, nextOffset: 0, done: false,
 };
 
-export function ElitSync() {
+interface Props {
+  title: string;       // e.g. "Sincronizar catálogo ELIT"
+  endpoint: string;    // e.g. "/admin/sync/elit"
+  note?: string;       // optional caption (e.g. rate-limit warning)
+}
+
+export function SupplierSync({ title, endpoint, note }: Props) {
   const [open, setOpen] = useState(false);
   const [running, setRunning] = useState(false);
   const [msg, setMsg] = useState('');
   const [report, setReport] = useState<SyncReport | null>(null);
 
   async function callSync(offset: number, maxPages: number): Promise<SyncReport> {
-    const res = await fetch(`${API_BASE}/admin/sync/elit`, {
+    const res = await fetch(`${API_BASE}${endpoint}`, {
       method: 'POST',
       headers: apiHeaders(),
       body: JSON.stringify({ offset, maxPages }),
@@ -41,14 +47,13 @@ export function ElitSync() {
     return res.json();
   }
 
-  // Safe first run: pull only the first 100 products so we can eyeball the result
-  // before importing the whole catalog.
+  // Safe first run: one page (~100 products) to eyeball before importing all.
   async function runTest() {
-    setRunning(true); setReport(null); setMsg('Trayendo 100 productos de prueba…');
+    setRunning(true); setReport(null); setMsg('Trayendo una muestra…');
     try {
       const r = await callSync(0, 1);
       setReport(r);
-      setMsg(`Prueba OK — ELIT tiene ${r.total} productos en total.`);
+      setMsg(r.total ? `Prueba OK — ${r.total} productos en total.` : 'Prueba OK.');
     } catch (e) {
       setMsg(`Error: ${(e as Error).message}`);
     } finally {
@@ -72,7 +77,7 @@ export function ElitSync() {
         offset = r.nextOffset;
         done = r.done;
         setReport({ ...acc, nextOffset: offset, done });
-        setMsg(`Procesados ${acc.fetched} de ${r.total}…`);
+        setMsg(`Procesados ${acc.fetched}${r.total ? ` de ${r.total}` : ''}…`);
       }
       setMsg(`✓ Sincronización completa: ${acc.fetched} productos procesados.`);
     } catch (e) {
@@ -88,17 +93,18 @@ export function ElitSync() {
         onClick={() => setOpen(o => !o)}
         className="w-full flex items-center justify-between text-sm font-semibold text-stone-700"
       >
-        <span>🔄 Sincronizar catálogo ELIT</span>
+        <span>🔄 {title}</span>
         <span className="text-stone-400">{open ? '−' : '+'}</span>
       </button>
 
       {open && (
         <div className="mt-4">
           <p className="text-xs text-stone-500 mb-3 max-w-md">
-            Trae la identidad de los productos de ELIT (código, nombre, marca, specs, imagen).
-            Nunca importa precios ni stock. Empezá por <strong>Probar</strong> para revisar antes
-            de traer todo.
+            Trae la identidad de los productos (código, nombre, marca, specs, imagen).
+            Nunca importa precios ni stock. Empezá por <strong>Probar</strong> para revisar
+            antes de traer todo.
           </p>
+          {note && <p className="text-xs text-amber-600 mb-3 max-w-md">{note}</p>}
           <div className="flex gap-2">
             <button onClick={runTest} disabled={running} className="btn-secondary text-sm disabled:opacity-50">
               {running ? 'Trabajando…' : 'Probar (100)'}

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { API_BASE } from '../lib/config';
 import { SectorPicker } from '../components/SectorPicker';
 import { CreateBusinessCard } from '../components/CreateBusinessCard';
-import { ElitSync } from '../components/ElitSync';
+import { SupplierSync } from '../components/SupplierSync';
 import { apiHeaders } from '../lib/user';
 import { useAuth } from '../lib/auth';
 
@@ -287,7 +287,16 @@ export function PanelPage() {
           </div>
 
           <ShopSettings business={business} onUpdated={setBusiness} />
-          {user?.isModerator && <ElitSync />}
+          {user?.isModerator && (
+            <>
+              <SupplierSync title="Sincronizar catálogo ELIT" endpoint="/admin/sync/elit" />
+              <SupplierSync
+                title="Sincronizar catálogo INVID"
+                endpoint="/admin/sync/invid"
+                note="INVID limita a 50 consultas por hora. Si se corta, reintentá más tarde — es idempotente."
+              />
+            </>
+          )}
         </div>
       )}
 

@@ -64,3 +64,57 @@ export function mapInvidProduct(raw: InvidArticulo): MappedProduct | null {
     sourceUpdatedAt: null,
   };
 }
+
+const INVID_BASE = () => (process.env.INVID_API_BASE || 'https://invidcomputers.com/api/v1').replace(/\/+$/, '');
+
+// Authenticate the integrator and return a JWT. Credentials come from the
+// environment (INVID_USERNAME / INVID_PASSWORD) — never hard-coded, never logged.
+// Token is valid ~24h; we fetch a fresh one per sync run.
+export async function loginInvid(): Promise<string> {
+  const username = process.env.INVID_USERNAME;
+  const password = process.env.INVID_PASSWORD;
+  if (!username || !password) {
+    throw new Error('INVID_USERNAME / INVID_PASSWORD not set in the environment');
+  }
+  const res = await fetch(`${INVID_BASE()}/auth.php`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  });
+  if (!res.ok) {
+    const detail = (await res.text().catch(() => '')).slice(0, 300);
+    throw new Error(`INVID auth HTTP ${res.status}: ${detail}`);
+  }
+  const data: any = await res.json();
+  const token = data?.access_token;
+  if (!token) throw new Error('INVID auth: no access_token in response');
+  return String(token);
+}
+
+export interface InvidPage {
+  data: InvidArticulo[];
+  hasMore: boolean;    // next_page_url present
+  nextOffset: number;
+}
+
+// Fetch one page of the INVID catalog (100 max). Paginates by offset; offset 0 is
+// sent as the bare endpoint (its docs page the first call without offset). The
+// endpoint is rate-limited to 50 req/hour — a 429 is surfaced so the caller stops
+// and resumes later (the sync is idempotent).
+export async function fetchInvidPage(token: string, offset: number): Promise<InvidPage> {
+  const off = Math.max(0, offset);
+  const qs = off >= 1 ? `?offset=${off}` : '';
+  const res = await fetch(`${INVID_BASE()}/articulo.php${qs}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (res.status === 429) {
+    throw new Error('INVID rate limit (429): 50 requests/hora. Reintentá más tarde — el sync es idempotente.');
+  }
+  if (!res.ok) {
+    const detail = (await res.text().catch(() => '')).slice(0, 300);
+    throw new Error(`INVID articulos HTTP ${res.status}: ${detail}`);
+  }
+  const body: any = await res.json();
+  const data: InvidArticulo[] = Array.isArray(body?.data) ? body.data : (body?.data ? [body.data] : []);
+  return { data, hasMore: !!body?.next_page_url, nextOffset: off + data.length };
+}
