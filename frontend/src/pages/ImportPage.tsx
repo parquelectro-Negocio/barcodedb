@@ -92,10 +92,18 @@ export function ImportPage() {
       return;
     }
 
-    const buf = await file.arrayBuffer();
-    const wb = XLSX.read(buf, { type: 'array' });
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    const json = XLSX.utils.sheet_to_json<FileRow>(ws, { defval: '' });
+    // Parsing can throw on a corrupt file, an unexpected format, or memory limits
+    // (more likely on phones) — surface a clear message instead of failing silently.
+    let json: FileRow[];
+    try {
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      json = XLSX.utils.sheet_to_json<FileRow>(ws, { defval: '' });
+    } catch {
+      toast('No se pudo leer el archivo. Probá exportarlo de nuevo como .xlsx o .csv.', 'error');
+      return;
+    }
     if (json.length === 0) {
       toast('El archivo está vacío o no se pudo leer.', 'error');
       return;
