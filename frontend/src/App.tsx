@@ -31,6 +31,14 @@ function RequireAuth({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
+// Logged-in owners land on their shop (Panel); anonymous visitors get the public
+// collaborative search. The public base stays one tap away in the nav ("Buscar").
+function HomeGate() {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="text-center py-16 text-stone-400">Cargando...</div>;
+  return user ? <Navigate to="/panel" replace /> : <Home />;
+}
+
 // The collaborative base — public / contribute (available to anyone).
 const BASE_NAV = [
   { path: '/search', label: 'Buscar' },
@@ -245,7 +253,7 @@ function AppContent() {
       <NavBar />
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 animate-fade-in">
         <Routes>
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={<HomeGate />} />
           <Route path="/search" element={<Search />} />
           <Route path="/product/:barcode" element={<ProductDetail />} />
           <Route path="/scan" element={<ScanPage />} />
