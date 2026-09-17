@@ -12,11 +12,11 @@ const COLUMN_KEYS = ['name', 'barcode', 'sku', 'brand', 'category', 'color', 'ca
 type ColumnKey = typeof COLUMN_KEYS[number];
 
 const COLUMN_LABELS: Record<ColumnKey, string> = {
-  name: 'Nombre / Descripcion',
-  barcode: 'Codigo de barras',
-  sku: 'SKU / Codigo interno',
+  name: 'Nombre / Descripción',
+  barcode: 'Código de barras',
+  sku: 'SKU / Código interno',
   brand: 'Marca',
-  category: 'Categoria',
+  category: 'Categoría',
   color: 'Color',
   capacidad: 'Capacidad',
   largo: 'Largo',
@@ -97,7 +97,7 @@ export function ImportPage() {
     const ws = wb.Sheets[wb.SheetNames[0]];
     const json = XLSX.utils.sheet_to_json<FileRow>(ws, { defval: '' });
     if (json.length === 0) {
-      toast('El archivo esta vacio o no se pudo leer.', 'error');
+      toast('El archivo está vacío o no se pudo leer.', 'error');
       return;
     }
 
@@ -190,7 +190,7 @@ export function ImportPage() {
     if (fileHeaders && fileRows) {
       const mappedCols = fileHeaders.filter(h => columnMap[h]);
       if (!mappedCols.some(h => columnMap[h] === 'name' || columnMap[h] === 'barcode')) {
-        toast('Necesitas mapear al menos "Nombre" o "Codigo de barras" para buscar.', 'error');
+        toast('Necesitás mapear al menos "Nombre" o "Código de barras" para buscar.', 'error');
         return;
       }
     }
@@ -347,14 +347,14 @@ export function ImportPage() {
         {fileRows ? (
           <p className="text-emerald-600">{fileName} &mdash; {fileRows.length} filas cargadas (click para cambiar)</p>
         ) : (
-          <p className="text-stone-400">Solta un archivo .xlsx / .xls / .csv aca, o hace click para seleccionar</p>
+          <p className="text-stone-400">Soltá un archivo .xlsx / .xls / .csv acá, o hacé click para seleccionar</p>
         )}
       </div>
 
       {fileHeaders && fileRows && (
         <div className="mb-4">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-lg font-semibold">Vista previa &mdash; mapea las columnas</h3>
+            <h3 className="text-lg font-semibold">Vista previa &mdash; mapeá las columnas</h3>
             <button onClick={clearFile} className="text-sm text-stone-400 hover:text-stone-900">Quitar archivo</button>
           </div>
 
@@ -390,7 +390,7 @@ export function ImportPage() {
                 {fileRows.length > 10 && (
                   <tr className="border-t border-stone-200">
                     <td colSpan={fileHeaders.length} className="p-2 text-center text-stone-400 italic">
-                      ... y {fileRows.length - 10} filas mas
+                      ... y {fileRows.length - 10} filas más
                     </td>
                   </tr>
                 )}
@@ -402,7 +402,7 @@ export function ImportPage() {
 
       {!fileRows && (
         <>
-          <p className="text-stone-500 mb-3">O pega una lista de productos (uno por linea):</p>
+          <p className="text-stone-500 mb-3">O pegá una lista de productos (uno por línea):</p>
           <textarea
             value={text}
             onChange={e => setText(e.target.value)}
@@ -430,7 +430,7 @@ export function ImportPage() {
           type="text"
           value={businessSlug}
           onChange={e => setBusinessSlug(e.target.value)}
-          placeholder="Slug de tu comercio (opcional)"
+          placeholder="Identificador de tu comercio (opcional)"
           className="flex-1 px-4 py-2 bg-white border border-stone-300 rounded-lg text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
         />
         <button
