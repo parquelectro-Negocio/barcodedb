@@ -5,6 +5,7 @@ import { useToast } from '../lib/toast';
 import { API_BASE, resolveImageUrl } from '../lib/config';
 import { Link } from 'react-router-dom';
 import { Scanner } from '../components/Scanner';
+import { QuickAddToInventory } from '../components/QuickAddToInventory';
 import { generateDocumentPDF, sharePDF, fetchLogoDataUrl, fetchAppLogoDataUrl } from '../lib/pdf';
 
 type CartItem = {
@@ -49,6 +50,7 @@ export function POSPage() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('efectivo');
   const [amountTendered, setAmountTendered] = useState('');
   const [search, setSearch] = useState('');
+  const [addCandidate, setAddCandidate] = useState<any | null>(null);
 
   const loadBusiness = async (slug: string) => {
     if (!slug.trim()) return;
@@ -133,7 +135,9 @@ export function POSPage() {
       if (!product) { toast(`Código ${barcode} no encontrado en la base`, 'error'); return; }
       const bp = catalog.find((c: any) => c.productId === product.id);
       if (!bp) {
-        toast(`"${product.name}" no está en tu inventario. Agregalo con precio antes de venderlo.`, 'error');
+        // Not in this shop's catalog yet — offer to price & add it on the spot
+        // instead of bouncing the owner out of the sale.
+        setAddCandidate(product);
         return;
       }
       addBpToCart(bp);
@@ -493,6 +497,20 @@ export function POSPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {addCandidate && business && (
+        <QuickAddToInventory
+          business={business}
+          product={addCandidate}
+          ctaLabel="Agregar y vender"
+          onAdded={(bp) => {
+            setCatalog(prev => [bp, ...prev.filter((p: any) => p.id !== bp.id)]);
+            addBpToCart(bp);
+            setAddCandidate(null);
+          }}
+          onClose={() => setAddCandidate(null)}
+        />
       )}
 
       <div className="mb-6">
