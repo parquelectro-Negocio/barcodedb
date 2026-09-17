@@ -98,6 +98,12 @@ export function POSPage() {
       toast(`"${bp.product.name}" está sin precio. Cargalo en Stock antes de venderlo.`, 'error');
       return;
     }
+    // Warn the moment the cart quantity would exceed stock, instead of only at
+    // checkout — but still allow it (some items sell by order / backordered).
+    const alreadyInCart = cart.find(i => i.id === bp.id)?.quantity ?? 0;
+    if (typeof bp.stock === 'number' && alreadyInCart + 1 > bp.stock) {
+      toast(`"${bp.product.name}": llevás ${alreadyInCart + 1} y hay ${bp.stock} en stock.`, 'error');
+    }
     setCart(prev => {
       const existing = prev.find(i => i.id === bp.id);
       if (existing) {
@@ -115,7 +121,7 @@ export function POSPage() {
         stock: bp.stock,
       }];
     });
-  }, [toast]);
+  }, [toast, cart]);
 
   // Barcode path (scanner / manual code): the item must be in this shop's catalog.
   const addByBarcode = useCallback(async (barcode: string) => {
@@ -420,7 +426,7 @@ export function POSPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-4xl mx-auto pb-24 lg:pb-0">
       <h2 className="text-2xl font-bold mb-4 text-stone-800">Vender</h2>
 
       {showPayment && (
@@ -693,6 +699,25 @@ export function POSPage() {
           )}
         </div>
       </div>
+
+      {/* Mobile-only sticky checkout bar: keeps the running total and "Cobrar"
+          in reach while adding items, instead of buried below the cart column. */}
+      {cart.length > 0 && (
+        <div className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-white/95 backdrop-blur border-t border-stone-200 px-4 py-3 shadow-[0_-2px_10px_rgba(0,0,0,0.06)]">
+          <div className="max-w-4xl mx-auto flex items-center gap-3">
+            <div className="min-w-0">
+              <p className="text-xs text-stone-400 leading-none">{cart.length} {cart.length === 1 ? 'ítem' : 'ítems'}</p>
+              <p className="text-xl font-bold text-stone-900 leading-tight">${total.toFixed(2)}</p>
+            </div>
+            <button
+              onClick={openPayment}
+              className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-semibold"
+            >
+              Cobrar
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
