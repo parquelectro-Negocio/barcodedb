@@ -16,10 +16,12 @@ async function mergeInto(tx: any, removeId: string, keepId: string) {
   const bps = await tx.select().from(schema.businessProducts)
     .where(eq(schema.businessProducts.productId, removeId));
   for (const bp of bps) {
-    await tx.insert(schema.businessProducts).values({
+    // Upsert the keeper's row for this business and get its id back. variantId is
+    // dropped: the removed product's variants are deleted below with the product.
+    const [kept] = await tx.insert(schema.businessProducts).values({
       businessId: bp.businessId,
       productId: keepId,
-      variantId: bp.variantId,
+      variantId: null,
       sku: bp.sku,
       stock: bp.stock,
       cost: bp.cost,
@@ -27,7 +29,15 @@ async function mergeInto(tx: any, removeId: string, keepId: string) {
     }).onConflictDoUpdate({
       target: [schema.businessProducts.businessId, schema.businessProducts.productId],
       set: { stock: bp.stock, price: bp.price, cost: bp.cost },
-    });
+    }).returning({ id: schema.businessProducts.id });
+
+    // Repoint sale history onto the kept row so deleting the removed business_product
+    // below doesn't violate the sale_items foreign key.
+    if (kept?.id && kept.id !== bp.id) {
+      await tx.update(schema.saleItems)
+        .set({ businessProductId: kept.id })
+        .where(eq(schema.saleItems.businessProductId, bp.id));
+    }
   }
   await tx.delete(schema.businessProducts)
     .where(eq(schema.businessProducts.productId, removeId));
@@ -54,6 +64,20 @@ async function mergeInto(tx: any, removeId: string, keepId: string) {
   await tx.update(schema.duplicateReports)
     .set({ targetId: keepId })
     .where(eq(schema.duplicateReports.targetId, removeId));
+
+  // Move provenance to the keeper, skipping any (source, source_id) it already has
+  // (the partial unique index would reject a duplicate), then drop the leftovers so
+  // deleting the product below doesn't violate the product_sources foreign key.
+  await tx.execute(sql`
+    UPDATE product_sources ps SET product_id = ${keepId}
+    WHERE ps.product_id = ${removeId}
+      AND NOT EXISTS (
+        SELECT 1 FROM product_sources k
+        WHERE k.product_id = ${keepId} AND k.source = ps.source AND k.source_id = ps.source_id
+      )
+  `);
+  await tx.delete(schema.productSources)
+    .where(eq(schema.productSources.productId, removeId));
 
   await tx.delete(schema.productVariants)
     .where(eq(schema.productVariants.productId, removeId));
