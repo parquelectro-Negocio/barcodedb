@@ -187,7 +187,7 @@ export function StockPage() {
         />
       )}
 
-      <div className="grid grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
         <div className="bg-white border border-stone-200 rounded-xl p-4 shadow-sm">
           <p className="text-xs text-stone-400 uppercase tracking-wide mb-1">Productos</p>
           <p className="text-2xl font-bold text-stone-800">{items.length}</p>
@@ -263,7 +263,7 @@ export function StockPage() {
 
               return (
                 <div key={item.id} className={`p-4 ${isOut ? 'bg-red-50' : isLow ? 'bg-amber-50' : ''}`}>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap">
                     {item.product.imageUrl
                       ? <img src={resolveImageUrl(item.product.imageUrl)} alt="" className="w-10 h-10 object-cover rounded-lg shrink-0" />
                       : <div className="w-10 h-10 bg-stone-100 rounded-lg shrink-0" />}
@@ -278,7 +278,7 @@ export function StockPage() {
                     </div>
 
                     {isEditing ? (
-                      <div className="flex items-center gap-2 shrink-0">
+                      <div className="flex items-center gap-2 shrink-0 flex-wrap w-full sm:w-auto justify-between sm:justify-normal mt-3 sm:mt-0">
                         <div className="flex items-center">
                           <button
                             onClick={() => setEditing(prev => ({ ...prev, [item.id]: { ...prev[item.id], stock: Math.max(0, edit.stock - 1) } }))}
@@ -329,7 +329,7 @@ export function StockPage() {
                         </div>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-4 shrink-0">
+                      <div className="flex items-center gap-4 shrink-0 w-full sm:w-auto justify-between sm:justify-normal mt-3 sm:mt-0">
                         <div className="text-right">
                           <p className={`text-lg font-bold font-mono ${isOut ? 'text-red-600' : isLow ? 'text-amber-600' : 'text-stone-800'}`}>
                             {item.stock}
