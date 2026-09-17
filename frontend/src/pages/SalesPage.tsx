@@ -152,7 +152,7 @@ export function SalesPage() {
     <div className="max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-stone-800">Ventas</h2>
+          <h2 className="text-2xl font-bold text-stone-800">Historial de ventas</h2>
           <p className="text-sm text-emerald-600 font-medium">{business?.name}</p>
         </div>
         <div className="flex items-center gap-3">

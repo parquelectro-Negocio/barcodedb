@@ -40,7 +40,7 @@ const BASE_NAV = [
 // Your shop — private, only shown when logged in.
 const SHOP_NAV = [
   { path: '/panel', label: 'Panel' },
-  { path: '/sales', label: 'Ventas' },
+  { path: '/sales', label: 'Historial' },
   { path: '/stock', label: 'Stock' },
 ];
 

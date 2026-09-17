@@ -88,7 +88,7 @@ export function Home() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v14a2 2 0 01-2 2z" />
             </svg>
           </div>
-          <h3 className="font-semibold text-stone-800 mb-1">Punto de venta</h3>
+          <h3 className="font-semibold text-stone-800 mb-1">Vender</h3>
           <p className="text-sm text-stone-400">Vendé productos con escáner y carrito</p>
         </Link>
       </div>
