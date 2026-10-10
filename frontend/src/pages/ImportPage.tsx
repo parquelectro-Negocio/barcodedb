@@ -433,13 +433,15 @@ export function ImportPage() {
         />
       </div>
 
-      <div className="flex gap-3 mt-4 mb-8">
+      {/* Stacked on phones: side by side the input refused to shrink and pushed
+          the button off-screen. */}
+      <div className="flex flex-col sm:flex-row gap-3 mt-4 mb-8">
         <input
           type="text"
           value={businessSlug}
           onChange={e => setBusinessSlug(e.target.value)}
           placeholder="Identificador de tu comercio (opcional)"
-          className="flex-1 px-4 py-2 bg-white border border-stone-300 rounded-lg text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          className="flex-1 min-w-0 px-4 py-2 bg-white border border-stone-300 rounded-lg text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
         />
         <button
           onClick={handleMatch}
